@@ -15,11 +15,11 @@ from dotenv import load_dotenv
 
 
 """
-1 btc point = 0.00000024 btc
-1 ltc point = 0.00023 ltc
-1 eth point = 0.000010 eth
-1 usdt (erc-20) point = 0.0212 eth
-1 sol point = 0.0001442 sol
+1 point = 0.00000024 btc
+1 point = 0.00023 ltc
+1 point = 0.000010 eth
+1 point = 1 usdt
+1 point = 0.0001442 sol
 """
 
 # Load environment variables
@@ -103,7 +103,8 @@ async def on_command(ctx):
                 dump = {
                 "discord_id": ctx.author.id,
                 "name": ctx.author.name,
-                "tokens": 0, 
+                "points": 0,
+                "primary_coin": "BTC",
                 "wallet": {
                     "BTC":0,
                     "SOL":0,
