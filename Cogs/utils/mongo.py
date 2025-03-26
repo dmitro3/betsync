@@ -32,99 +32,33 @@ class Users:
         else:
             return False
 
-    def update_balance(self, user_id, amount, currency: str = "tokens", operation = "$set"):
+    def update_balance(self, user_id, amount, currency_type="tokens", operation="$set"):
+        """Updates the balance field for the specified user.
+
+        Args:
+            user_id (int): The Discord ID of the user.
+            amount (float): The amount to update.
+            currency_type (str, optional): Kept for backwards compatibility. Default is "tokens".
+            operation (str, optional): The MongoDB operation to perform, "$set" or "$inc". Defaults to "$set".
+
+        Returns:
+            dict: The response from MongoDB.
+        """
         try:
-            # Get user data before update to track the change
-            user_before = self.fetch_user(user_id)
-            if not user_before:
-                return False
-
-            previous_amount = user_before.get(currency, 0)
-
-            # Update the balance
-            self.collection.update_one({"discord_id": user_id}, {operation: {currency: amount}})
-
-            # Get updated user data
-            user_after = self.fetch_user(user_id)
-            if not user_after:
-                return False
-
-            new_amount = user_after.get(currency, 0)
-
-            # Determine if this was an increase or decrease
-            change = 0
             if operation == "$set":
-                change = new_amount - previous_amount
-            elif operation == "$inc":
-                change = amount
-
-            # Send webhook notification
-            import aiohttp
-            import json
-            import os
-            import asyncio
-            import discord
-            from datetime import datetime
-
-            webhook_url = os.environ.get("WEBHOOK")
-            if webhook_url:
-                # Get user object to fetch avatar if possible
-                user = None
-                try:
-                    # Try to get the user from the bot's cache
-                    if hasattr(self, 'bot'):
-                        user = self.bot.get_user(user_id)
-                except:
-                    pass
-
-                # Create a pretty embed
-                embed = discord.Embed(
-                    title=f"{'Balance Added' if change > 0 else 'Balance Deducted'}",
-                    color=0x00FF00 if change > 0 else 0xFF0000,
-                    timestamp=datetime.now(),
-                    description=(
-                        f"<:Veried_memeber_icon:1347561332043677706> <@{user_id}>\n"
-                        f"<:member_hexagon:1347561410837876786> `{user_id}`\n\n"
-                        f"{'<:star_token:1347561369901203499>' if currency == 'tokens' else '<:NA_CashIcon:1347561395083804702>'} **{currency.capitalize()}**\n"
-                        f"Previous: **{previous_amount:.2f}**\n"
-                        f"New: **{new_amount:.2f}**\n"
-                        f"Change: **{'+' if change > 0 else ''}{change:.2f}**"
-                    )
+                response = self.collection.update_one(
+                    {"discord_id": user_id},
+                    {"$set": {"tokens": amount}}
                 )
-
-                # Set thumbnail to user avatar if available
-                if user and user.avatar:
-                    embed.set_thumbnail(url=user.avatar.url)
-
-                # Add footer
-                embed.set_footer(text="BetSync Casino | Balance Update")
-
-                # Send the webhook
-                webhook_data = {
-                    "embeds": [embed.to_dict()]
-                }
-
-                # Use asyncio to send the webhook in a non-blocking way
-                async def send_webhook():
-                    async with aiohttp.ClientSession() as session:
-                        async with session.post(webhook_url, json=webhook_data) as response:
-                            if response.status != 204:
-                                print(f"Failed to send webhook: {response.status}")
-
-                # Run the async function without blocking
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        loop.create_task(send_webhook())
-                    else:
-                        loop.run_until_complete(send_webhook())
-                except Exception as e:
-                    print(f"Error sending webhook: {e}")
-
-            return True
+            else:  # $inc
+                response = self.collection.update_one(
+                    {"discord_id": user_id},
+                    {"$inc": {"tokens": amount}}
+                )
+            return response
         except Exception as e:
             print(f"Error updating balance: {e}")
-            return False
+            return None
 
     def update_history(self, user_id, history_entry):
         """Add an entry to user's bet history with 100 entry limit"""
@@ -161,12 +95,12 @@ class Servers:
         npc = self.db["net_profit"]
         profit_tracker = ProfitData()
         server_profit_tracker = ServerProfit()
-        
+
         try:
             # Get server name
             server_info = self.collection.find_one({"server_id": server_id})
             server_name = server_info.get("server_name", f"Unknown Server ({server_id})")
-            
+
             # Update server profit
             self.collection.update_one(
                 {"server_id": server_id},
@@ -175,12 +109,12 @@ class Servers:
 
             # Update daily profit tracking
             profit_tracker.update_daily_profit(amount)
-            
+
             # Update server-specific profit tracking
             server_profit_tracker.update_server_profit(server_id, server_name, amount)
-            
+
             # Update net profit
-            
+
             # Update game-specific profit
             if game:
                 if npc.count_documents({"game": game}):
@@ -229,45 +163,45 @@ class ServerProfit:
     def __init__(self):
         self.db = mongodb["BetSync"]
         self.collection = self.db["server_profit"]
-        
+
     def get_server_profit(self, server_id=None, date=None):
         """
         Get server profit data for a specific server, date, or all servers
-        
+
         Args:
             server_id: Optional server ID to filter by
             date: Optional date to filter by (defaults to today)
-            
+
         Returns:
             A single document or list of documents matching the criteria
         """
         # Default to today if no date specified
         if date is None:
             date = datetime.date.today().strftime("%Y-%m-%d")
-        
+
         # If server_id is provided, return just that server's data
         if server_id:
             return self.collection.find_one({"server_id": server_id, "date": date})
-        
+
         # Otherwise return all servers for the date
         return list(self.collection.find({"date": date}))
-    
+
     def update_server_profit(self, server_id, server_name, amount):
         """
         Update server profit for today
-        
+
         Args:
             server_id: The Discord server ID
             server_name: The name of the server
             amount: The profit amount to add
-            
+
         Returns:
             True if successful, False otherwise
         """
         try:
             # Get today's date
             today = datetime.date.today().strftime("%Y-%m-%d")
-            
+
             # Use upsert to handle both new records and updates
             result = self.collection.update_one(
                 {"server_id": server_id, "date": today},
@@ -281,20 +215,20 @@ class ServerProfit:
                 },
                 upsert=True
             )
-            
+
             rn = datetime.datetime.now().strftime("%X")
             print(f"{Back.CYAN}  {Style.DIM}{server_id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{amount} ({round((amount)*0.0212, 3)}$){Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}sv_profit_record{Fore.WHITE}")
-            
+
             return True
         except Exception as e:
             print(f"Error updating server profit: {e}")
             return False
-    
+
     def get_all_server_profits(self, date=None):
         """Get profit data for all servers on a specific date"""
         if date is None:
             date = datetime.date.today().strftime("%Y-%m-%d")
-            
+
         return list(self.collection.find({"date": date}))
 
 
@@ -321,7 +255,7 @@ class ProfitData:
                 },
                 upsert=True  # Create document if it doesn't exist
             )
-            
+
             # If game is specified, update game-specific profit
             if game:
                 # Use dot notation to safely update nested fields
@@ -333,7 +267,7 @@ class ProfitData:
                     },
                     upsert=True
                 )
-            
+
             return True
         except Exception as e:
             print(f"Error updating daily profit: {e}")

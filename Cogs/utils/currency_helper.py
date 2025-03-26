@@ -8,12 +8,12 @@ load_dotenv()
 
 async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=None, user=None):
     """
-    Processes bet amounts intelligently based on user's balance and specified currency.
+    Processes bet amounts based on user's token balance.
 
     Args:
         ctx: The command context
         bet_amount: The amount to bet (can be a number, string, "all", or "max")
-        currency_type: Optional currency type ("tokens", "t", "credits", "c")
+        currency_type: Optional currency type (no longer used but kept for backward compatibility)
         loading_message: Optional message to update with bet information
         user: Optional user object to process bet for (defaults to ctx.author)
 
@@ -37,95 +37,32 @@ async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=Non
         return False, None, error_embed
 
     tokens_balance = user_data.get('tokens', 0)
-    credits_balance = user_data.get('credits', 0)
 
     # Process bet amount and determine value
     try:
         # Handle all/max bet amount
         if isinstance(bet_amount, str) and bet_amount.lower() in ["all", "max"]:
-            if currency_type:
-                if currency_type.lower() in ["tokens", "t"]:
-                    if tokens_balance <= 0:
-                        error_embed = discord.Embed(
-                            title="<:no:1344252518305234987> | Insufficient Tokens",
-                            description=f"{user.mention} doesn't have any tokens to bet.",
-                            color=0xFF0000
-                        )
-                        return False, None, error_embed
-                    bet_amount_value = tokens_balance
-                    currency_specified = "tokens"
-                elif currency_type.lower() in ["credits", "c"]:
-                    if credits_balance <= 0:
-                        error_embed = discord.Embed(
-                            title="<:no:1344252518305234987> | Insufficient Credits",
-                            description=f"{user.mention} doesn't have any credits to bet.",
-                            color=0xFF0000
-                        )
-                        return False, None, error_embed
-                    bet_amount_value = credits_balance
-                    currency_specified = "credits"
-                else:
-                    error_embed = discord.Embed(
-                        title="<:no:1344252518305234987> | Invalid Currency",
-                        description="Invalid currency type. Use 'tokens' or 'credits'.",
-                        color=0xFF0000
-                    )
-                    return False, None, error_embed
-            else:
-                # If no currency specified with all/max, check if user has any balance
-                if tokens_balance <= 0 and credits_balance <= 0:
-                    error_embed = discord.Embed(
-                        title="<:no:1344252518305234987> | Insufficient Balance",
-                        description=f"{user.mention} doesn't have any tokens or credits to bet.",
-                        color=0xFF0000
-                    )
-                    return False, None, error_embed
-
-                # If no currency specified with all/max, use the currency with higher balance
-                if tokens_balance >= credits_balance:
-                    bet_amount_value = tokens_balance
-                    currency_specified = "tokens"
-                else:
-                    bet_amount_value = credits_balance
-                    currency_specified = "credits"
+            if tokens_balance <= 0:
+                error_embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Insufficient Tokens",
+                    description=f"{user.mention} doesn't have any tokens to bet.",
+                    color=0xFF0000
+                )
+                return False, None, error_embed
+            bet_amount_value = tokens_balance
         else:
-            # Handle numeric bet amount and k/m multipliers
-            if isinstance(bet_amount, str):
-                if bet_amount.lower().endswith('k'):
-                    bet_amount_value = float(bet_amount[:-1]) * 1000
-                elif bet_amount.lower().endswith('m'):
-                    bet_amount_value = float(bet_amount[:-1]) * 1000000
-                else:
-                    bet_amount_value = float(bet_amount)
-            else:
-                bet_amount_value = float(bet_amount)
+            # Convert bet amount to a float
+            bet_amount_value = float(bet_amount)
 
-            bet_amount_value = round(bet_amount_value, 2)
-
+            # Ensure bet amount is positive
             if bet_amount_value <= 0:
                 error_embed = discord.Embed(
-                    title="<:no:1344252518305234987> | Invalid Amount",
+                    title="<:no:1344252518305234987> | Invalid Bet Amount",
                     description="Bet amount must be greater than 0.",
                     color=0xFF0000
                 )
                 return False, None, error_embed
 
-            # Determine currency if specified
-            if currency_type:
-                if currency_type.lower() in ["tokens", "t"]:
-                    currency_specified = "tokens"
-                elif currency_type.lower() in ["credits", "c"]:
-                    currency_specified = "credits"
-                else:
-                    error_embed = discord.Embed(
-                        title="<:no:1344252518305234987> | Invalid Currency",
-                        description="Invalid currency type. Use 'tokens' or 'credits'.",
-                        color=0xFF0000
-                    )
-                    return False, None, error_embed
-            else:
-                # Auto-determine which currency to use based on balances
-                currency_specified = None
     except ValueError:
         error_embed = discord.Embed(
             title="<:no:1344252518305234987> | Invalid Amount",
@@ -134,65 +71,31 @@ async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=Non
         )
         return False, None, error_embed
 
-    # Now determine how to handle the bet based on currency and amount
+    # Now determine if the user has enough tokens
     tokens_used = 0
-    credits_used = 0
 
-    # If user specified a currency, try to use that currency first
-    if currency_specified == "tokens":
-        if bet_amount_value <= tokens_balance:
-            tokens_used = bet_amount_value
-        else:
-            error_embed = discord.Embed(
-                title="<:no:1344252518305234987> | Insufficient Tokens",
-                description=f"{user.mention} doesn't have enough tokens. Your balance: **{tokens_balance:.2f} tokens**",
-                color=0xFF0000
-            )
-            return False, None, error_embed
-    elif currency_specified == "credits":
-        if bet_amount_value <= credits_balance:
-            credits_used = bet_amount_value
-        else:
-            error_embed = discord.Embed(
-                title="<:no:1344252518305234987> | Insufficient Credits",
-                description=f"{user.mention} doesn't have enough credits. Your balance: **{credits_balance:.2f} credits**",
-                color=0xFF0000
-            )
-            return False, None, error_embed
+    if bet_amount_value <= tokens_balance:
+        tokens_used = bet_amount_value
     else:
-        # No currency specified - determine intelligently
+        error_embed = discord.Embed(
+            title="<:no:1344252518305234987> | Insufficient Tokens",
+            description=f"{user.mention} doesn't have enough tokens. Your balance: **{tokens_balance:.2f} tokens**",
+            color=0xFF0000
+        )
+        return False, None, error_embed
 
-        # Case 1: User has enough tokens
-        if bet_amount_value <= tokens_balance:
-            tokens_used = bet_amount_value
+    # Update the user's balance by deducting the tokens
+    db.update_balance(user.id, -tokens_used, "tokens", "$inc")
 
-        # Case 2: User has enough credits
-        elif bet_amount_value <= credits_balance:
-            credits_used = bet_amount_value
+    # Calculate the total bet amount
+    total_bet_amount = tokens_used
 
-        # Case 3: User doesn't have enough of either individually, but has enough combined
-        elif bet_amount_value <= (tokens_balance + credits_balance):
-            tokens_used = tokens_balance
-            credits_used = bet_amount_value - tokens_balance
+    # Log the bet amount for debugging
+    rn = datetime.datetime.now().strftime("%X")
+    print(f"{Back.CYAN}  {Style.DIM}{user.id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.RED}-{tokens_used:.2f} tokens{Style.RESET_ALL}  {Fore.MAGENTA}bet{Fore.WHITE}")
 
-        # Case 4: User doesn't have enough combined
-        else:
-            error_embed = discord.Embed(
-                title="<:no:1344252518305234987> | Insufficient Balance",
-                description=f"{user.mention} doesn't have enough balance. They have **{tokens_balance:.2f} tokens** and **{credits_balance:.2f} credits**",
-                color=0xFF0000
-            )
-            return False, None, error_embed
-
-    # Apply the deductions to the user's balance
-    if tokens_used > 0:
-        db.update_balance(user.id, -tokens_used, "tokens", "$inc")
-
-    if credits_used > 0:
-        db.update_balance(user.id, -credits_used, "credits", "$inc")
-
-    # Calculate and add XP (1 XP per token/credit wagered)
-    xp_to_add = tokens_used + credits_used
+    # Calculate and add XP (1 XP per token wagered)
+    xp_to_add = tokens_used
     current_xp = user_data.get('xp', 0)
     current_level = user_data.get('level', 1)
 
@@ -251,7 +154,7 @@ async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=Non
             break
 
     # Calculate rakeback tokens to be added
-    total_bet = tokens_used + credits_used
+    total_bet = tokens_used
     rakeback_amount = total_bet * (rakeback_percentage / 100)
 
     # Update user's rakeback_tokens in the database
@@ -272,11 +175,9 @@ async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=Non
     # Create a result dictionary with all relevant information
     bet_info = {
         "tokens_used": tokens_used,
-        "credits_used": credits_used,
-        "total_bet_amount": tokens_used + credits_used,
+        "total_bet_amount": tokens_used,
         "user_id": user.id,
         "remaining_tokens": tokens_balance - tokens_used,
-        "remaining_credits": credits_balance - credits_used,
         "xp_gained": xp_to_add,
         "current_xp": new_xp,
         "current_level": new_level,
@@ -288,7 +189,7 @@ async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=Non
 
     now = datetime.datetime.now()
     rn = now.strftime("%X")
-    print(f"{Back.CYAN}  {Style.DIM}{user.id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{tokens_used + credits_used} ({round((tokens_used + credits_used)*0.0212, 3)}$){Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}process_bet{Fore.WHITE}")
+    print(f"{Back.CYAN}  {Style.DIM}{user.id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{tokens_used} tokens{Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}process_bet{Fore.WHITE}")
 
     # Add debug log for rakeback
     if rakeback_amount > 0:
@@ -310,6 +211,6 @@ async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=Non
             except:
                 pass
 
-    await update_loading(f"{user.mention}'s Bet:  {f'**{tokens_used:.2f} tokens** and **{credits_used:.2f} credits**' if tokens_used > 0 and credits_used > 0 else f'**{tokens_used:.2f} tokens**' if tokens_used > 0 else f'**{credits_used:.2f} credits**'}")
+    await update_loading(f"{user.mention}'s Bet: **{tokens_used:.2f} tokens**")
 
     return True, bet_info, None
