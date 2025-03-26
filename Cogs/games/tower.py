@@ -82,8 +82,9 @@ class TowerGameView(discord.ui.View):
             self.diamonds_per_row = 1
             self.multipliers = [3.80, 15.20, 60.80, 243.20, 972.80, 3891.20, 15564.80, 62259.20, 249036.80]
 
-        # Current multiplier (starts at the first level multiplier)
-        self.current_multiplier = self.multipliers[0]
+        # Current level and multiplier tracking
+        self.current_level = 0
+        self.current_multiplier = self.multipliers[self.current_level]
 
         # Generate the tower layout
         self.tower_layout = self.generate_tower_layout()
@@ -643,4 +644,17 @@ class TowerCog(commands.Cog):
 
 
 def setup(bot):
+
+    def advance_level(self):
+        """Advance to the next level and update the multiplier"""
+        # Increment level
+        self.current_level += 1
+        # Update multiplier if we haven't reached the end
+        if self.current_level < len(self.multipliers):
+            self.current_multiplier = self.multipliers[self.current_level]
+        # If we're at the final level and found a diamond, the game is won
+        if self.current_level >= len(self.multipliers):
+            return True
+        return False
+
     bot.add_cog(TowerCog(bot))
