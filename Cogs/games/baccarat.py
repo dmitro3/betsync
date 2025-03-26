@@ -8,12 +8,12 @@ from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
 
 class BaccaratView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, currency_type, timeout=180):
+    def __init__(self, cog, ctx, bet_amount, timeout=180):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
-        self.currency_type = currency_type
+        #self.currency_type = currency_type
 
     @discord.ui.button(label="Play Again", style=discord.ButtonStyle.success)
     async def play_again(self, button, interaction):
@@ -72,7 +72,7 @@ class BaccaratGame(commands.Cog):
         return deck.pop()
 
     @commands.command(aliases=["bacc", "bc"])
-    async def baccarat(self, ctx, bet_amount: str = None, currency_type: str = None, bet_on: str = None):
+    async def baccarat(self, ctx, bet_amount: str = None, bet_on: str = None):
         """Play Baccarat - bet on Player, Banker, or Tie"""
         
         # Show help if no bet amount specified
@@ -81,7 +81,7 @@ class BaccaratGame(commands.Cog):
                 title="🎴 How to Play Baccarat",
                 description=(
                     "**Baccarat** is a simple card game where you bet on which hand will win.\n\n"
-                    "**Usage:** `!baccarat <amount> [currency_type] [player/banker/tie]`\n"
+                    "**Usage:** `!baccarat <amount> [player/banker/tie]`\n"
                     "**Example:** `!baccarat 100 tokens player`\n\n"
                     "- **Player & Banker each get 2 cards**\n"
                     "- **Card values: A=1, 2-9=face value, 10/J/Q/K=0**\n"
@@ -117,7 +117,7 @@ class BaccaratGame(commands.Cog):
             from Cogs.utils.currency_helper import process_bet_amount
             
             # Process the bet amount using the currency helper
-            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
             if not success:
                 try:
                     await loading_message.delete()
@@ -127,19 +127,15 @@ class BaccaratGame(commands.Cog):
             
             # Extract bet information
             tokens_used = bet_info["tokens_used"]
-            credits_used = bet_info["credits_used"]
+            #credits_used = bet_info["credits_used"]
             total_bet = bet_info["total_bet_amount"]
             
             # Determine currency used for results
-            currency_used = "tokens" if tokens_used > 0 else "credits"
+            currency_used = "tokens"
             
             # Format bet description
-            if tokens_used > 0 and credits_used > 0:
-                bet_description = f"Bet: **{tokens_used:.2f} tokens** and **{credits_used:.2f} credits**"
-            elif tokens_used > 0:
-                bet_description = f"Bet: **{tokens_used:.2f} tokens**"
-            else:
-                bet_description = f"Bet: **{credits_used:.2f} credits**"
+            
+            bet_description = f"Bet: **{tokens_used:.2f} credits**"
             
             # Validate bet_on parameter or handle interactive selection
             valid_options = ["player", "p", "banker", "b", "tie", "t"]
@@ -198,10 +194,10 @@ class BaccaratGame(commands.Cog):
                 if not view.bet_on:
                     # Refund the bet
                     user_db = Users()
-                    if tokens_used > 0:
-                        user_db.update_balance(ctx.author.id, tokens_used, "tokens", "$inc")
-                    if credits_used > 0:
-                        user_db.update_balance(ctx.author.id, credits_used, "credits", "$inc")
+                    #if tokens_used > 0:
+                    user_db.update_balance(ctx.author.id, tokens_used, "tokens", "$inc")
+                    #if credits_used > 0:
+                        #user_db.update_balance(ctx.author.id, credits_used, "credits", "$inc")
                     
                     # Update message
                     timeout_embed = discord.Embed(
@@ -229,7 +225,7 @@ class BaccaratGame(commands.Cog):
             # Mark the game as ongoing
             self.ongoing_games[ctx.author.id] = {
                 "tokens_used": tokens_used,
-                "credits_used": credits_used,
+                #"credits_used": credits_used,
                 "bet_amount": total_bet,
                 "bet_on": bet_on
             }
@@ -315,7 +311,7 @@ class BaccaratGame(commands.Cog):
             
             if win_amount > 0:
                 # Player wins - add winnings to balance
-                user_db.update_balance(ctx.author.id, win_amount, "credits", "$inc")
+                user_db.update_balance(ctx.author.id, win_amount, "tokens", "$inc")
                 
                 # Add win to history
                 history_entry = {
@@ -387,7 +383,7 @@ class BaccaratGame(commands.Cog):
                 del self.ongoing_games[ctx.author.id]
             
             # Create Play Again button
-            view = BaccaratView(self, ctx, bet_amount, currency_type)
+            view = BaccaratView(self, ctx, bet_amount)
             
             # Send result
             await ctx.reply(embed=result_embed, view=view)

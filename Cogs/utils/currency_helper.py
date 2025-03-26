@@ -6,7 +6,7 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 
-async def process_bet_amount(ctx, bet_amount, currency_type, loading_message=None, user=None):
+async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
     """
     Processes bet amounts based on user's token balance.
 
