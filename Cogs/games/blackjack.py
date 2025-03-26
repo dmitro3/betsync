@@ -133,7 +133,7 @@ class BlackjackView(discord.ui.View):
             play_again_view = self.cog.create_play_again_view(self.ctx.author.id, self.bet_amount, self.currency_used)
 
             # Update message with result and play again button
-            await interaction.response.edit_message(embed=embed, view=play_again_view)
+            await interaction.message.edit(embed=embed, view=play_again_view)
             await interaction.message.edit(file=file)
 
         else:
