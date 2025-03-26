@@ -28,7 +28,7 @@ class BaccaratView(discord.ui.View):
         await message.edit(view=self)
         
         # Call the baccarat command again with the same bet
-        await self.cog.baccarat(self.ctx, self.bet_amount, self.currency_type)
+        await self.cog.baccarat(self.ctx, self.bet_amount)
 
 class BaccaratGame(commands.Cog):
     def __init__(self, bot):
