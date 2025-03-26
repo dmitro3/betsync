@@ -1,0 +1,14 @@
+py-cord 
+pymongo
+qrcode
+discord_webhook
+pillow
+matplotlib
+python-dotenv
+colorama
+requests
+Pillow
+discord-py
+Pillow
+psutil
+psutil

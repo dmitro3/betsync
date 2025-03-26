@@ -1,0 +1,6 @@
+.git
+.replit
+replit.nix
+generated-icon.png
+pyproject.toml
+uv.lock
