@@ -245,26 +245,25 @@ class Fetches(commands.Cog):
             inline=False
         )
         
-        # Points field
+        # Separator
         embed.add_field(
-            name=":moneybag: Points", 
-            value=f"```{round(points, 2)} Points```",
-            inline=True
+            name="▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+            value="\u200b",  # Zero-width space
+            inline=False
         )
         
-        # Coin conversion field
-        embed.add_field(
-            name=f":coin: {current_primary_coin} Equivalent", 
-            value=f"```{primary_coin_amount:.8f} {current_primary_coin}```",
-            inline=True
-        )
-        
-        # USD value field if available
+        # Combined points and USD value field
         if coin_usd_price:
             embed.add_field(
-                name=":dollar: USD Value", 
-                value=f"```${usd_value:.2f} USD```",
-                inline=True
+                name=":moneybag: Points", 
+                value=f"```{round(points, 2)} Points (${usd_value:.2f} USD)```",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name=":moneybag: Points", 
+                value=f"```{round(points, 2)} Points```",
+                inline=False
             )
         
         # Conversion rate field
