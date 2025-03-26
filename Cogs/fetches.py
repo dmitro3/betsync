@@ -167,7 +167,7 @@ class Fetches(commands.Cog):
             "BTC": 0.00000024,  # 1 point = 0.00000024 btc
             "LTC": 0.00023,     # 1 point = 0.00023 ltc
             "ETH": 0.000010,    # 1 point = 0.000010 eth
-            "USDT": 1,          # 1 point = 1 usdt
+            "USDT": 0.0212,          # 1 point = 0.0212 usdt
             "SOL": 0.0001442    # 1 point = 0.0001442 sol
         }
         

@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 1 point = 0.00000024 btc
 1 point = 0.00023 ltc
 1 point = 0.000010 eth
-1 point = 1 usdt
+1 point = 0.0212 usdt
 1 point = 0.0001442 sol
 """
 
