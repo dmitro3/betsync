@@ -275,7 +275,7 @@ class Fetches(commands.Cog):
         )
         
         embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-        await ctx.reply(embed=embed)bed=embed)
+        await ctx.reply(embed=embed)
 
     # Leaderboard Pagination View
     class LeaderboardView(discord.ui.View):
