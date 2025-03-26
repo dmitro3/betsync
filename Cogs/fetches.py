@@ -229,7 +229,10 @@ class Fetches(commands.Cog):
         
         # Get USD value of primary coin amount
         coin_usd_price = 0
-        if live_prices and current_primary_coin.lower() in live_prices:
+        # Special case for USDT as it's a stablecoin pegged to $1
+        if current_primary_coin == "USDT":
+            coin_usd_price = 1.0  # 1 USDT = $1 USD
+        elif live_prices and current_primary_coin.lower() in live_prices:
             coin_usd_price = live_prices[current_primary_coin.lower()].get("usd", 0)
         
         usd_value = primary_coin_amount * coin_usd_price if coin_usd_price else 0
