@@ -169,6 +169,7 @@ class Fetches(commands.Cog):
         credits = info["credits"]
         money = emoji()["money"]
         embed = discord.Embed(title=f"{money} | {user.name}\'s Balance", color=discord.Color.blue(), thumbnail=user.avatar.url)
+        embed.add_field(name="Currency Info", value=f"**Only Credits Can Be Withdrawn, Tokens Are For Betting, When You Play A Game And Win, You Get Tokens After Winning A Multiplier. 1 Token/Credit = 0.0212$**")
         embed.add_field(name=":moneybag: Tokens", value=f"```{round(tokens, 2)} Tokens (~${round((tokens * token_value),2)})```")
         embed.add_field(name=":money_with_wings: Credits", value=f"```{round(credits, 2)} Credits (~${round((credits * token_value), 2)})```")
         embed.set_footer(text="Betsync Casino", icon_url=self.bot.user.avatar.url)
