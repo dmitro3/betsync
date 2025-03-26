@@ -84,7 +84,7 @@ class TowerGameView(discord.ui.View):
 
         # Current level and multiplier tracking
         self.current_level = 0
-        self.current_multiplier = self.multipliers[self.current_level]
+        self.current_multiplier = 1.0  # Start with 1.0x multiplier (no bonus until first climb)
 
         # Generate the tower layout
         self.tower_layout = self.generate_tower_layout()
@@ -309,13 +309,14 @@ class TowerGameView(discord.ui.View):
             # Move to next level
             self.current_level += 1
 
+            # Update the current multiplier based on the level
+            if self.current_level < len(self.multipliers):
+                self.current_multiplier = self.multipliers[self.current_level - 1]  # Use previous level's multiplier
+
             # If player reached the top of the tower, they win
             if self.current_level == self.max_levels:
                 self.game_over = True
                 await self.process_cashout(interaction) #Changed to process_cashout
-
-            # Update the current multiplier
-            self.current_multiplier = self.multipliers[self.current_level]
 
             # Update buttons for the next level
             self.update_buttons()
