@@ -13,6 +13,15 @@ from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
 from dotenv import load_dotenv
 
+
+"""
+1 btc point = 0.00000024 btc
+1 ltc point = 0.00023 ltc
+1 eth point = 0.000010 eth
+1 usdt (erc-20) point = 0.0212 eth
+1 sol point = 0.0001442 sol
+"""
+
 # Load environment variables
 load_dotenv()
 
@@ -95,7 +104,13 @@ async def on_command(ctx):
                 "discord_id": ctx.author.id,
                 "name": ctx.author.name,
                 "tokens": 0, 
-                "credits": 0, 
+                "wallet": {
+                    "BTC":0,
+                    "SOL":0,
+                    "ETH":0,
+                    "LTC":0,
+                    "USDT":0
+                },
                 "history": [], 
                 "total_deposit_amount": 0, 
                 "total_withdraw_amount": 0, 
