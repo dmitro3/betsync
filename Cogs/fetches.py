@@ -150,30 +150,132 @@ class Fetches(commands.Cog):
         await ctx.reply(embed=embed)
 
     @commands.command(aliases=["bal"])
-    async def balance(self, ctx, user:discord.Member = None):
-        if user is None:
-            user = ctx.author
-        else:
-            db = Users()
-            if db.fetch_user(user.id) == False: 
-                await ctx.reply("**User Does Not Have An Account.**")
-                return
-            else:
-                pass
-            pass
-
-        token_value = 0.0212
+    async def balance(self, ctx, currency: str = None):
+        """
+        Show user balance with cryptocurrency conversions
+        Usage: !bal [currency] - Sets or shows balance in specified currency
+        """
+        user = ctx.author
         db = Users()
         info = db.fetch_user(user.id)
-        tokens = info["tokens"]
-        credits = info["credits"]
+        if not info:
+            await ctx.reply("**User Does Not Have An Account.**")
+            return
+            
+        # Currency chart from main.py
+        crypto_values = {
+            "BTC": 0.00000024,  # 1 point = 0.00000024 btc
+            "LTC": 0.00023,     # 1 point = 0.00023 ltc
+            "ETH": 0.000010,    # 1 point = 0.000010 eth
+            "USDT": 1,          # 1 point = 1 usdt
+            "SOL": 0.0001442    # 1 point = 0.0001442 sol
+        }
+        
+        # Get current primary coin and points
+        current_primary_coin = info.get("primary_coin", "BTC")
+        points = info.get("points", 0)
+        wallet = info.get("wallet", {
+            "BTC": 0,
+            "SOL": 0,
+            "ETH": 0,
+            "LTC": 0,
+            "USDT": 0
+        })
+        
+        # If currency is specified, switch to that currency
+        if currency:
+            currency = currency.upper()
+            if currency not in crypto_values:
+                await ctx.reply(f"**Invalid currency. Supported currencies: {', '.join(crypto_values.keys())}**")
+                return
+                
+            # Calculate how much of the current primary coin the user has based on points
+            current_coin_amount = points * crypto_values[current_primary_coin]
+            
+            # Update wallet with current coin value
+            wallet[current_primary_coin] = current_coin_amount
+            
+            # Set points based on new currency from wallet
+            new_coin_amount = wallet.get(currency, 0)
+            new_points = new_coin_amount / crypto_values[currency] if crypto_values[currency] > 0 else 0
+            
+            # Update database with new primary coin and points
+            db.collection.update_one(
+                {"discord_id": user.id},
+                {
+                    "$set": {
+                        "primary_coin": currency,
+                        "points": new_points,
+                        f"wallet.{current_primary_coin}": current_coin_amount
+                    }
+                }
+            )
+            
+            # Update local variables for display
+            current_primary_coin = currency
+            points = new_points
+            
+        # Get live prices using crypto utility
+        try:
+            from Cogs.utils.crypto_utils import get_crypto_prices
+            live_prices = get_crypto_prices()
+        except ImportError:
+            # Fallback if crypto_utils doesn't exist
+            live_prices = {}
+            
+        # Calculate USD value of points based on primary coin
+        coin_value = crypto_values.get(current_primary_coin, 0)
+        primary_coin_amount = points * coin_value
+        
+        # Get USD value of primary coin amount
+        coin_usd_price = 0
+        if live_prices and current_primary_coin.lower() in live_prices:
+            coin_usd_price = live_prices[current_primary_coin.lower()].get("usd", 0)
+        
+        usd_value = primary_coin_amount * coin_usd_price if coin_usd_price else 0
+        
+        # Create embed
         money = emoji()["money"]
-        embed = discord.Embed(title=f"{money} | {user.name}\'s Balance", color=discord.Color.blue())
-        embed.add_field(name="Currency Info", value=f"**Only Credits Can Be Withdrawn, Tokens Are For Betting, When You Play A Game And Win, You Get Tokens After Winning A Multiplier. 1 Token/Credit = 0.0212$**")
-        embed.add_field(name=":moneybag: Tokens", value=f"```{round(tokens, 2)} Tokens (~${round((tokens * token_value),2)})```")
-        embed.add_field(name=":money_with_wings: Credits", value=f"```{round(credits, 2)} Credits (~${round((credits * token_value), 2)})```")
-        embed.set_footer(text="Betsync Casino", icon_url=self.bot.user.avatar.url)
-        await ctx.reply(embed=embed)
+        embed = discord.Embed(title=f"{money} | {user.name}'s Balance", color=discord.Color.blue())
+        
+        # Currency info field
+        embed.add_field(
+            name="Currency Info", 
+            value=f"**Your primary currency is {current_primary_coin}. Use `!bal <currency>` to change it.**",
+            inline=False
+        )
+        
+        # Points field
+        embed.add_field(
+            name=":moneybag: Points", 
+            value=f"```{round(points, 2)} Points```",
+            inline=True
+        )
+        
+        # Coin conversion field
+        embed.add_field(
+            name=f":coin: {current_primary_coin} Equivalent", 
+            value=f"```{primary_coin_amount:.8f} {current_primary_coin}```",
+            inline=True
+        )
+        
+        # USD value field if available
+        if coin_usd_price:
+            embed.add_field(
+                name=":dollar: USD Value", 
+                value=f"```${usd_value:.2f} USD```",
+                inline=True
+            )
+        
+        # Conversion rate field
+        embed.add_field(
+            name=":arrows_counterclockwise: Conversion Rate", 
+            value=f"```1 Point = {coin_value:.8f} {current_primary_coin}```",
+            inline=False
+        )
+        
+        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+        await ctx.reply(embed=embed)bed=embed)
 
     # Leaderboard Pagination View
     class LeaderboardView(discord.ui.View):
