@@ -11,37 +11,29 @@ class Tip(commands.Cog):
         self.point_value = 0.0212  # USD value of 1 point
 
     @commands.command(aliases=["give", "donate"])
-    async def tip(self, ctx, amount=None, user: discord.Member = None):
+    async def tip(self, ctx, user: discord.Member = None, amount=None):
         """Tip other users with points
 
         Usage:
-        - !tip <amount> @user
-        - !tip <amount> <user_id>
+        - !tip @user <amount>
+        - !tip <user_id> <amount>
         - Reply to a message with !tip <amount>
         """
         if ctx.message.reference and ctx.message.reference.resolved:
             # Handle reply-based tip
             recipient = ctx.message.reference.resolved.author
-            if amount is None:
+            if amount is None and user is not None:
+                # In reply mode, the first argument is the amount
+                amount = user
+                user = None
+            elif amount is None and user is None:
                 return await self.show_usage(ctx)
         else:
             # Handle regular command
-            if amount is None:
+            if user is None:
                 return await self.show_usage(ctx)
-
-            # If user is passed as a parameter
-            if user is None:
-                # Check if amount is actually a member mention or ID
-                try:
-                    user_id = int(''.join(filter(str.isdigit, amount)))
-                    possible_user = await self.bot.fetch_user(user_id)
-                    if possible_user:
-                        user = possible_user
-                        amount = None  # Reset amount as it was actually a user
-                except:
-                    pass
-
-            if user is None:
+            
+            if amount is None:
                 return await self.show_usage(ctx)
 
             recipient = user
@@ -197,8 +189,8 @@ class Tip(commands.Cog):
         embed.add_field(
             name="Usage Options",
             value=(
-                "**Direct Mention:**\n`!tip 100 @user`\n\n"
-                "**User ID:**\n`!tip 50 123456789012345678`\n\n"
+                "**Direct Mention:**\n`!tip @user 100`\n\n"
+                "**User ID:**\n`!tip 123456789012345678 50`\n\n"
                 "**Reply to Message:**\n`!tip 75` (as a reply)\n\n"
                 "**Shortcuts:**\n"
                 "`!give` and `!donate` also work as aliases."
