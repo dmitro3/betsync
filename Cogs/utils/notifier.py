@@ -52,10 +52,10 @@ class Notifier:
             # Bet and wallet details field
             
             embed.add_field(
-                name="💰 Transaction Details",
+                name="💰 Bet Details",
                 value=(
-                    f"**Bet Amount:** {bet_amount:.2f} points\n"
-                    f"**Current Balance:** {current_balance:.2f} points ({coin} {primary_currency})"
+                    f"**Bet Amount:** {int(bet_amount):.2f} points\n"
+                    f"**Current Balance:** {int(current_balance):.2f} points ({coin} {primary_currency})"
                 ),
                 inline=False
             )
@@ -70,7 +70,9 @@ class Notifier:
             # Send webhook
             async with aiohttp.ClientSession() as session:
                 async with session.post(webhook_url, json=payload) as response:
+                    print(response)
                     return response.status == 204
+                    
                     
         except Exception as e:
             print(f"Error sending webhook notification: {e}")
