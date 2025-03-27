@@ -675,7 +675,7 @@ class Plinko(commands.Cog):
 
         Difficulty: low, medium, high
         Rows: 8-16
-        Currency: tokens/t, credits/c, points/p
+        Currency: tokens/t, credits/c
         """
         # Check if user already has an ongoing game
         if ctx.author.id in self.ongoing_games:
@@ -713,7 +713,7 @@ class Plinko(commands.Cog):
                     "- `medium`: Balanced risk and reward\n"
                     "- `high`: Higher risk, bigger potential payouts\n\n"
                     "**Rows:** Choose between 8-16 rows\n"
-                    "**Currency:** tokens/t (default), credits/c, or points/p"
+                    "**Currency:** tokens/t (default) or credits/c"
                 ),
                 color=0x00FFAE
             )
@@ -733,8 +733,6 @@ class Plinko(commands.Cog):
             currency_type = "tokens"
         elif currency_type and currency_type.lower() in ["c", "credit", "credits"]:
             currency_type = "credits"
-        elif currency_type and currency_type.lower() in ["p", "point", "points"]:
-            currency_type = "points"
 
         # Import the currency helper
         from Cogs.utils.currency_helper import process_bet_amount
