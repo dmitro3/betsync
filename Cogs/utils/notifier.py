@@ -1,9 +1,9 @@
 
 import discord
+from discord_webhook import DiscordWebhook, DiscordEmbed
+from Cogs.utils.mongo import Users
 import aiohttp
 import asyncio
-from discord.ext import commands
-from Cogs.utils.mongo import Users
 
 class Notifier:
     """
@@ -18,11 +18,7 @@ class Notifier:
         Parameters:
         - webhook_url: Discord webhook URL
         - user_id: Discord user ID
-        - user_name: Discord username
-        - user_mention: Discord user mention
         - bet_amount: Amount bet in the transaction
-        - current_balance: User's current balance after bet
-        - primary_currency: Currency type used (default: points)
         """
         if not webhook_url:
             return False
@@ -30,17 +26,22 @@ class Notifier:
         try:
             userd = Users()
             resp = userd.fetch_user(user_id=user_id)
-            embed = discord.Embed(
-                title="🎮 New Bet Placed",
-                description=f"A user has placed a new bet in BetSync Casino",
-                color=0x00FFAE
-            )
             current_balance = resp["points"]
             primary_currency = resp["primary_coin"]
             coin = resp["wallet"][primary_currency]
             
+            # Create webhook
+            webhook = DiscordWebhook(url=webhook_url, rate_limit_retry=True)
+            
+            # Create embed
+            embed = DiscordEmbed(
+                title="🎮 New Bet Placed",
+                description="A user has placed a new bet in BetSync Casino",
+                color=0x00FFAE
+            )
+            
             # User details field
-            embed.add_field(
+            embed.add_embed_field(
                 name="👤 User Details",
                 value=(
                     f"**User:** <@{user_id}>\n"
@@ -50,8 +51,7 @@ class Notifier:
             )
             
             # Bet and wallet details field
-            
-            embed.add_field(
+            embed.add_embed_field(
                 name="💰 Bet Details",
                 value=(
                     f"**Bet Amount:** {int(bet_amount):.2f} points\n"
@@ -62,17 +62,13 @@ class Notifier:
             
             embed.set_footer(text="BetSync Casino Notification System")
             
-            # Prepare webhook payload
-            payload = {
-                "embeds": [embed.to_dict()]
-            }
+            # Add embed to webhook
+            webhook.add_embed(embed)
             
-            # Send webhook
-            async with aiohttp.ClientSession() as session:
-                async with session.post(webhook_url, json=payload) as response:
-                    print(response)
-                    return response.status == 204
-                    
+            # Send webhook (async)
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, webhook.execute)
+            return True
                     
         except Exception as e:
             print(f"Error sending webhook notification: {e}")
