@@ -318,8 +318,8 @@ class LimboGame:
 
                 # Update display
                 embed = self.create_embed()
-                file = await self.generate_multiplier_image(rounded_multiplier, won)
-                embed.set_image(url="attachment://limbo_result.png")
+                #file = await self.generate_multiplier_image(rounded_multiplier, won)
+                #embed.set_image(url="attachment://limbo_result.png")
 
                 await self.message.edit(embed=embed, view=LimboControlView(self))
 
