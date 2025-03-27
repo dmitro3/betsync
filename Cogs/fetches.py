@@ -290,22 +290,17 @@ class Fetches(commands.Cog):
         # Main balance display - clean and minimalistic
         embed.add_field(
             name="Balance",
-            value=f"**Points:** `{tokens:.2f}`\n{primary_emoji} `{primary_value:.8f}` {current_primary_coin}",
+            value=f"```Points: {tokens:.2f}\n{primary_value:.8f} {current_primary_coin}\n\nUSD Value: {usd_value:.2f}```",
             inline=False
         )
         
         # Add USD value if available
-        if usd_value > 0:
-            embed.add_field(
-                name="Estimated Value",
-                value=f"**USD:** `${usd_value:.2f}`",
-                inline=False
-            )
+        
         
         # Currency info field - simplified
         embed.add_field(
             name="Currency Info", 
-            value=f"**Primary Currency:** {primary_emoji} {current_primary_coin}\n**Rate:** 1 Point = {primary_rate:.8f} {current_primary_coin}\n\nUse `!bal <currency>` to change your primary currency.",
+            value=f"**Primary Currency:** {primary_emoji} `{current_primary_coin}`\n**Rate:** 1 Point = `{primary_rate:.8f} {current_primary_coin}`\n**Use `!bal <currency>` to change your primary currency and to check other currency points.**",
             inline=False
         )
         
