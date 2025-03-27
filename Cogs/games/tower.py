@@ -9,13 +9,13 @@ from Cogs.utils import emojis
 import datetime
 
 class PlayAgainView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, difficulty, currency_type="tokens", timeout=15):
+    def __init__(self, cog, ctx, bet_amount, difficulty, timeout=15):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
         self.difficulty = difficulty
-        self.currency_type = currency_type
+        #self.currency_type = currency_type
         self.message = None
 
     async def on_timeout(self):
@@ -41,17 +41,17 @@ class PlayAgainView(discord.ui.View):
         await self.message.edit(view=self)
 
         # Start a new game with the same parameters
-        await self.cog.tower(self.ctx, str(self.bet_amount), self.difficulty, self.currency_type)
+        await self.cog.tower(self.ctx, str(self.bet_amount), self.difficulty)
 
 class TowerGameView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, difficulty, tokens_used=0, credits_used=0, timeout=60):
+    def __init__(self, cog, ctx, bet_amount, difficulty, tokens_used=0, timeout=60):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
         self.difficulty = difficulty.lower()
         self.tokens_used = tokens_used
-        self.credits_used = credits_used
+        #self.credits_used = credits_used
         self.currency_type = "credits"  # Always pay out in credits
         self.message = None
         self.current_level = 0
@@ -183,15 +183,10 @@ class TowerGameView(discord.ui.View):
 
         return tower
 
-    def create_embed(self, status="playing", selected_tile=None, bet_currency="credits"):
+    def create_embed(self, status="playing", selected_tile=None):
         """Create game embed with current state"""
-        # Format bet description
-        if self.tokens_used > 0 and self.credits_used > 0:
-            bet_description = f"**{self.tokens_used} tokens** + **{self.credits_used} credits**"
-        elif self.tokens_used > 0:
-            bet_description = f"**{self.tokens_used} tokens**"
-        else:
-            bet_description = f"**{self.credits_used} credits**"
+        
+        bet_description = f"**{self.tokens_used} points**"
 
         if status == "playing":
             embed = discord.Embed(
@@ -274,7 +269,7 @@ class TowerGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Initial Bet:** {self.bet_amount} {bet_currency}\n**Final Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout} credits\n**Profit:** {profit} credits",
+                value=f"**Initial Bet:** {self.bet_amount} points\n**Final Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout} credits\n**Profit:** {profit} credits",
                 inline=False
             )
             embed.add_field(
@@ -447,11 +442,11 @@ class TowerGameView(discord.ui.View):
             self.ctx, 
             self.bet_amount, 
             self.difficulty,
-            self.currency_type
+            #self.currency_type
         )
 
         # Fix for the cashout button - replace with direct message edit since we have the message
-        cashout_embed = self.create_embed(status="cash_out", bet_currency=bet_currency)
+        cashout_embed = self.create_embed(status="cash_out")
         await self.message.edit(embed=cashout_embed, view=play_again_view)
         play_again_view.message = self.message
 
@@ -532,15 +527,15 @@ class TowerCog(commands.Cog):
         self.ongoing_games = {}
 
     @commands.command(aliases=["twr", "climb", "towers"])
-    async def tower(self, ctx, bet_amount: str = None, difficulty: str = None, currency_type: str = None):
+    async def tower(self, ctx, bet_amount: str = None, difficulty: str = None):
         """Play Tower - climb the tower by finding diamonds to multiply your winnings!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="🏰 How to Play Tower",
                 description=(
                     "**Tower** is a game where you climb a tower by finding diamonds hidden under tiles!\n\n"
-                    "**Usage:** `!tower <amount> <difficulty> [currency_type]`\n"
-                    "**Example:** `!tower 100 easy` or `!tower 50 hard credits`\n\n"
+                    "**Usage:** `!tower <amount> <difficulty>`\n"
+                    "**Example:** `!tower 100 easy`\n\n"
                     "**Difficulty Levels:**\n"
                     "- **Easy:** 4 tiles per row, 3 diamonds per row\n"
                     "- **Medium:** 3 tiles per row, 2 diamonds per row\n"
@@ -570,9 +565,9 @@ class TowerCog(commands.Cog):
             )
             return await ctx.reply(embed=embed)
         # Send loading message
-        loading_emoji = emojis.emoji()["loading"]
+        #loading_emoji = emojis.emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Preparing Tower Game...",
+            title=f"Preparing Tower Game...",
             description="Please wait while we set up your game.",
             color=0x00FFAE
         )
@@ -580,7 +575,7 @@ class TowerCog(commands.Cog):
 
         # Process bet amount using currency_helper
         from Cogs.utils.currency_helper import process_bet_amount
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
         # If processing failed, return the error
         if not success:
@@ -588,7 +583,7 @@ class TowerCog(commands.Cog):
 
         # Extract needed values from bet_info
         tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
+        #credits_used = bet_info["credits_used"]
         total_bet = bet_info["total_bet_amount"]
         bet_amount_value = total_bet
 
@@ -613,7 +608,7 @@ class TowerCog(commands.Cog):
             total_bet, 
             difficulty, 
             tokens_used=tokens_used,
-            credits_used=credits_used,
+        #dits_used=credits_used,
             timeout=120  # 2 minute timeout
         )
 

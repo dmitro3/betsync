@@ -11,12 +11,12 @@ from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
 
 class PlayAgainView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, currency_used="credits"):
+    def __init__(self, cog, ctx, bet_amount):
         super().__init__(timeout=240)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
-        self.currency_used = currency_used
+        #self.currency_used = currency_used
         self.message = None
         self.author_id = ctx.author.id
 
@@ -59,12 +59,12 @@ class PlayAgainView(discord.ui.View):
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
 class HiLoView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, currency_used, deck, current_card, current_multiplier=1.0, timeout=240):
+    def __init__(self, cog, ctx, bet_amount, deck, current_card, current_multiplier=1.0, timeout=240):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
-        self.currency_used = currency_used
+        #self.currency_used = currency_used
         self.deck = deck
         self.current_card = current_card
         self.current_multiplier = current_multiplier
@@ -88,7 +88,7 @@ class HiLoView(discord.ui.View):
         # Refund the bet amount in the appropriate currency
         try:
             # Process refund
-            db.update_balance(self.ctx.author.id, self.bet_amount, self.currency_used, "$inc")
+            db.update_balance(self.ctx.author.id, self.bet_amount)
             
             # Create timeout message
             embed = discord.Embed(
@@ -163,7 +163,7 @@ class HiLoView(discord.ui.View):
         # Process winnings directly with mongo
         try:
             # Update user's balance
-            update_success = db.update_balance(self.ctx.author.id, winnings, "credits", "$inc")
+            update_success = db.update_balance(self.ctx.author.id, winnings)
 
             if not update_success:
                 # Handle the error
@@ -289,7 +289,7 @@ class HiLoView(discord.ui.View):
             # Create game image
             game_image = await self.cog.create_game_image(self.current_card, self.previous_cards, 
                                                           self.high_profit, self.low_profit, 
-                                                          self.current_winnings, self.currency_used,
+                                                          self.current_winnings,
                                                           current_winnings=self.current_winnings)
 
             # Update the embed with the image
@@ -344,7 +344,7 @@ class HiLoView(discord.ui.View):
             # Create game image
             game_image = await self.cog.create_game_image(self.current_card, self.previous_cards, 
                                                           self.high_profit, self.low_profit, 
-                                                          self.current_winnings, self.currency_used,
+                                                          self.current_winnings,
                                                           current_winnings=self.current_winnings)
 
             # Update the embed with the image
@@ -451,7 +451,7 @@ class HiLoView(discord.ui.View):
 
         embed.add_field(
             name="Current Winnings", 
-            value=f"{self.current_winnings:.2f} {self.currency_used}",
+            value=f"{self.current_winnings:.2f} points",
             inline=True
         )
 
@@ -566,7 +566,7 @@ class HiLo(commands.Cog):
         self.card_cache = {}  # Cache for loaded card images
 
     async def create_game_image(self, current_card, previous_cards, high_profit, low_profit, total_profit, 
-                               currency, game_over=False, lost_choice=None, cashed_out=False, current_winnings=0):
+                               game_over=False, lost_choice=None, cashed_out=False, current_winnings=0):
         """Generate the game image similar to the provided example"""
         # Create base canvas (dark blue background)
         width, height = 1000, 500  # Reduced height since we're not showing previous cards
@@ -597,7 +597,7 @@ class HiLo(commands.Cog):
         image.paste(current_card_img, current_card_pos, current_card_img.convert("RGBA"))
 
         # Draw profit information bar
-        self.draw_profit_bar(draw, width, height, high_profit, low_profit, total_profit, currency, small_font, current_winnings)
+        self.draw_profit_bar(draw, width, height, high_profit, low_profit, total_profit, small_font, current_winnings)
 
         # Convert to bytes for Discord
         buffer = io.BytesIO()
@@ -676,7 +676,7 @@ class HiLo(commands.Cog):
             anchor="mm"
         )
 
-    def draw_profit_bar(self, draw, width, height, high_profit, low_profit, total_profit, currency, font, current_winnings):
+    def draw_profit_bar(self, draw, width, height, high_profit, low_profit, total_profit, font, current_winnings):
         """Draw the profit information bar with improved styling matching reference"""
         # Draw profit bar background
         bar_y = 420
@@ -710,7 +710,7 @@ class HiLo(commands.Cog):
         )
         draw.text(
             (30 + section_width//2, bar_y + 50), 
-            f"{format_profit(high_profit)} {currency}", 
+            f"{format_profit(high_profit)} points", 
             fill=(255, 255, 255), 
             font=profit_font_large, 
             anchor="mm"
@@ -727,7 +727,7 @@ class HiLo(commands.Cog):
         )
         draw.text(
             (30 + section_width + section_width//2, bar_y + 50), 
-            f"{format_profit(low_profit)} {currency}", 
+            f"{format_profit(low_profit)} points", 
             fill=(255, 255, 255), 
             font=profit_font_large, 
             anchor="mm"
@@ -744,7 +744,7 @@ class HiLo(commands.Cog):
         )
         draw.text(
             (30 + 2*section_width + section_width//2, bar_y + 50), 
-            f"{format_profit(total_profit)} {currency}", 
+            f"{format_profit(total_profit)} points", 
             fill=(255, 255, 255), 
             font=profit_font_large, 
             anchor="mm"
@@ -845,28 +845,7 @@ class HiLo(commands.Cog):
     def add_to_history(self, user_id, server_id, amount, bet_amount, result_type, game):
         """Add game result to user and server history"""
         try:
-            # Update user history
-            db = Users()
-            history_entry = {
-                "type": result_type,
-                "game": game,
-                "amount": amount if result_type == "win" else 0,
-                "bet": bet_amount,
-                "timestamp": int(time.time())
-            }
-            db.update_history(user_id, history_entry)
-
-            # Update server history
             server_db = Servers()
-            server_history_entry = {
-                "user_id": user_id,
-                "type": result_type,
-                "game": game,
-                "amount": amount if result_type == "win" else 0,
-                "bet": bet_amount,
-                "timestamp": int(time.time())
-            }
-            server_db.update_history(server_id, server_history_entry)
 
             # Update server profit
             if result_type == "win":
@@ -887,15 +866,15 @@ class HiLo(commands.Cog):
         return deck
 
     @commands.command(aliases=["hl"])
-    async def hilo(self, ctx, bet_amount: str = None, currency_type: str = None):
+    async def hilo(self, ctx, bet_amount: str = None):
         """Play the HiLo card game - guess if the next card will be higher or lower!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="🃏 How to Play HiLo",
                 description=(
                     "**HiLo** is a card game where you bet on whether the next card will be higher or lower than the current one!\n\n"
-                    "**Usage:** `!hilo <amount> [currency_type]`\n"
-                    "**Example:** `!hilo 100` or `!hilo 100 tokens`\n\n"
+                    "**Usage:** `!hilo <amount>`\n"
+                    "**Example:** `!hilo 100`\n\n"
                     "- **You'll be shown a card and need to decide if the next one will be higher or lower**\n"
                     "- **The multiplier changes based on your odds of winning each round**\n"
                     "- **Continue playing to increase your multiplier or cash out anytime**\n"
@@ -929,7 +908,7 @@ class HiLo(commands.Cog):
             from Cogs.utils.currency_helper import process_bet_amount
 
             # Process the bet amount using the currency helper
-            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
             if not success:
                 try:
                     await loading_message.delete()
@@ -939,15 +918,8 @@ class HiLo(commands.Cog):
 
             # Set up the game
             tu = bet_info["tokens_used"]
-            cu = bet_info["credits_used"]
-            if tu > 0:
-                currency_used = "tokens"
-
-            elif cu > 0:
-                currency_used = "credits"
-
-            else:
-                currency_used = "mixed/none"
+            
+            currency_used = "points"
             # Update loading message to indicate progress
             await loading_message.edit(embed=discord.Embed(
                 title=f"{loading_emoji} | Setting Up Game...",
@@ -962,7 +934,7 @@ class HiLo(commands.Cog):
             current_card = deck.pop(0)
 
             # Create game view
-            view = HiLoView(self, ctx, int(bet_amount), currency_used, deck, current_card)
+            view = HiLoView(self, ctx, int(bet_amount), deck, current_card)
 
             # Calculate initial potential profits
             view.calculate_potential_profits()
@@ -977,7 +949,7 @@ class HiLo(commands.Cog):
             # Generate the initial game image
             game_image = await self.create_game_image(current_card, [], 
                                                     view.high_profit, view.low_profit, 
-                                                    view.current_winnings, currency_used, current_winnings=view.current_winnings)
+                                                    view.current_winnings, current_winnings=view.current_winnings)
 
             # Create initial game embed
             embed = view.create_game_embed()

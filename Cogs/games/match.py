@@ -167,17 +167,17 @@ class MatchButton(discord.ui.Button):
             await interaction.response.edit_message(view=self.view)
 
 class PlayAgainButton(discord.ui.Button):
-    def __init__(self, match_cog, bet_amount, currency_type=None):
+    def __init__(self, match_cog, bet_amount):
         super().__init__(style=discord.ButtonStyle.success, label="Play Again", row=4)
         self.match_cog = match_cog
         self.bet_amount = bet_amount
-        self.currency_type = currency_type
+        #self.currency_type = currency_type
 
     async def callback(self, interaction: discord.Interaction):
         # Start a new game with the same bet amount
         try:
             ctx = await self.match_cog.bot.get_context(interaction.message)
-            await self.match_cog.match(ctx, str(self.bet_amount), self.currency_type)
+            await self.match_cog.match(ctx, str(self.bet_amount))
         except Exception as e:
             # Handle any errors that might occur
             error_embed = discord.Embed(
@@ -208,7 +208,7 @@ class Match(commands.Cog):
         self.ongoing_games = {}
 
     @commands.command(aliases=["mat", "matchgame"])
-    async def match(self, ctx, bet_amount: str = None, currency_type: str = None):
+    async def match(self, ctx, bet_amount: str = None):
         """Match Game - Match 3 of the same multiplier to win!"""
         # Check if bet is provided
         if bet_amount is None:
@@ -239,9 +239,9 @@ class Match(commands.Cog):
             return await ctx.reply(embed=embed)
 
         # Send loading message
-        loading_emoji = emoji()["loading"]
+        #loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Starting Match Game...",
+            title=f"Starting Match Game...",
             description="Please wait while we set up your game...",
             color=0x00FFAE
         )
@@ -251,7 +251,7 @@ class Match(commands.Cog):
         from Cogs.utils.currency_helper import process_bet_amount
 
         # Process the bet amount using the currency helper
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
         # If processing failed, return the error
         if not success:
@@ -260,9 +260,10 @@ class Match(commands.Cog):
 
         # Extract bet information
         tokens_used = bet_info.get("tokens_used", 0)
-        credits_used = bet_info.get("credits_used", 0)
+        #credits_used = bet_info.get("credits_used", 0)
         bet_amount_value = bet_info.get("total_bet_amount", 0)
-        currency_used = bet_info.get("currency_type", "tokens")
+        currency_used="points"
+        #currency_used = bet_info.get("currency_type", "tokens")
 
         # Create game
         match_game = MatchGame(bet_amount_value, ctx.author.id)
@@ -318,7 +319,7 @@ class Match(commands.Cog):
 
             # Update user balance and history
             if winnings > 0:
-                db.update_balance(match_game.user_id, winnings, "credits", "$inc")
+                db.update_balance(match_game.user_id, winnings)
 
                 # Adjust profit ratio for house edge calculations
                 profit = match_game.bet_amount - winnings
@@ -326,53 +327,10 @@ class Match(commands.Cog):
                 dbb = Servers()
                 dbb.update_server_profit(s, profit, game="match")
                 
-                # Update user stats
-                db.collection.update_one(
-                    {"discord_id": match_game.user_id},
-                    {"$inc": {
-                        "total_played": 1,
-                        "total_won": 1,
-                        "total_earned": winnings
-                    }}
-                )
-
-                # Add to history
-                history_entry = {
-                    "type": "win",
-                    "game": "match",
-                    "bet": match_game.bet_amount,
-                    "multiplier": matched_multiplier,
-                    "amount": winnings,
-                    "timestamp": int(datetime.datetime.now().timestamp())
-                }
-
-                db.collection.update_one(
-                    {"discord_id": match_game.user_id},
-                    {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
-                )
+                
             else:
                 # If they matched but didn't win anything (unlikely but possible with very low multipliers)
-                db.collection.update_one(
-                    {"discord_id": match_game.user_id},
-                    {"$inc": {
-                        "total_played": 1,
-                        "total_lost": 1,
-                        "total_spent": match_game.bet_amount
-                    }}
-                )
-
-                # Add to history
-                history_entry = {
-                    "type": "loss",
-                    "game": "match",
-                    "amount": match_game.bet_amount,
-                    "timestamp": int(datetime.datetime.now().timestamp())
-                }
-
-                db.collection.update_one(
-                    {"discord_id": match_game.user_id},
-                    {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
-                )
+                pass
         else:
             # Player didn't match any multiplier
             embed = discord.Embed(
@@ -387,28 +345,7 @@ class Match(commands.Cog):
                 inline=False
             )
 
-            # Update user stats
-            db.collection.update_one(
-                {"discord_id": match_game.user_id},
-                {"$inc": {
-                    "total_played": 1,
-                    "total_lost": 1,
-                    "total_spent": match_game.bet_amount
-                }}
-            )
-
-            # Add to history
-            history_entry = {
-                "type": "loss",
-                "game": "match",
-                "amount": match_game.bet_amount,
-                "timestamp": int(datetime.datetime.now().timestamp())
-            }
-
-            db.collection.update_one(
-                {"discord_id": match_game.user_id},
-                {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
-            )
+            
 
         # No balance field needed
 
@@ -438,7 +375,7 @@ class Match(commands.Cog):
                 child.disabled = True
         
         # Add Play Again button
-        view.add_item(PlayAgainButton(self, match_game.bet_amount, currency_used))
+        view.add_item(PlayAgainButton(self, match_game.bet_amount))
 
         # Try to edit the message, but handle potential interaction errors
         try:

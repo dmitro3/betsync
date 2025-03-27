@@ -22,7 +22,7 @@ class WheelCog(commands.Cog):
         self.total_chance = sum(color["chance"] for color in self.colors.values())
 
     @commands.command(aliases=["w"])
-    async def wheel(self, ctx, bet_amount: str = None, currency_type: str = None, spins: int = 1):
+    async def wheel(self, ctx, bet_amount: str = None, spins: int = 1):
         """Play the wheel game - bet on colors with different multipliers!"""
         # Limit the number of spins to 15
         if spins > 15:
@@ -34,8 +34,8 @@ class WheelCog(commands.Cog):
                 title="<a:hersheyparkSpin:1345317103158431805> How to Play Wheel",
                 description=(
                     "**Wheel** is a game where you bet and win based on where the wheel lands.\n\n"
-                    "**Usage:** `!wheel <amount> [currency_type] [spins]`\n"
-                    "**Example:** `!wheel 100` or `!wheel 100 tokens` or `!wheel 100 tokens 5`\n\n"
+                    "**Usage:** `!wheel <amount> [currency_type]`\n"
+                    "**Example:** `!wheel 100` or `!wheel 100 tokens`\n\n"
                     "**Colors and Multipliers:**\n"
                     "⚪ **Gray** - 0x (Loss)\n"
                     "🟡 **Yellow** - 1.5x\n"
@@ -62,9 +62,9 @@ class WheelCog(commands.Cog):
             return await ctx.reply(embed=embed)
 
         # Send loading message
-        loading_emoji = emoji()["loading"]
+        #oading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Preparing Wheel Game...",
+            title=f"Preparing Wheel Game...",
             description="Please wait while we set up your game.",
             color=0x00FFAE
         )
@@ -74,7 +74,7 @@ class WheelCog(commands.Cog):
         from Cogs.utils.currency_helper import process_bet_amount
         
         # First process the bet amount for a single spin
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount*spins, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount*spins, loading_message)
         
         # If processing failed, return the error
         if not success:
@@ -83,13 +83,13 @@ class WheelCog(commands.Cog):
             
         # Extract needed values from bet_info
         tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
+        #credits_used = bet_info["credits_used"]
         total_bet = bet_info["total_bet_amount"]
         bet_amount_value = total_bet
         
         # Calculate total amounts for multiple spins
         total_tokens_used = tokens_used * spins
-        total_credits_used = credits_used * spins
+        #total_credits_used = credits_used * spins
         
         # Verify user has enough for all spins
         db = Users()
@@ -113,7 +113,7 @@ class WheelCog(commands.Cog):
         self.ongoing_games[ctx.author.id] = {
             "bet_amount": bet_amount_value,
             "tokens_used": total_tokens_used,
-            "credits_used": total_credits_used,
+            #"credits_used": total_credits_used,
             "spins": spins
         }
         
@@ -133,15 +133,7 @@ class WheelCog(commands.Cog):
 
         # Format bet description
         per_spin_text = ""
-        if tokens_used > 0 and credits_used > 0:
-            per_spin_text = f"{tokens_used:.2f} tokens + {credits_used:.2f} credits"
-            wheel_embed.description += f"{total_tokens_used:.2f} tokens + {total_credits_used:.2f} credits"
-        elif tokens_used > 0:
-            per_spin_text = f"{tokens_used:.2f} tokens"
-            wheel_embed.description += f"{total_tokens_used:.2f} tokens"
-        else:
-            per_spin_text = f"{credits_used:.2f} credits"
-            wheel_embed.description += f"{total_credits_used:.2f} credits"
+        wheel_embed.description += f"{total_tokens_used:.2f} points"
 
         if spins > 1:
             wheel_embed.description += f" ({per_spin_text} per spin)"
@@ -201,7 +193,7 @@ class WheelCog(commands.Cog):
         # Store results for all spins
         spin_results = []
         total_winnings = 0
-        bet_total = tokens_used + credits_used
+        bet_total = tokens_used 
         total_bet_amount = bet_total * spins
 
         # Calculate results for each spin
@@ -416,7 +408,7 @@ class PlayAgainView(discord.ui.View):
 
         # Use the same bet amount and spins without specifying currency
         # The currency helper in the wheel command will handle balance checks and currency selection
-        await self.cog.wheel(self.ctx, str(self.bet_amount), None, self.spins)
+        await self.cog.wheel(self.ctx, str(self.bet_amount), self.spins)
 
     async def on_timeout(self):
         # Disable the button when the view times out

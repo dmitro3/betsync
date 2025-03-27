@@ -82,7 +82,7 @@ class BaccaratGame(commands.Cog):
                 description=(
                     "**Baccarat** is a simple card game where you bet on which hand will win.\n\n"
                     "**Usage:** `!baccarat <amount> [player/banker/tie]`\n"
-                    "**Example:** `!baccarat 100 tokens player`\n\n"
+                    "**Example:** `!baccarat 100 player`\n\n"
                     "- **Player & Banker each get 2 cards**\n"
                     "- **Card values: A=1, 2-9=face value, 10/J/Q/K=0**\n"
                     "- **Only the ones digit of the total matters (12 = 2)**\n"

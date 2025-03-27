@@ -56,9 +56,9 @@ class Start(commands.Cog):
         self.command_descriptions = {
             # Profile & Stats
             "profile": "View your casino profile and statistics",
-            "history": "View your transaction history",
-            "stats": "View your gambling statistics",
-            "leaderboard": "View top players by winnings",
+            #"history": "View your transaction history",
+            #"stats": "View your gambling statistics",
+            #"leaderboard": "View top players by winnings",
 
             # Currency & Banking
             "deposit": "Deposit currency for tokens",
@@ -75,13 +75,13 @@ class Start(commands.Cog):
             "rakeback": "Get cashback on your bets",
 
             # Server Features
-            "serverstats": "View server statistics and earnings",
-            "serverbethistory": "View server's betting history",
-            "airdrop": "Create a token/credit airdrop",
+            #"serverstats": "View server statistics and earnings",
+            #"serverbethistory": "View server's betting history",
+            #"airdrop": "Create a token/credit airdrop",
 
             # Lottery System
-            "loterry": "View or participate in the current lottery",
-            "loterryhistory": "View past lottery results",
+            #"loterry": "View or participate in the current lottery",
+            #"loterryhistory": "View past lottery results",
 
             # Games List 
             "games": "List all available casino games",
@@ -93,7 +93,7 @@ class Start(commands.Cog):
             "baccarat": "An elegant card game where you bet on either the Player or Banker hand",
             "coinflip": "A simple heads or tails game with 2x payout",
             "crash": "Watch the multiplier rise and cash out before it crashes",
-            "carddraw": "Higher card wielder wins (PvP Only)",
+            #"carddraw": "Higher card wielder wins (PvP Only)",
             "cases": "Draw multipliers from cases",
             "crosstheroad": "Guide your character across increasing multipliers without crashing",
             "dice": "Roll the dice and win based on the number prediction",
@@ -109,7 +109,7 @@ class Start(commands.Cog):
             "pump": "Pump up the balloon but don't let it pop",
             "race": "Bet on racers and win based on their position",
             #"rockpaperscissors": "Play the classic game against other players (PvP + PvE)",
-            'tictactoe': "Play classic tictactoe with friends (PvP Only)",
+            #'tictactoe': "Play classic tictactoe with friends (PvP Only)",
             "tower": "Climb the tower avoiding wrong choices",
             "wheel": "Spin the wheel for various multipliers"
         }

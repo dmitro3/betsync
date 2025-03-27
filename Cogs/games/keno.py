@@ -178,12 +178,12 @@ PROBABILITIES = {
 }
 
 class KenoView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, currency_used, timeout=120):
+    def __init__(self, cog, ctx, bet_amount, timeout=120):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
-        self.currency_used = currency_used
+        #self.currency_used = currency_used
         self.selected_numbers = []
         self.max_selections = 10
         self.message = None
@@ -240,7 +240,7 @@ class KenoView(discord.ui.View):
         # Cancel the game and refund the user by adding the bet amount back
         await interaction.response.defer()
         db = Users()
-        db.update_balance(self.ctx.author.id, self.bet_amount, self.currency_used, "$inc")
+        db.update_balance(self.ctx.author.id, self.bet_amount)
         
         for child in self.children:
             child.disabled = True
@@ -249,7 +249,7 @@ class KenoView(discord.ui.View):
         
         embed = discord.Embed(
             title="<:no:1344252518305234987> | Game Cancelled",
-            description=f"Game cancelled. Your bet of {self.bet_amount} {self.currency_used} has been refunded.",
+            description=f"Game cancelled. Your bet of {self.bet_amount} points has been refunded.",
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed)
@@ -272,21 +272,6 @@ class KenoView(discord.ui.View):
                     # Record loss in database
                     db = Users()
                     
-                    # Add loss to history
-                    history_entry = {
-                        "type": "loss",
-                        "game": "keno",
-                        "amount": self.bet_amount,
-                        "timestamp": int(datetime.datetime.now().timestamp())
-                    }
-                    
-                    db.collection.update_one(
-                        {"discord_id": self.ctx.author.id},
-                        {
-                            "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                            "$inc": {"total_spent": self.bet_amount, "total_lost": 1, "total_played": 1}
-                        }
-                    )
                     
                     # Update server profit (positive for casino win)
                     server_db = Servers()
@@ -347,7 +332,7 @@ class KenoNumberButton(discord.ui.Button):
         view.update_play_button()
         
         # Update the options embed with current selections and probabilities
-        embed = view.cog.create_options_embed(view.ctx.author, view.bet_amount, view.selected_numbers, view.currency_used)
+        embed = view.cog.create_options_embed(view.ctx.author, view.bet_amount, view.selected_numbers)
         
         # Generate paytable image for the current selection
         if view.selected_numbers:
@@ -397,7 +382,7 @@ class Keno(commands.Cog):
         self.ongoing_games = {}
         
     @commands.command(aliases=["k"])
-    async def keno(self, ctx, bet_amount: str = None, currency_type=None):
+    async def keno(self, ctx, bet_amount: str = None):
         """
         Play a game of Keno
         
@@ -414,8 +399,8 @@ class Keno(commands.Cog):
                 title="🎮 How to Play Keno",
                 description=(
                     "**Keno** is a lottery-style game where you select numbers and win based on matches!\n\n"
-                    "**Usage:** `!keno <amount> [currency_type]`\n"
-                    "**Example:** `!keno 100` or `!keno 100 tokens`\n\n"
+                    "**Usage:** `!keno <amount>`\n"
+                    "**Example:** `!keno 100`\n\n"
                     "- **Select 1-10 numbers from a grid of 20**\n"
                     "- **5 winning numbers will be drawn**\n"
                     "- **Win based on how many of your picks match the draw**\n"
@@ -440,9 +425,9 @@ class Keno(commands.Cog):
             
         try:
             # Send loading message
-            loading_emoji = emoji()["loading"]
+            #loading_emoji = emoji()["loading"]
             loading_embed = discord.Embed(
-                title=f"{loading_emoji} | Preparing Keno Game...",
+                title=f"Preparing Keno Game...",
                 description="Please wait while we set up your game.",
                 color=0x00FFAE
             )
@@ -452,7 +437,7 @@ class Keno(commands.Cog):
             from Cogs.utils.currency_helper import process_bet_amount
             
             # Process the bet amount using the currency helper
-            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
             if not success:
                 try:
                     await loading_message.delete()
@@ -465,24 +450,19 @@ class Keno(commands.Cog):
             
             # Determine currency used
             tu = bet_info["tokens_used"]
-            cu = bet_info["credits_used"]
+            #cu = bet_info["credits_used"]
             
-            if tu > 0:
-                currency_used = "tokens"
-            elif cu > 0:
-                currency_used = "credits"
-            else:
-                currency_used = "mixed/none"
+            currency_used = "points"
                 
             # Update loading message to indicate progress
             await loading_message.edit(embed=discord.Embed(
-                title=f"{loading_emoji} | Setting Up Game...",
-                description=f"Placing bet of {bet_amount} {currency_used}...",
+                title=f"Setting Up Game...",
+                description=f"Placing bet of {bet_amount} points...",
                 color=0x00FFAE
             ))
             
             # Create game view
-            view = KenoView(self, ctx, bet_amount_value, currency_used)
+            view = KenoView(self, ctx, bet_amount_value)
             
             # Create initial embed
             initial_embed = self.create_options_embed(ctx.author, bet_amount_value, [1], currency_used)
@@ -892,77 +872,25 @@ class Keno(commands.Cog):
             # Handle win
             if num_matches > 0 and multiplier > 0:
                 # Update user balance
-                db.update_balance(user_id, winnings, "credits", "$inc")
+                db.update_balance(user_id, winnings)
                 
-                # Add to user history
-                history_entry = {
-                    "type": "win",
-                    "game": "keno",
-                    "amount": winnings,
-                    "bet": bet_amount,
-                    "multiplier": multiplier,
-                    "timestamp": int(datetime.datetime.now().timestamp())
-                }
                 
-                db.collection.update_one(
-                    {"discord_id": user_id},
-                    {
-                        "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                        "$inc": {"total_earned": winnings, "total_won": 1, "total_played": 1}
-                    }
-                )
                 
                 # Update server profit (negative for casino loss)
                 server_db = Servers()
                 server_db.update_server_profit(ctx.guild.id, -1 * (winnings - bet_amount), game="keno")
                 
                 # Add to server bet history
-                server_history_entry = {
-                    "type": "win",
-                    "game": "keno",
-                    "user_id": user_id,
-                    "user_name": ctx.author.name,
-                    "bet": bet_amount,
-                    "amount": winnings,
-                    "multiplier": multiplier,
-                    "timestamp": int(datetime.datetime.now().timestamp())
-                }
-                server_db.update_history(ctx.guild.id, server_history_entry)
                 
             else:
                 # Add loss to history
-                history_entry = {
-                    "type": "loss",
-                    "game": "keno",
-                    "amount": bet_amount,
-                    "multiplier": 0,
-                    "timestamp": int(datetime.datetime.now().timestamp())
-                }
                 
-                db.collection.update_one(
-                    {"discord_id": user_id},
-                    {
-                        "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                        "$inc": {"total_spent": bet_amount, "total_lost": 1, "total_played": 1}
-                    }
-                )
                 
                 # Update server profit (positive for casino win)
                 server_db = Servers()
                 server_db.update_server_profit(ctx.guild.id, bet_amount, game="keno")
                 
                 # Add to server bet history
-                server_history_entry = {
-                    "type": "loss",
-                    "game": "keno",
-                    "user_id": user_id,
-                    "user_name": ctx.author.name,
-                    "bet": bet_amount,
-                    "amount": bet_amount,
-                    "multiplier": 0,
-                    "timestamp": int(datetime.datetime.now().timestamp())
-                }
-                server_db.update_history(ctx.guild.id, server_history_entry)
                 
             # Clean up
             del self.ongoing_games[user_id]

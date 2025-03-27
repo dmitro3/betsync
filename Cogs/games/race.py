@@ -7,12 +7,12 @@ from Cogs.utils.emojis import emoji
 
 class RacePlayAgainView(discord.ui.View):
     """View with a Play Again button that shows after a game ends"""
-    def __init__(self, cog, ctx, bet_amount, currency_used, timeout=60):
+    def __init__(self, cog, ctx, bet_amount,timeout=60):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
-        self.currency_used = currency_used
+        #self.currency_used = currency_used
         self.message = None
         self.original_author = ctx.author  # Store the original author explicitly
 
@@ -29,7 +29,7 @@ class RacePlayAgainView(discord.ui.View):
 
         # Start a new game with same bet amount
         # Pass the interaction.channel instead of self.ctx
-        await self.cog.race(self.ctx, str(self.bet_amount), self.currency_used)
+        await self.cog.race(self.ctx, str(self.bet_amount))
 
 
 class RaceCog(commands.Cog):
@@ -39,15 +39,15 @@ class RaceCog(commands.Cog):
         self.track_length = 15  # Length of the race track
 
     @commands.command(aliases=["carrace"])
-    async def race(self, ctx, bet_amount: str = None, currency_type: str = None):
+    async def race(self, ctx, bet_amount: str = None):
         """Play the car racing game - pick a car, win 3x if it finishes first!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="🏎️ How to Play Car Race",
                 description=(
                     "**Car Race** is a game where you bet on which car will win the race!\n\n"
-                    "**Usage:** `!race <amount> [currency_type]`\n"
-                    "**Example:** `!race 100` or `!race 100 tokens`\n\n"
+                    "**Usage:** `!race <amount>`\n"
+                    "**Example:** `!race 100`\n\n"
                     "- **Choose one of the four cars to bet on**\n"
                     "- **If your car wins, you receive 3x your bet!**\n"
                     "- **If your car loses, you lose your bet**\n"
@@ -68,9 +68,9 @@ class RaceCog(commands.Cog):
             return await ctx.reply(embed=embed)
 
         # Send loading message
-        loading_emoji = emoji()["loading"]
+        #loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Processing Race Bet...",
+            title=f"Processing Race Bet...",
             description="Please wait while we process your request...",
             color=0x00FFAE
         )
@@ -81,7 +81,7 @@ class RaceCog(commands.Cog):
 
         try:
             # Process the bet amount using the currency helper
-            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
             # If processing failed, return the error
             if not success:
@@ -90,16 +90,11 @@ class RaceCog(commands.Cog):
 
             # Successful bet processing - extract relevant information
             tokens_used = bet_info["tokens_used"]
-            credits_used = bet_info["credits_used"]
+            #credits_used = bet_info["credits_used"]
             bet_amount = bet_info["total_bet_amount"]
 
-            # Determine which currency was primarily used for display purposes
-            if tokens_used > 0 and credits_used > 0:
-                currency_used = "mixed"
-            elif tokens_used > 0:
-                currency_used = "tokens"
-            else:
-                currency_used = "credits"
+            # Det
+            currency_used = "points"
 
         except Exception as e:
             print(f"Error processing bet: {e}")

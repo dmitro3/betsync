@@ -172,61 +172,11 @@ class PlayAgainView(discord.ui.View):
         if not user_data:
             return await interaction.followup.send("Your account couldn't be found. Please try again later.", ephemeral=True)
 
-        tokens_balance = user_data['tokens']
-        credits_balance = user_data['credits']
-
-        # Determine if the user can make the same bet or needs to use max available
-        if tokens_balance + credits_balance < self.bet_amount:
-            # User doesn't have enough for the same bet - use max instead
-            bet_amount = tokens_balance + credits_balance
-            if bet_amount <= 0:
-                return await interaction.followup.send("You don't have enough funds to play again.", ephemeral=True)
-
-            # Ask user to confirm playing with max amount
-            confirm_embed = discord.Embed(
-                title="⚠️ Insufficient Funds for Same Bet",
-                description=f"You don't have enough to bet {self.bet_amount:.2f} again.\nWould you like to bet your maximum available amount ({bet_amount:.2f}) instead?",
-                color=0xFFAA00
-            )
-
-            confirm_view = discord.ui.View(timeout=30)
-
-            @discord.ui.button(label="Yes", style=discord.ButtonStyle.success)
-            async def confirm_button(b, i):
-                if i.user.id != self.ctx.author.id:
-                    return await i.response.send_message("This is not your game!", ephemeral=True)
-
-                for child in confirm_view.children:
-                    child.disabled = True
-                await i.response.edit_message(view=confirm_view)
-
-                # Start a new game with max amount
-                if self.mines_count:
-                    await self.cog.mines(self.ctx, str(bet_amount), None, str(self.mines_count))
-                else:
-                    await self.cog.mines(self.ctx, str(bet_amount))
-
-            @discord.ui.button(label="No", style=discord.ButtonStyle.danger)
-            async def cancel_button(b, i):
-                if i.user.id != self.ctx.author.id:
-                    return await i.response.send_message("This is not your game!", ephemeral=True)
-
-                for child in confirm_view.children:
-                    child.disabled = True
-                await i.response.edit_message(view=confirm_view)
-                await i.followup.send("Mines game cancelled.", ephemeral=True)
-
-            confirm_view.add_item(confirm_button)
-            confirm_view.add_item(cancel_button)
-
-            await interaction.followup.send(embed=confirm_embed, view=confirm_view, ephemeral=True)
+        await interaction.followup.send("Starting a new game with the same bet...", ephemeral=True)
+        if self.mines_count:
+            await self.cog.mines(self.ctx, str(self.bet_amount), None, str(self.mines_count))
         else:
-            # User can afford the same bet
-            await interaction.followup.send("Starting a new game with the same bet...", ephemeral=True)
-            if self.mines_count:
-                await self.cog.mines(self.ctx, str(self.bet_amount), None, str(self.mines_count))
-            else:
-                await self.cog.mines(self.ctx, str(self.bet_amount))
+            await self.cog.mines(self.ctx, str(self.bet_amount))
 
     async def on_timeout(self):
         # Disable button after timeout
@@ -393,54 +343,15 @@ class MinesTileView(discord.ui.View):
         db = Users()
 
         # Add credits to user (always give credits for winnings)
-        db.update_balance(ctx.author.id, winnings, "credits", "$inc")
-
-        # Add to win history
-        win_entry = {
-            "type": "win",
-            "game": "mines",
-            "bet": self.bet_amount,
-            "amount": winnings,
-            "multiplier": self.current_multiplier,
-            "mines": self.mines_count,
-            "tiles_revealed": len(self.revealed_tiles),
-            "timestamp": int(time.time())
-        }
-        db.collection.update_one(
-            {"discord_id": ctx.author.id},
-            {"$push": {"history": {"$each": [win_entry], "$slice": -100}}}
-        )
-
-        # Update server history
+        db.update_balance(ctx.author.id, winnings)
         server_db = Servers()
-        server_data = server_db.fetch_server(ctx.guild.id)
-
-        if server_data:
-            server_win_entry = {
-                "type": "win",
-                "game": "mines",
-                "user_id": ctx.author.id,
-                "user_name": ctx.author.name,
-                "bet": self.bet_amount,
-                "amount": winnings,
-                "multiplier": self.current_multiplier,
-                "mines": self.mines_count,
-                "tiles_revealed": len(self.revealed_tiles),
-                "timestamp": int(time.time())
-            }
-            server_db.collection.update_one(
-                {"server_id": ctx.guild.id},
-                {"$push": {"server_bet_history": {"$each": [server_win_entry], "$slice": -100}}}
-            )
+            
 
             # Update server profit (negative value because server loses when player wins)
-            profit = winnings - self.bet_amount
-            server_db.update_server_profit(ctx.guild.id, -profit, game="mines")
+        profit = winnings - self.bet_amount
+        server_db.update_server_profit(ctx.guild.id, -profit, game="mines")
 
         # Update user stats
-        db.collection.update_one(
-            {"discord_id": ctx.author.id},
-            {"$inc": {"total_won": 1, "total_earned": winnings}}
         )
 
     async def process_loss(self, ctx):
@@ -448,53 +359,17 @@ class MinesTileView(discord.ui.View):
         # Get database connection
         db = Users()
 
-        # Add to loss history
-        loss_entry = {
-            "type": "loss",
-            "game": "mines",
-            "bet": self.bet_amount,
-            "amount": self.bet_amount,
-            "mines": self.mines_count,
-            "tiles_revealed": len(self.revealed_tiles),
-            "timestamp": int(time.time())
-        }
-        db.collection.update_one(
-            {"discord_id": ctx.author.id},
-            {"$push": {"history": {"$each": [loss_entry], "$slice": -100}}}
-        )
+        
 
         # Update server history
         server_db = Servers()
         server_data = server_db.fetch_server(ctx.guild.id)
 
         if server_data:
-            server_loss_entry = {
-                "type": "loss",
-                "game": "mines",
-                "user_id": ctx.author.id,
-                "user_name": ctx.author.name,
-                "bet": self.bet_amount,
-                "mines": self.mines_count,
-                "tiles_revealed": len(self.revealed_tiles),
-                "timestamp": int(time.time())
-            }
-            server_db.collection.update_one(
-                {"server_id": ctx.guild.id},
-                {"$push": {"server_bet_history": {"$each": [server_loss_entry], "$slice": -100}}}
-            )
-
-            # Update server profit
-            server_db.collection.update_one(
-                {"server_id": ctx.guild.id},
-                {"$inc": {"total_profit": self.bet_amount}}
-            )
+            
             server_db.update_server_profit(ctx.guild.id, self.bet_amount, game="mines")
 
-        # Update user stats
-        db.collection.update_one(
-            {"discord_id": ctx.author.id},
-            {"$inc": {"total_lost": 1}}
-        )
+        
 
     async def on_timeout(self):
         """Handle timeout - auto cash out if player has revealed tiles"""
@@ -614,7 +489,7 @@ class MinesCog(commands.Cog):
         return 24  # 5x5 grid - 1 safe tile
 
     @commands.command(aliases=["mine", "m"])
-    async def mines(self, ctx, bet_amount: str = None, currency_type: str = None, mines_count: str = None):
+    async def mines(self, ctx, bet_amount: str = None, mines_count: int= None):
         """Play the mines game - avoid the mines and cash out with a profit!"""
         if not bet_amount:
             # Show usage embed
@@ -622,7 +497,7 @@ class MinesCog(commands.Cog):
                 title="💎 How to Play Mines",
                 description=(
                     "**Mines** is a game where you reveal tiles to find gems while avoiding mines.\n\n"
-                    "**Usage:** `!mines <amount> [currency_type] [mine_count]`\n"
+                    "**Usage:** `!mines <amount> [mine_count]`\n"
                     "**Example:** `!mines 100` or `!mines 100 tokens 5`\n\n"
                     "- **Click on buttons to reveal tiles**\n"
                     "- **Each safe tile increases your multiplier**\n"
@@ -647,9 +522,9 @@ class MinesCog(commands.Cog):
             return await ctx.reply(embed=embed)
 
         # Send loading message
-        loading_emoji = emoji()["loading"]
+        #loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Preparing Mines Game...",
+            title=f"Preparing Mines Game...",
             description="Please wait while we set up your game.",
             color=0x00FFAE
         )
@@ -658,18 +533,7 @@ class MinesCog(commands.Cog):
         # Process bet amount with error handling
 
 
-        # Format currency type if provided    
-        if currency_type:
-            currency_type = currency_type.lower()
-            # Allow shorthand T for tokens and C for credits
-            if currency_type == 't':
-                currency_type = 'tokens'
-            elif currency_type == 'c':
-                currency_type = 'credits'
-            elif currency_type.isdigit():
-                # User may have specified mine count as second parameter
-                mines_count = currency_type
-                currency_type = None
+        
 
         # Set default mines count
         if mines_count is None:
@@ -690,7 +554,7 @@ class MinesCog(commands.Cog):
 
         # Process bet amount using currency helper
         from Cogs.utils.currency_helper import process_bet_amount
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
         if not success:
             await loading_message.delete()
@@ -698,23 +562,15 @@ class MinesCog(commands.Cog):
 
         # Extract bet information
         tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
+        #credits_used = bet_info["credits_used"]
         total_bet = bet_info["total_bet_amount"]
 
-        # Determine currency used for display
-        if tokens_used > 0 and credits_used > 0:
-            currency_used = "mixed"
-        elif tokens_used > 0:
-            currency_used = "tokens"
-        else:
-            currency_used = "credits"
+        
+        currency_used = "points"
 
         # Record game stats
         db = Users()
-        db.collection.update_one(
-            {"discord_id": ctx.author.id},
-            {"$inc": {"total_played": 1, "total_spent": total_bet}}
-        )
+        
 
         # Create game view
         game_view = MinesTileView(self, ctx, total_bet, mines_count)
@@ -722,7 +578,7 @@ class MinesCog(commands.Cog):
         # Mark the game as ongoing
         self.ongoing_games[ctx.author.id] = {
             "tokens_used": tokens_used,
-            "credits_used": credits_used,
+            #"credits_used": credits_used,
             "bet_amount": total_bet,
             "currency_used": currency_used,
             "mines_count": mines_count,

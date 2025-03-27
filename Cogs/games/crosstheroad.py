@@ -8,13 +8,13 @@ from colorama import Fore
 from Cogs.utils.emojis import emoji
 
 class PlayAgainView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, difficulty, currency_type="tokens", timeout=15):
+    def __init__(self, cog, ctx, bet_amount, difficulty, timeout=15):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
         self.difficulty = difficulty
-        self.currency_type = currency_type
+        #self.currency_type = currency_type
         self.message = None
 
     async def on_timeout(self):
@@ -40,18 +40,18 @@ class PlayAgainView(discord.ui.View):
         await self.message.edit(view=self)
         await interaction.response.defer()
         # Start a new game with the same parameters
-        await self.cog.crosstheroad(self.ctx, str(self.bet_amount), self.difficulty, self.currency_type)
+        await self.cog.crosstheroad(self.ctx, str(self.bet_amount), self.difficulty)
 
 class CrossTheRoadGame(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, difficulty, tokens_used=0, credits_used=0, timeout=60):
+    def __init__(self, cog, ctx, bet_amount, difficulty, tokens_used=0, timeout=60):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
         self.difficulty = difficulty.lower()
         self.tokens_used = tokens_used
-        self.credits_used = credits_used
-        self.currency_type = "credits"  # Always pay out in credits
+        #self.credits_used = credits_used
+        self.currency_type = "points"  # Always pay out in credits
         self.message = None
         self.current_lane = 0
         self.lanes_crossed = 0
@@ -132,12 +132,12 @@ class CrossTheRoadGame(discord.ui.View):
     def create_embed(self, status="playing"):
         """Create game embed with current state"""
         # Format bet description
-        if self.tokens_used > 0 and self.credits_used > 0:
-            bet_description = f"**{self.tokens_used} tokens** + **{self.credits_used} credits**"
-        elif self.tokens_used > 0:
-            bet_description = f"**{self.tokens_used} tokens**"
-        else:
-            bet_description = f"**{self.credits_used} credits**"
+        #if self.tokens_used > 0 and self.credits_used > 0:
+         #   bet_description = f"**{self.tokens_used} tokens** + **{self.credits_used} credits**"
+        #elif self.tokens_used > 0:
+            #bet_description = f"**{self.tokens_used} tokens**"
+        #else:
+        bet_description = f"**{self.tokens_used} points**"
 
         if status == "playing":
             embed = discord.Embed(
@@ -236,29 +236,7 @@ class CrossTheRoadGame(discord.ui.View):
         db.update_balance(self.ctx.author.id, payout, "credits", "$inc")
 
         # Create history entry for user
-        history_entry = {
-            "game": "crosstheroad",
-            "type": "win",
-            "bet": self.bet_amount,
-            "amount": payout,
-            "multiplier": self.current_multiplier,
-            "lanes_crossed": self.lanes_crossed,
-            "difficulty": self.difficulty,
-            "timestamp": int(time.time())
-        }
-
-        # Update user history and stats in one operation
-        db.collection.update_one(
-            {"discord_id": self.ctx.author.id},
-            {
-                "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                "$inc": {
-                    "total_played": 1,
-                    "total_won": 1,
-                    "total_earned": payout
-                }
-            }
-        )
+        
 
         # Also update server stats if available
         try:
@@ -266,13 +244,7 @@ class CrossTheRoadGame(discord.ui.View):
             server_profit = self.bet_amount - payout
             server_db.update_server_profit(self.ctx.guild.id, server_profit, game="crosstheroad")
 
-            # Add bet to server history with all required fields
-            server_bet_data = history_entry.copy()
-            server_bet_data.update({
-                "user_id": self.ctx.author.id,
-                "user_name": self.ctx.author.name,
-            })
-            server_db.update_history(self.ctx.guild.id, server_bet_data)
+            # Add bet to server history with all required fiel
         except Exception as e:
             print(f"Error updating server history: {e}")
 
@@ -301,44 +273,13 @@ class CrossTheRoadGame(discord.ui.View):
         # Mark game as complete
         self.game_over = True
 
-        # Create history entry for user
-        history_entry = {
-            "game": "crosstheroad",
-            "type": "loss",
-            "bet": self.bet_amount,
-            "amount": self.bet_amount,  # Amount lost
-            "multiplier": 0,
-            "lanes_crossed": self.lanes_crossed,
-            "difficulty": self.difficulty,
-            "timestamp": int(time.time())
-        }
-
-        # Update user history and stats in one operation
-        db = Users()
-        db.collection.update_one(
-            {"discord_id": self.ctx.author.id},
-            {
-                "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                "$inc": {
-                    "total_played": 1,
-                    "total_lost": 1,
-                    "total_spent": self.bet_amount
-                }
-            }
-        )
-
+    
         # Also update server stats if available
         try:
             server_db = Servers()
             server_db.update_server_profit(self.ctx.guild.id, self.bet_amount, game="crosstheroad")
 
             # Add bet to server history with all required fields
-            server_bet_data = history_entry.copy()
-            server_bet_data.update({
-                "user_id": self.ctx.author.id,
-                "user_name": self.ctx.author.name,
-            })
-            server_db.update_history(self.ctx.guild.id, server_bet_data)
         except Exception as e:
             print(f"Error updating server history: {e}")
 
@@ -420,15 +361,15 @@ class CrossTheRoadCog(commands.Cog):
         self.ongoing_games = {}
 
     @commands.command(aliases=["ctr", "chicken", "road"])
-    async def crosstheroad(self, ctx, bet_amount: str = None, difficulty: str = None, currency_type: str = None):
+    async def crosstheroad(self, ctx, bet_amount: str = None, difficulty: str = None):
         """Play Cross the Road - help your chicken cross the road without getting hit!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="🐓 How to Play Cross the Road",
                 description=(
                     "**Cross the Road** is a game where you help a chicken cross a busy road!\n\n"
-                    "**Usage:** `!crosstheroad <amount> <difficulty> [currency_type]`\n"
-                    "**Example:** `!crosstheroad 100 easy` or `!crosstheroad 50 hard credits`\n"
+                    "**Usage:** `!crosstheroad <amount> <difficulty>`\n"
+                    "**Example:** `!crosstheroad 100 easy` or `!crosstheroad 50 hard`\n"
                     #"**Difficulties:**\n"
                     #"- **Easy:** 9% hit chance, 1.10x multiplier per lane\n"
                     #"- **Medium:** 17% hit chance, 1.30x multiplier per lane\n"
@@ -459,9 +400,9 @@ class CrossTheRoadCog(commands.Cog):
             return await ctx.reply(embed=error_embed)
             
         # Send loading message
-        loading_emoji = emoji()["loading"]
+       # loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Preparing Cross The Road Game...",
+            title=f"Preparing Cross The Road Game...",
             description="Please wait while we set up your game.",
             color=0x00FFAE
         )
@@ -474,14 +415,14 @@ class CrossTheRoadCog(commands.Cog):
         from Cogs.utils.currency_helper import process_bet_amount
 
         # Process the bet amount using the currency helper
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
         # If processing failed, return the error
         if not success:
             return await loading_message.edit(embed=error_embed)
 
         tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
+        #credits_used = bet_info["credits_used"]
         total_bet = bet_info["total_bet_amount"]
 
         # Create the game
@@ -491,7 +432,7 @@ class CrossTheRoadCog(commands.Cog):
             total_bet, 
             difficulty, 
             tokens_used=tokens_used,
-            credits_used=credits_used,
+            #credits_used=credits_used,
             timeout=120  # 2 minute timeout
         )
 

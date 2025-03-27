@@ -44,15 +44,15 @@ class DiceCog(commands.Cog):
         self.ongoing_games = {}
 
     @commands.command(aliases=["dice", "roll", "d"])
-    async def dicegame(self, ctx, bet_amount: str = None, currency_type: str = None):
+    async def dicegame(self, ctx, bet_amount: str = None):
         """Play the dice game - roll higher than the dealer to win!"""
         if not bet_amount:
             embed = discord.Embed(
                 title=":game_die: How to Play Dice",
                 description=(
                     "**Dice** is a game where you roll against the dealer. Higher number wins!\n\n"
-                    "**Usage:** `!dicegame <amount> [currency_type]`\n"
-                    "**Example:** `!dicegame 100` or `!dicegame 100 tokens`\n\n"
+                    "**Usage:** `!dicegame <amount>`\n"
+                    "**Example:** `!dicegame 100`\n\n"
                     "- **You and the dealer each roll a dice (1-6)**\n"
                     "- **If your number is higher, you win!**\n"
                     "- **If there's a tie or dealer wins, you lose your bet**\n"
@@ -73,9 +73,9 @@ class DiceCog(commands.Cog):
             return await ctx.reply(embed=embed)
 
         # Send loading message
-        loading_emoji = emoji()["loading"]
+        #loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Preparing Dice Game...",
+            title=f"Preparing Dice Game...",
             description="Please wait while we set up your game.",
             color=0x00FFAE
         )
@@ -83,7 +83,7 @@ class DiceCog(commands.Cog):
 
         # Process bet amount using currency_helper
         from Cogs.utils.currency_helper import process_bet_amount
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
         # If processing failed, return the error
         if not success:
@@ -91,30 +91,17 @@ class DiceCog(commands.Cog):
 
         # Extract needed values from bet_info
         tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
+        #credits_used = bet_info["credits_used"]
         total_bet = bet_info["total_bet_amount"]
         bet_amount_value = total_bet #added for consistency
 
 
-        # Record game stats
-        db = Users()
-        db.collection.update_one(
-            {"discord_id": ctx.author.id},
-            {"$inc": {"total_played": 1, "total_spent": total_bet}}
-        )
-
-        # Format bet description
-        if tokens_used > 0 and credits_used > 0:
-            bet_description = f"**Bet Amount:** {tokens_used} tokens + {credits_used} credits"
-        elif tokens_used > 0:
-            bet_description = f"**Bet Amount:** {tokens_used} tokens"
-        else:
-            bet_description = f"**Bet Amount:** {credits_used} credits"
+        bet_description = f"**Bet Amount:** {tokens_used} points"
 
         # Mark the game as ongoing
         self.ongoing_games[ctx.author.id] = {
             "tokens_used": tokens_used,
-            "credits_used": credits_used,
+           # "credits_used": credits_used,
             "bet_amount": total_bet
         }
 
@@ -178,30 +165,9 @@ class DiceCog(commands.Cog):
 
                 # Return the bet to the user
                 db = Users()
-                if tokens_used > 0:
-                    db.update_balance(ctx.author.id, tokens_used, "tokens", "$inc")
-                if credits_used > 0:
-                    db.update_balance(ctx.author.id, credits_used, "credits", "$inc")
+                db.update_balance(ctx.author.id, tokens_used, "credits", "$inc")
 
                 # Add to history as a draw
-                servers_db = Servers()
-                history_entry = {
-                    "type": "draw",
-                    "game": "dice",
-                    "bet": total_bet,
-                    "amount": 0,  # No profit/loss on a draw
-                    "multiplier": 0,  # No multiplier applies on a draw
-                    "timestamp": int(time.time())
-                }
-                db.collection.update_one(
-                    {"discord_id": ctx.author.id},
-                    {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
-                )
-
-                # Update server history
-                history_entry["user_id"] = ctx.author.id
-                history_entry["user_name"] = ctx.author.name
-                servers_db.update_history(ctx.guild.id, history_entry)
 
             elif user_won:
                 # Calculate winnings
@@ -231,28 +197,6 @@ class DiceCog(commands.Cog):
                 servers_db.update_server_profit(ctx.guild.id, server_profit, game="dice")
 
                 # Add to history
-                history_entry = {
-                    "type": "win",
-                    "game": "dice",
-                    "bet": total_bet,
-                    "amount": winnings,
-                    "multiplier": multiplier,
-                    "timestamp": int(time.time())
-                }
-                db.collection.update_one(
-                    {"discord_id": ctx.author.id},
-                    {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
-                )
-
-                # Update server history
-                history_entry["user_id"] = ctx.author.id
-                history_entry["user_name"] = ctx.author.name
-                servers_db.update_history(ctx.guild.id, history_entry)
-
-                # Update stats
-                db.collection.update_one(
-                    {"discord_id": ctx.author.id},
-                    {"$inc": {"total_won": 1, "total_earned": winnings}}
                 )
 
             else:
@@ -271,47 +215,14 @@ class DiceCog(commands.Cog):
                 db = Users()
                 servers_db = Servers()
 
-                history_entry = {
-                    "type": "loss",
-                    "game": "dice",
-                    "bet": total_bet,
-                    "amount": total_bet,
-                    "multiplier": multiplier,
-                    "timestamp": int(time.time())
-                }
-                db.collection.update_one(
-                    {"discord_id": ctx.author.id},
-                    {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
-                )
-
-                # Update server history
-                history_entry["user_id"] = ctx.author.id
-                history_entry["user_name"] = ctx.author.name
-                servers_db.update_history(ctx.guild.id, history_entry)
-
-                # Update stats
-                db.collection.update_one(
-                    {"discord_id": ctx.author.id},
-                    {"$inc": {"total_lost": 1}}
-                )
+                
 
                 # Update server profit
                 servers_db.update_server_profit(ctx.guild.id, total_bet, game="dice")
 
-            # Determine which currency was used for display
-            currency_used = None
-            if tokens_used > 0 and credits_used > 0:
-                currency_used = "mixed"
-            elif tokens_used > 0:
-                currency_used = "tokens"
-            else:
-                currency_used = "credits"
+            currency_used = "points"
 
-            # Format result for display
-            if currency_used == "mixed":
-                bet_display = f"{tokens_used} tokens and {credits_used} credits"
-            else:
-                bet_display = f"{total_bet} {currency_used}"
+            bet_display = f"{total_bet} {currency_used}"
 
 
             # Add play again button that expires after 15 seconds
@@ -337,15 +248,7 @@ class DiceCog(commands.Cog):
 
                 # Refund the bet
                 db = Users()
-                if tokens_used > 0:
-                    current_tokens = db.fetch_user(ctx.author.id)['tokens']
-                    db.update_balance(ctx.author.id, current_tokens + tokens_used, "tokens")
-
-                if credits_used > 0:
-                    current_credits = db.fetch_user(ctx.author.id)['credits']
-                    db.update_balance(ctx.author.id, current_credits + credits_used, "credits")
-            except Exception as refund_error:
-                print(f"Error refunding bet: {refund_error}")
+                db.update_balance(ctx.author.id, tokens_used, "points", "$inc")
         finally:
             # Remove the game from ongoing games
             if ctx.author.id in self.ongoing_games:

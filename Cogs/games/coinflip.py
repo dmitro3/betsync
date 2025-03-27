@@ -78,15 +78,15 @@ class CoinflipCog(commands.Cog):
         self.ongoing_games = {}
 
     @commands.command(aliases=["cf", "coin", "flip"])
-    async def coinflip(self, ctx, bet_amount: str = None, side=None, currency_type: str = None):
+    async def coinflip(self, ctx, bet_amount: str = None, side=None):
         """Play coinflip - bet on heads or tails to win 1.95x your bet!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="🪙 How to Play Coinflip",
                 description=(
                     "**Coinflip** is a game where you bet on the outcome of a coin toss.\n\n"
-                    "**Usage:** `!coinflip <amount> [currency_type] [heads/tails]`\n"
-                    "**Example:** `!coinflip 100` or `!coinflip 100 tokens heads`\n\n"
+                    "**Usage:** `!coinflip <amount> [heads/tails]`\n"
+                    "**Example:** `!coinflip 100` or `!coinflip 100 heads`\n\n"
                     "- **If you don't specify heads or tails, one will be chosen randomly**\n"
                     "- **If you win, you receive 1.95x your bet!**\n"
                     "- **If you lose, you lose your bet**\n"
@@ -131,7 +131,7 @@ class CoinflipCog(commands.Cog):
         from Cogs.utils.currency_helper import process_bet_amount
 
         # Process bet using currency helper
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
         if not success:
             await loading_message.delete()
@@ -140,22 +140,14 @@ class CoinflipCog(commands.Cog):
 
         # Successful bet processing - extract relevant information
         tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
+        #credits_used = bet_info["credits_used"]
         bet_amount_value = bet_info["total_bet_amount"]
 
         # Determine which currency was primarily used for display purposes
-        if tokens_used > 0 and credits_used > 0:
-            currency_used = "mixed"
-        elif tokens_used > 0:
-            currency_used = "tokens"
-        else:
-            currency_used = "credits"
+        currency_used = "points"
 
-        # Update the loading message to show bet details
-        if currency_used == "mixed":
-            currency_display = f"{tokens_used} tokens and {credits_used} credits"
-        else:
-            currency_display = f"{bet_amount_value} {currency_used}"
+       
+        currency_display = f"{bet_amount_value} {currency_used}"
 
         loading_embed.description = f"Setting up your {currency_display} coinflip game..."
         await loading_message.edit(embed=loading_embed)
@@ -170,7 +162,7 @@ class CoinflipCog(commands.Cog):
         # Mark the game as ongoing
         self.ongoing_games[ctx.author.id] = {
             "tokens_used": tokens_used,
-            "credits_used": credits_used,
+            #"credits_used": credits_used,
             "bet_amount": bet_amount_value,
             "side": side
         }
@@ -214,7 +206,7 @@ class CoinflipCog(commands.Cog):
             # Add winnings if user won (always in credits)
             if user_won:
                 db = Users()  # Reinstantiate db to ensure we have a fresh connection
-                db.update_balance(ctx.author.id, win_amount, "credits", "$inc")
+                db.update_balance(ctx.author.id, win_amount, "points", "$inc")
                 # Update server history and profit
                 server_db = Servers()
                 #server_data = server_db.fetch_server(ctx.guild.id)
@@ -230,44 +222,18 @@ class CoinflipCog(commands.Cog):
 
                 
 
-                # Add to server history
-                history_entry = {
-                    "type": "coinflip",
-                    "user_id": ctx.author.id,
-                    "user_name": ctx.author.name,
-                    "amount": bet_amount_value,
-                    "currency": "mixed" if tokens_used > 0 and credits_used > 0 else ("tokens" if tokens_used > 0 else "credits"),
-                    "result": result,
-                    "bet": side,
-                    "won": user_won,
-                    "win_amount": win_amount if user_won else 0,
-                    "timestamp": int(time.time())
-                }
-                server_db.update_history(ctx.guild.id, history_entry)
+                
 
-            # Add game to user history
-            history_entry = {
-                "game": "coinflip",
-                "bet_amount": bet_amount_value,
-                "currency": currency_used,
-                "result": "win" if user_won else "loss",
-                "side_chosen": side,
-                "side_result": result,
-                "win_amount": win_amount if user_won else 0,
-                "timestamp": int(time.time())
-            }
+            
             db = Users()  # Reinstantiate db
-            db.update_history(ctx.author.id, history_entry)
+            #db.update_history(ctx.author.id, history_entry)
 
             # Get user balance after the game
             db = Users()  # Reinstantiate db
             user_data = db.fetch_user(ctx.author.id)
 
-            # Format the currency display for the result
-            if currency_used == "mixed":
-                currency_display = f"{tokens_used} tokens and {credits_used} credits"
-            else:
-                currency_display = f"{bet_amount_value} {currency_used}"
+            
+            currency_display = f"{bet_amount_value} {currency_used}"
 
             # Prepare result embed
             if user_won:
@@ -279,7 +245,7 @@ class CoinflipCog(commands.Cog):
                         f"**Bet:** {currency_display}\n"
                         f"**Multiplier:** {multiplier}x\n"
                         f"**Winnings:** {win_amount} credits\n"
-                        f"**New Balance:** {user_data['credits']} credits | {user_data['tokens']} tokens"
+                        #f"**New Balance:** {user_data['credits']} credits | {user_data['tokens']} tokens"
                     ),
                     color=0x00FF00
                 )
@@ -290,7 +256,7 @@ class CoinflipCog(commands.Cog):
                         f"**You chose:** {heads_emoji if side == 'heads' else tails_emoji} **{side.capitalize()}**\n"
                         f"**Result:** {result_emoji} **{result.capitalize()}**\n\n"
                         f"**Bet:** {currency_display}\n"
-                        f"**New Balance:** {user_data['credits']} credits | {user_data['tokens']} tokens"
+                        #f"**New Balance:** {user_data['credits']} credits | {user_data['tokens']} tokens"
                     ),
                     color=0xFF0000
                 )

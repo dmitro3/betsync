@@ -463,15 +463,15 @@ class Poker(commands.Cog):
         return [False, False, False, False, False]
 
     @commands.command(aliases=["p"])
-    async def poker(self, ctx, bet_amount: str = None, currency_type: str = None):
+    async def poker(self, ctx, bet_amount: str = None):
         """Play video poker - hold cards and try to make the best hand!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="🃏 How to Play Video Poker",
                 description=(
                     "**Video Poker** is a card game where you aim to get the best hand possible.\n\n"
-                    "**Usage:** `!poker <amount> [currency_type]`\n"
-                    "**Example:** `!poker 100` or `!poker 100 tokens`\n\n"
+                    "**Usage:** `!poker <amount>`\n"
+                    "**Example:** `!poker 100`\n\n"
                     "**How to Play:**\n"
                     "1. You are dealt 5 cards\n"
                     "2. Select which cards to hold (keep)\n"
@@ -507,14 +507,14 @@ class Poker(commands.Cog):
             from Cogs.utils.currency_helper import process_bet_amount
             loading_message = await ctx.reply("Processing bet...") #added loading message
 
-            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
             if not success:
                 await loading_message.delete()
                 return await ctx.reply(embed=error_embed)
 
-            tokens_used = bet_info["tokens_used"] if isinstance(bet_info, dict) else 0
-            credits_used = bet_info["credits_used"] if isinstance(bet_info, dict) else 0
+            tokens_used = bet_info["tokens_used"]
+            #credits_used = bet_info["credits_used"] if isinstance(bet_info, dict) else 0
             bet_amount_value = bet_info["total_bet_amount"] if isinstance(bet_info, dict) else bet_amount
             #currency_used = bet_info["currency_type"] if isinstance(bet_info, dict) else "credits"
 
@@ -612,53 +612,19 @@ class Poker(commands.Cog):
         db = Users()
         server_db = Servers()
 
-        # Record the game result in history
-        timestamp = int(time.time())
-        win_entry = {
-            "type": "win",
-            "game": "poker",
-            "bet": bet_amount,
-            "amount": winnings,
-            "multiplier": multiplier,
-            "timestamp": timestamp
-        }
-        loss_entry = {
-            "type": "loss",
-            "game": "poker",
-            "amount": bet_amount,
-            "timestamp": timestamp
-        }
+        
 
         if multiplier > 1:
             # Win
-            db.update_balance(ctx.author.id, winnings, "credits", "$inc")
+            db.update_balance(ctx.author.id, winnings)
 
-            # Update stats directly in the collection
-            db.collection.update_one(
-                {"discord_id": ctx.author.id},
-                {"$inc": {"total_won": 1, "total_earned": winnings, "total_played": 1}}
-            )
-
-            # Add to history
-            history_entry = win_entry.copy()
-            db.collection.update_one(
-                {"discord_id": ctx.author.id},
-                {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
-            )
+            
 
             # Update server profit (negative because server loses when player wins)
             try:
                 profit = bet_amount - winnings  # Server profit is negative when player wins
                 server_db.update_server_profit(ctx.guild.id, profit, game="poker")
-                print(profit)
-
-                # Add to server history
-                server_win_entry = win_entry.copy()
-                server_win_entry.update({
-                    "user_id": ctx.author.id,
-                    "user_name": ctx.author.name
-                })
-                server_db.update_history(ctx.guild.id, server_win_entry)
+                
             except Exception as e:
                 print(f"Error updating server profit for win: {e}")
 
@@ -676,7 +642,7 @@ class Poker(commands.Cog):
                 color=embed_color
             )
         elif multiplier==0.5:
-            db.update_balance(ctx.author.id, bet_amount*multiplier, "credits", "$inc")
+            db.update_balance(ctx.author.id, bet_amount*multiplier)
             db.collection.update_one(
                 {"discord_id": ctx.author.id},
                 {"$inc": {"total_lost": 1, "total_played": 1, "total_spent": bet_amount*multiplier}}

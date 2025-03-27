@@ -49,17 +49,6 @@ class CasesPlayAgainView(discord.ui.View):
         if not user_data:
             return await interaction.response.send_message("Could not fetch user data.", ephemeral=True)
 
-        tokens_balance = user_data.get("tokens", 0)
-        credits_balance = user_data.get("credits", 0)
-
-        # Check if user has enough balance
-        if self.currency_used == "tokens" and tokens_balance < self.bet_amount:
-            return await interaction.response.send_message("Insufficient tokens balance!", ephemeral=True)
-        elif self.currency_used == "credits" and credits_balance < self.bet_amount:
-            return await interaction.response.send_message("Insufficient credits balance!", ephemeral=True)
-        elif self.currency_used == "mixed" and (tokens_balance + credits_balance) < self.bet_amount:
-            return await interaction.response.send_message("Insufficient total balance!", ephemeral=True)
-
         # Defer the response and update the message
         await interaction.response.defer()
 
@@ -389,15 +378,15 @@ class CasesCog(commands.Cog):
 
 
     @commands.command(aliases=["case", "crate"])
-    async def cases(self, ctx, bet_amount: str = None, currency_type: str = None):
+    async def cases(self, ctx, bet_amount: str = None):
         """Open a case and test your luck with different multipliers!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="📦 How to Play Cases",
                 description=(
                     "**Cases** is a game where you open a case to win credits based on multipliers!\n\n"
-                    "**Usage:** `!cases <amount> [currency_type]`\n"
-                    "**Example:** `!cases 100` or `!cases 100 tokens`\n\n"
+                    "**Usage:** `!cases <amount>`\n"
+                    "**Example:** `!cases 100`\n\n"
                     "**Possible Rewards:**\n"
                     f"💎 **LEGENDARY** (23x) - 1% chance\n"
                     f"🌟 **EPIC** (10x) - 2% chance\n"
@@ -426,7 +415,7 @@ class CasesCog(commands.Cog):
         from Cogs.utils.currency_helper import process_bet_amount
 
         # Process the bet amount using the currency helper
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
 
         # If processing failed, return the error
         if not success:
@@ -435,22 +424,14 @@ class CasesCog(commands.Cog):
 
         # Successful bet processing - extract relevant information
         tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
+        #credits_used = bet_info["credits_used"]
         bet_amount_value = bet_info["total_bet_amount"]
 
         # Determine which currency was primarily used for display purposes
-        if tokens_used > 0 and credits_used > 0:
-            currency_used = "mixed"
-        elif tokens_used > 0:
-            currency_used = "tokens"
-        else:
-            currency_used = "credits"
+        currency_used ="points"
 
-        # Update the loading message to show bet details
-        if currency_used == "mixed":
-            currency_display = f"{tokens_used} tokens and {credits_used} credits"
-        else:
-            currency_display = f"{bet_amount_value} {currency_used}"
+        
+        currency_display = f"{bet_amount_value} {currency_used}"
 
         loading_embed.description = f"Opening case for {currency_display}..."
         await loading_message.edit(embed=loading_embed)
@@ -480,31 +461,12 @@ class CasesCog(commands.Cog):
 
             server_db.update_server_profit(ctx.guild.id, (bet_amount_value - win_amount), game="cases")
 
-            # Add to server history
-            history_entry = {
-                "type": "case",
-                "user_id": ctx.author.id,
-                "user_name": ctx.author.name,
-                "amount": bet_amount_value,
-                "currency": "mixed" if tokens_used > 0 and credits_used > 0 else ("tokens" if tokens_used > 0 else "credits"),
-                "multiplier": selected_multiplier["value"],
-                "win_amount": win_amount,
-                "timestamp": int(time.time())
-            }
-            server_db.update_history(ctx.guild.id, history_entry)
 
-        # Add game to user history
-        history_entry = {
-            "game": "cases",
-            "bet_amount": bet_amount_value,
-            "currency": currency_used,
-            "result": "win" if user_won else "loss",
-            "multiplier": selected_multiplier["value"],
-            "win_amount": win_amount,
-            "timestamp": int(time.time())}
+
+        
 
         db = Users() #reinstantiate db
-        db.update_history(ctx.author.id, history_entry)
+        #db.update_history(ctx.author.id, history_entry)
 
         # Set color based on result tier
         if selected_multiplier["value"] >= 10:  # Legendary/Epic

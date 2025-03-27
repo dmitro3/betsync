@@ -6,18 +6,19 @@ import os
 import io
 #from PIL import Image, ImageDraw #Removed as no longer needed
 from discord.ext import commands
+from Cogs.utils.currency_helper import process_bet_amount
 from Cogs.utils.mongo import Users, Servers
 from colorama import Fore
 from Cogs.utils.emojis import emoji
 
 class PlayAgainView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, difficulty, currency_type="tokens", timeout=15):
+    def __init__(self, cog, ctx, bet_amount, difficulty, timeout=15):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
         self.difficulty = difficulty
-        self.currency_type = currency_type
+        #self.currency_type = currency_type
         self.message = None
 
     async def on_timeout(self):
@@ -43,18 +44,18 @@ class PlayAgainView(discord.ui.View):
         await self.message.edit(view=self)
 
         # Start a new game with the same parameters
-        await self.cog.pump(self.ctx, str(self.bet_amount), self.difficulty, self.currency_type)
+        await self.cog.pump(self.ctx, str(self.bet_amount), self.difficulty)
 
 class PumpGameView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, difficulty, tokens_used=0, credits_used=0, timeout=60):
+    def __init__(self, cog, ctx, bet_amount, difficulty, tokens_used=0, timeout=60):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
         self.difficulty = difficulty.lower()
         self.tokens_used = tokens_used
-        self.credits_used = credits_used
-        self.currency_type = "credits"  # Always pay out in credits
+        #self.credits_used = credits_used
+        #self.currency_type = "credits"  # Always pay out in credits
         self.message = None
         self.current_pumps = 0
         self.max_pumps = 12
@@ -140,18 +141,13 @@ class PumpGameView(discord.ui.View):
 
     def create_embed(self, status="playing", display_message=""):
         """Create game embed with current state"""
-        # Format bet description
-        if self.tokens_used > 0 and self.credits_used > 0:
-            bet_description = f"**{self.tokens_used} tokens** + **{self.credits_used} credits**"
-        elif self.tokens_used > 0:
-            bet_description = f"**{self.tokens_used} tokens**"
-        else:
-            bet_description = f"**{self.credits_used} credits**"
+        
+        bet_description = f"**{self.tokens_used} points**"
 
         # Get balloon visual representation
         balloon_display = self.get_balloon_display()
 
-        currency = "credits"
+        #currency = "credits"
 
         if status == "playing":
             embed = discord.Embed(
@@ -233,7 +229,7 @@ class PumpGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Bet:** {self.bet_amount:.2f} credits\n**Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout:.2f} credits\n**Profit:** {profit:.2f} credits",
+                value=f"**Bet:** {self.bet_amount:.2f} points\n**Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout:.2f} points\n**Profit:** {profit:.2f} points",
                 inline=False
             )
             embed.set_footer(text=f"BetSync Casino • Maximum pumps achieved! Automatic cashout!")
@@ -381,7 +377,7 @@ class PumpGameView(discord.ui.View):
             self.ctx, 
             self.bet_amount, 
             self.difficulty,
-            "tokens" if self.tokens_used > 0 else "credits"  # Use tokens if they were used originally
+            #"tokens" if self.tokens_used > 0 else "credits"  # Use tokens if they were used originally
         )
 
         # Update the message
@@ -448,7 +444,7 @@ class PumpGameView(discord.ui.View):
             self.ctx, 
             self.bet_amount, 
             self.difficulty,
-            "tokens" if self.tokens_used > 0 else "credits"  # Use tokens if they were used originally
+            #"tokens" if self.tokens_used > 0 else "credits"  # Use tokens if they were used originally
         )
 
         # Add play again button
@@ -467,15 +463,15 @@ class PumpCog(commands.Cog):
         self.ongoing_games = {}
 
     @commands.command(aliases=["balloon"])
-    async def pump(self, ctx, bet_amount: str = None, difficulty: str = None, currency_type: str = None):
+    async def pump(self, ctx, bet_amount: str = None, difficulty: str = None):
         """Play Pump - pump a balloon for increasingly higher multipliers!"""
         if not bet_amount:
             embed = discord.Embed(
                 title="🎈 How to Play Pump",
                 description=(
                     "**Pump** is a game where you inflate a balloon for increasingly higher multipliers!\n\n"
-                    "**Usage:** `!pump <amount> <difficulty> [currency_type]`\n"
-                    "**Example:** `!pump 100 easy` or `!pump 50 hard credits`\n\n"
+                    "**Usage:** `!pump <amount> <difficulty>`\n"
+                    "**Example:** `!pump 100 easy`\n\n"
                     "**Difficulty Levels:**\n"
                     "- **Easy:** 75% success rate per pump\n"
                     "- **Medium:** 50% success rate per pump\n"
@@ -496,118 +492,20 @@ class PumpCog(commands.Cog):
             )
             return await ctx.reply(embed=embed)
 
-        loading_emoji = emoji()["loading"]
+        #loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Preparing Pump Game...",
+            title=f"Preparing Pump Game...",
             description="Please wait while we set up your game.",
             color=0xFF3366
         )
         loading_message = await ctx.reply(embed=loading_embed)
 
         db = Users()
-        user_data = db.fetch_user(ctx.author.id)
-
-        if user_data == False:
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | User Not Found",
-                description="You don't have an account. Please wait for auto-registration or use `!signup`.",
-                color=0xFF0000
-            )
-            return await ctx.reply(embed=embed)
-
-        if not difficulty or difficulty.lower() not in ["easy", "medium", "hard", "extreme"]:
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Difficulty",
-                description="Please choose a valid difficulty: `easy`, `medium`, `hard`, or `extreme`.",
-                color=0xFF0000
-            )
-            return await ctx.reply(embed=embed)
-
-        if not currency_type:
-            currency_type = "tokens"
-        elif currency_type.lower() in ["t", "tokens"]:
-            currency_type = "tokens"
-        elif currency_type.lower() in ["c", "credits"]:
-            currency_type = "credits"
-        else:
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Currency",
-                description="Please specify a valid currency: `tokens` or `credits`.",
-                color=0xFF0000
-            )
-            return await ctx.reply(embed=embed)
-
-        try:
-            if isinstance(bet_amount, str) and bet_amount.lower() in ['all', 'max']:
-                bet_amount_value = user_data[currency_type]
-            else:
-                if isinstance(bet_amount, str) and bet_amount.lower().endswith('k'):
-                    bet_amount_value = float(bet_amount[:-1]) * 1000
-                elif isinstance(bet_amount, str) and bet_amount.lower().endswith('m'):
-                    bet_amount_value = float(bet_amount[:-1]) * 1000000
-                else:
-                    bet_amount_value = float(bet_amount)
-
-            bet_amount_value = round(float(bet_amount_value), 2)
-
-            if bet_amount_value <= 0:
-                await loading_message.delete()
-                embed = discord.Embed(
-                    title="<:no:1344252518305234987> | Invalid Amount",
-                    description="Bet amount must be greater than 0.",
-                    color=0xFF0000
-                )
-                return await ctx.reply(embed=embed)
-
-        except ValueError:
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Amount",
-                description="Please enter a valid number or 'all'.",
-                color=0xFF0000
-            )
-            return await ctx.reply(embed=embed)
-
-        tokens_balance = user_data.get('tokens', 0)
-        credits_balance = user_data.get('credits', 0)
-
-        tokens_used = 0
-        credits_used = 0
-
-        if currency_type == "tokens":
-            if bet_amount_value <= tokens_balance:
-                tokens_used = bet_amount_value
-                db.update_balance(ctx.author.id, tokens_balance - tokens_used, "tokens")
-            elif bet_amount_value <= tokens_balance + credits_balance:
-                tokens_used = tokens_balance
-                credits_used = bet_amount_value - tokens_balance
-                db.update_balance(ctx.author.id, 0, "tokens")
-                db.update_balance(ctx.author.id, credits_balance - credits_used, "credits")
-            else:
-                await loading_message.delete()
-                embed = discord.Embed(
-                    title="<:no:1344252518305234987> | Insufficient Funds",
-                    description=f"You don't have enough funds. Your balance: **{tokens_balance:.2f} tokens** and **{credits_balance:.2f} credits**",
-                    color=0xFF0000
-                )
-                return await ctx.reply(embed=embed)
-        else:  # credits
-            if bet_amount_value <= credits_balance:
-                credits_used = bet_amount_value
-                db.update_balance(ctx.author.id, credits_balance - credits_used, "credits")
-            else:
-                await loading_message.delete()
-                embed = discord.Embed(
-                    title="<:no:1344252518305234987> | Insufficient Funds",
-                    description=f"You don't have enough credits. Your balance: **{credits_balance:.2f} credits**",
-                    color=0xFF0000
-                )
-                return await ctx.reply(embed=embed)
-
-        total_bet = tokens_used + credits_used
+        from Cogs.utils.currency_helper import process_bet_amount as pt
+        success, bet_info, error_embed = pt(ctx, bet_amount, loading_message)
+        if not success: await loading_message.delete(); await ctx.reply(embed=error_embed)
+        tokens_used = bet_info["tokens_used"]
+        total_bet = bet_info["total_bet_amount"]
 
         game_view = PumpGameView(
             self, 
@@ -615,7 +513,7 @@ class PumpCog(commands.Cog):
             total_bet, 
             difficulty, 
             tokens_used=tokens_used,
-            credits_used=credits_used,
+            #credits_used=credits_used,
             timeout=60  # 1 minute timeout
         )
 

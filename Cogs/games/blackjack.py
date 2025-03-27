@@ -406,7 +406,7 @@ class Blackjack(commands.Cog):
                 description=(
                     "**Blackjack** is a classic card game where you play against the dealer!\n\n"
                     "**Usage:** `!blackjack <amount>`\n"
-                    "**Example:** `!blackjack 100` or `!blackjack 100 tokens`\n\n"
+                    "**Example:** `!blackjack 100`\n\n"
                     "**Rules:**\n"
                     "- Get closer to 21 than the dealer without going over\n"
                     "- Face cards are worth 10, Aces are 1 or 11\n"
