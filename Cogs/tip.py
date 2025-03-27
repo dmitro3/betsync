@@ -101,13 +101,44 @@ class Tip(commands.Cog):
             return await ctx.reply(embed=embed)
 
         # Process the tip
+        # Get sender's primary currency
+        sender_primary_coin = sender_data.get("primary_coin", "BTC")
+        
         # Deduct from sender
         db.update_balance(ctx.author.id, sender_balance - amount, "points", "$set")
-
-        # Add to recipient
-        recipient_balance = recipient_data.get("points", 0)
-        db.update_balance(recipient.id, recipient_balance + amount, "points", "$set")
-
+        
+        # Instead of adding to recipient's primary currency, add directly to their wallet in sender's currency
+        # First get recipient's wallet
+        recipient_wallet = recipient_data.get("wallet", {
+            "BTC": 0,
+            "SOL": 0,
+            "ETH": 0,
+            "LTC": 0,
+            "USDT": 0
+        })
+        
+        # Calculate crypto value of the amount
+        crypto_values = {
+            "BTC": 0.00000024,   # 1 point = 0.00000024 btc
+            "LTC": 0.00023,      # 1 point = 0.00023 ltc
+            "ETH": 0.000010,     # 1 point = 0.000010 eth
+            "USDT": 0.0212,      # 1 point = 0.0212 usdt
+            "SOL": 0.0001442     # 1 point = 0.0001442 sol
+        }
+        
+        # Calculate crypto amount to add to recipient's wallet
+        crypto_amount = amount * crypto_values[sender_primary_coin]
+        
+        # Add to recipient's wallet in sender's currency
+        current_wallet_amount = recipient_wallet.get(sender_primary_coin, 0)
+        new_wallet_amount = current_wallet_amount + crypto_amount
+        
+        # Update recipient's wallet
+        db.collection.update_one(
+            {"discord_id": recipient.id},
+            {"$set": {f"wallet.{sender_primary_coin}": new_wallet_amount}}
+        )
+        
         # Record in history for both users
         timestamp = int(datetime.datetime.now().timestamp())
 
@@ -145,7 +176,7 @@ class Tip(commands.Cog):
         )
         embed.add_field(
             name="Your New Balance",
-            value=f"**{(sender_balance - amount):.2f} points**",
+            value=f"**{(sender_balance - amount):.2f} points** ({sender_primary_coin})",
             inline=True
         )
         embed.add_field(
@@ -153,25 +184,36 @@ class Tip(commands.Cog):
             value=f"**${(amount * self.point_value):.2f}**",
             inline=True
         )
+        embed.add_field(
+            name="Currency Sent",
+            value=f"The points were added to {recipient.mention}'s **{sender_primary_coin}** wallet.",
+            inline=False
+        )
         embed.set_footer(text="BetSync Casino • Tipping System", icon_url=self.bot.user.avatar.url)
         await ctx.reply(embed=embed)
 
         # Notify recipient
         try:
+            crypto_amount = amount * crypto_values[sender_primary_coin]
             recipient_embed = discord.Embed(
                 title=":tada: You Received a Tip!",
-                description=f"{ctx.author.mention} sent you **{amount:.2f} points**!",
+                description=f"{ctx.author.mention} sent you **{amount:.2f} points** in **{sender_primary_coin}**!",
                 color=0x00FFAE
             )
             recipient_embed.add_field(
-                name="Your New Balance",
-                value=f"**{(recipient_balance + amount):.2f} points**",
+                name="Added to Your Wallet",
+                value=f"**{crypto_amount:.8f} {sender_primary_coin}**",
                 inline=True
             )
             recipient_embed.add_field(
                 name="USD Value",
                 value=f"**${(amount * self.point_value):.2f}**",
                 inline=True
+            )
+            recipient_embed.add_field(
+                name="How to View",
+                value=f"Use `!bal {sender_primary_coin}` to switch to this currency and see your updated balance.",
+                inline=False
             )
             recipient_embed.set_footer(text="BetSync Casino • Tipping System", icon_url=self.bot.user.avatar.url)
             await recipient.send(embed=recipient_embed)
