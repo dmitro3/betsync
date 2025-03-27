@@ -130,9 +130,6 @@ class AdminCommands(commands.Cog):
             color=0x00FF00 if amount > 0 else 0xFF9900
         )
         await ctx.reply(embed=embed)
-        current_amount = user_data.get("points", 0)
-        new_amount = current_amount + amount
-        db.update_balance(user.id, new_amount, "points")
         
         # Add to history
         history_entry = {
@@ -147,22 +144,6 @@ class AdminCommands(commands.Cog):
             {"discord_id": user.id},
             {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}  # Keep last 100 entries
         )
-        
-        # Send confirmation message
-        money_emoji = emoji()["money"]
-        embed = discord.Embed(
-            title=f"{money_emoji} | Admin Action: Added Points",
-            description=f"Successfully added **{amount:,.2f} points** to {user.mention}'s balance.",
-            color=0x00FFAE
-        )
-        embed.add_field(
-            name="New Balance",
-            value=f"**{new_amount:,.2f} points**",
-            inline=False
-        )
-        embed.set_footer(text=f"Admin: {ctx.author.name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-        
-        await ctx.reply(embed=embed)
         
     @commands.command(name="addadmin")
     async def addadmin(self, ctx, user: discord.Member = None):
