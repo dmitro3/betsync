@@ -140,42 +140,18 @@ class PlinkoGame:
             # Update database for the user's balance
             db = Users()
             user_data = db.fetch_user(self.user_id)
-            
+
             # Handle bet deduction based on currency_type
-            tokens_used = 0
-            credits_used = 0
+            points_used = 0
+
+            if self.currency_type == "points":
+                points_used = self.bet_amount
+                db_update = db.update_balance(self.user_id, -points_used, "points`, "$inc")
             
-            if self.currency_type == "tokens":
-                tokens_used = self.bet_amount
-                db_update = db.update_balance(self.user_id, -tokens_used, "tokens", "$inc")
-            elif self.currency_type == "credits":
-                credits_used = self.bet_amount
-                db_update = db.update_balance(self.user_id, -credits_used, "credits", "$inc")
-            elif self.currency_type == "mixed":
-                # Calculate how to split the bet between tokens and credits
-                tokens_balance = user_data.get("tokens", 0)
-                credits_balance = user_data.get("credits", 0)
-                
-                if tokens_balance >= self.bet_amount:
-                    # Use tokens if available
-                    tokens_used = self.bet_amount
-                    db_update = db.update_balance(self.user_id, -tokens_used, "tokens", "$inc")
-                elif tokens_balance > 0:
-                    # Use available tokens + credits for remainder
-                    tokens_used = tokens_balance
-                    credits_used = self.bet_amount - tokens_balance
-                    
-                    # Update both balances
-                    db_update_tokens = db.update_balance(self.user_id, -tokens_used, "tokens", "$inc")
-                    db_update_credits = db.update_balance(self.user_id, -credits_used, "credits", "$inc")
-                else:
-                    # Use only credits
-                    credits_used = self.bet_amount
-                    db_update = db.update_balance(self.user_id, -credits_used, "credits", "$inc")
 
             # Update database for the win amount if applicable
             if multiplier > 0:
-                win_update = db.update_balance(self.user_id, win_for_this_ball, "credits", "$inc")
+                win_update = db.update_balance(self.user_id, win_for_this_ball, "points", "$inc")
 
             # Add to history
             total_profit = self.win_amount - (self.drops * self.bet_amount)
@@ -191,8 +167,7 @@ class PlinkoGame:
                     "rows": self.rows,
                     "balls_dropped": self.drops,
                     "multipliers": [self.multiplier_table[p[-1]] for p in self.ball_paths],
-                    "tokens_used": tokens_used,
-                    "credits_used": credits_used
+                    "points_used": points_used
                 }
             }
 
@@ -224,9 +199,9 @@ class PlinkoGame:
                     f"**Bet Amount:** {self.bet_amount} {self.currency_type}\n"
                     f"**Rows:** {self.rows}\n"
                     f"**Drops:** {self.drops}\n"
-                    f"**Total Winnings:** {self.win_amount:.2f} credits\n"
-                    f"**Net Profit:** {profit_display} credits\n\n"
-                    f"**Last Drop:** {self.multiplier_table[self.ball_paths[-1][-1]]}x multiplier → {self.bet_amount * self.multiplier_table[self.ball_paths[-1][-1]]:.2f} credits"
+                    f"**Total Winnings:** {self.win_amount:.2f} points\n"
+                    f"**Net Profit:** {profit_display} points\n\n"
+                    f"**Last Drop:** {self.multiplier_table[self.ball_paths[-1][-1]]}x multiplier → {self.bet_amount * self.multiplier_table[self.ball_paths[-1][-1]]:.2f} points"
                 ),
                 color=self.color
             )
@@ -457,7 +432,7 @@ class PlinkoGame:
                         f"**Bet Amount:** {self.bet_amount} {self.currency_type}\n"
                         f"**Rows:** {self.rows}\n"
                         f"**Total Drops:** {self.drops}\n"
-                        f"**Total Winnings:** {self.win_amount:.2f} credits\n\n"
+                        f"**Total Winnings:** {self.win_amount:.2f} points\n\n"
                         "Thanks for playing Plinko!"
                     ),
                     color=self.color
@@ -491,7 +466,7 @@ class PlinkoGame:
                     f"**Bet Amount:** {self.bet_amount} {self.currency_type}\n"
                     f"**Rows:** {self.rows}\n"
                     f"**Total Drops:** {self.drops}\n"
-                    f"**Total Winnings:** {self.win_amount:.2f} credits\n\n"
+                    f"**Total Winnings:** {self.win_amount:.2f} points\n\n"
                     "Game timed out due to inactivity."
                 ),
                 color=discord.Color.dark_gray()
@@ -571,20 +546,15 @@ class PlinkoView(discord.ui.View):
             # Check if user has enough balance for another bet
             db = Users()
             user_data = db.fetch_user(self.game.user_id)
-            
+
             # Calculate available balance across tokens and credits if needed
-            tokens_balance = user_data.get("tokens", 0)
-            credits_balance = user_data.get("credits", 0)
-            
+            points_balance = user_data.get("points", 0)
+
             # Check based on currency type
-            if self.game.currency_type == "tokens":
-                user_balance = tokens_balance
-            elif self.game.currency_type == "credits":
-                user_balance = credits_balance
-            else:
-                # For mixed currency - check both
-                user_balance = tokens_balance + credits_balance
+            if self.game.currency_type == "points":
+                user_balance = points_balance
             
+
             if user_balance < self.game.bet_amount:
                 # Not enough balance for another drop
                 error_embed = discord.Embed(
@@ -666,16 +636,15 @@ class Plinko(commands.Cog):
         self.ongoing_games = {}  # Store ongoing games for each user
 
     @commands.command(aliases=["plk"])
-    async def plinko(self, ctx, bet_amount: str = None, difficulty: str = None, rows: str = None, currency_type: str = "tokens"):
+    async def plinko(self, ctx, bet_amount: str = None, difficulty: str = None, rows: str = None, currency_type: str = "points"):
         """
         Play a game of Plinko
 
-        Usage: !plinko <bet amount> <difficulty> <rows> <currency_type>
-        Example: !plinko 10 medium 12 tokens
+        Usage: !plinko <bet amount> <difficulty> <rows>
+        Example: !plinko 10 medium 12
 
         Difficulty: low, medium, high
         Rows: 8-16
-        Currency: tokens/t, credits/c
         """
         # Check if user already has an ongoing game
         if ctx.author.id in self.ongoing_games:
@@ -706,14 +675,13 @@ class Plinko(commands.Cog):
                 title="📊 How to Play Plinko",
                 description=(
                     "**Plinko** is a game where a ball falls through pegs and lands in one of several prize buckets!\n\n"
-                    "**Usage:** `!plinko <bet amount> <difficulty> <rows> [currency_type]`\n"
-                    "**Example:** `!plinko 100 medium 12` or `!plinko all high 16 c`\n\n"
+                    "**Usage:** `!plinko <bet amount> <difficulty> <rows>`\n"
+                    "**Example:** `!plinko 100 medium 12` or `!plinko all high 16`\n\n"
                     "**Difficulty:**\n"
                     "- `low`: Lower risk, smaller payouts\n"
                     "- `medium`: Balanced risk and reward\n"
                     "- `high`: Higher risk, bigger potential payouts\n\n"
-                    "**Rows:** Choose between 8-16 rows\n"
-                    "**Currency:** tokens/t (default) or credits/c"
+                    "**Rows:** Choose between 8-16 rows"
                 ),
                 color=0x00FFAE
             )
@@ -728,18 +696,12 @@ class Plinko(commands.Cog):
         )
         loading_message = await ctx.reply(embed=loading_embed)
 
-        # Handle currency shortcuts
-        if currency_type and currency_type.lower() in ["t", "token", "tokens"]:
-            currency_type = "tokens"
-        elif currency_type and currency_type.lower() in ["c", "credit", "credits"]:
-            currency_type = "credits"
-
         # Import the currency helper
         from Cogs.utils.currency_helper import process_bet_amount
 
         try:
             # Process the bet amount using the currency helper
-            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, "points", loading_message)
 
             # If processing failed, return the error
             if not success:
@@ -747,10 +709,8 @@ class Plinko(commands.Cog):
                 return await ctx.reply(embed=error_embed)
 
             # Successful bet processing - extract relevant information
-            tokens_used = bet_info.get("tokens_used", 0)
-            credits_used = bet_info.get("credits_used", 0)
+            points_used = bet_info.get("points_used", 0)
             bet_amount_value = bet_info.get("total_bet_amount", 0)
-            currency_used = bet_info.get("currency_type", "tokens")  # Default to tokens if not specified
 
             # Update bet_amount with the processed value
             bet_amount = bet_amount_value
@@ -774,7 +734,7 @@ class Plinko(commands.Cog):
             )
             embed.add_field(
                 name="Usage",
-                value="!plinko <bet amount> <difficulty> <rows> <currency_type>",
+                value="!plinko <bet amount> <difficulty> <rows>",
                 inline=False
             )
             return await ctx.reply(embed=embed)
@@ -795,7 +755,7 @@ class Plinko(commands.Cog):
             )
             embed.add_field(
                 name="Usage",
-                value="!plinko <bet amount> <difficulty> <rows> <currency_type>",
+                value="!plinko <bet amount> <difficulty> <rows>",
                 inline=False
             )
             return await ctx.reply(embed=embed)
@@ -810,7 +770,7 @@ class Plinko(commands.Cog):
                 difficulty=difficulty,
                 rows=rows,
                 user_id=ctx.author.id,
-                currency_type=currency_used
+                currency_type="points"
             )
 
             # Store the game
@@ -839,12 +799,12 @@ class Plinko(commands.Cog):
             )
             embed.add_field(
                 name="Usage",
-                value="!plinko <bet amount> <difficulty> <rows> <currency_type>",
+                value="!plinko <bet amount> <difficulty> <rows>",
                 inline=False
             )
             embed.add_field(
                 name="Example",
-                value="!plinko 10 medium 12 tokens",
+                value="!plinko 10 medium 12",
                 inline=False
             )
             await ctx.reply(embed=embed)
@@ -855,7 +815,6 @@ class Plinko(commands.Cog):
                 color=0xFF0000
             )
             await ctx.reply(embed=embed)
-
 
 def setup(bot):
     bot.add_cog(Plinko(bot))
