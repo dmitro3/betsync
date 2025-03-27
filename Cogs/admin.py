@@ -499,49 +499,38 @@ class AdminCommands(commands.Cog):
             
             user_mention = user.mention if user else f"`{user_id}`"
             embed = discord.Embed(
-                title=f"User Information",
-                description=f"Detailed information for {user_mention}",
+                title=f":mag: User Information",
+                description=f"Basic information for {user_mention}",
                 color=0x00FFAE
             )
             
-            # User Account Info
-            embed.add_field(
-                name=f"User ID",
-                value=f"`{user_id}`",
-                inline=True
-            )
+            # User Account Info - Minimalistic
+            basic_info = f"**ID:** `{user_id}`"
             
             # Only add these fields if we have a user object
             if user:
-                embed.add_field(
-                    name=f"Account Created",
-                    value=f"<t:{int(user.created_at.timestamp())}:R>",
-                    inline=True
-                )
+                basic_info += f"\n**Created:** <t:{int(user.created_at.timestamp())}:R>"
                 
                 # Check if user is in guild and has joined_at attribute
                 member = ctx.guild.get_member(user_id)
                 if member and member.joined_at:
-                    embed.add_field(
-                        name=f"Server Joined",
-                        value=f"<t:{int(member.joined_at.timestamp())}:R>",
-                        inline=True
-                    )
-                else:
-                    embed.add_field(
-                        name=f"Server Joined",
-                        value="Unknown/Not in server",
-                        inline=True
-                    )
-            else:
-                embed.add_field(
-                    name=f"Note",
-                    value="Limited information available (user not found in Discord)",
-                    inline=False
-                )
+                    basic_info += f"\n**Joined:** <t:{int(member.joined_at.timestamp())}:R>"
             
-            # Balance Information
             embed.add_field(
+                name=f"Account Details",
+                value=basic_info,
+                inline=False
+            )
+            
+            # Points and Primary Currency - Minimalistic
+            points = user_data.get('points', 0)
+            primary_coin = user_data.get('primary_coin', 'BTC')
+            
+            embed.add_field(
+                name="Balance",
+                value=f"**Points:** {points:,.2f}\n**Currency:** {primary_coin}",
+                inline=False
+            )dd_field(
                 name=f"Balance",
                 value=(
                     f"**Tokens:** {user_data.get('tokens', 0):,.2f}\n"
@@ -582,23 +571,11 @@ class AdminCommands(commands.Cog):
             )
             
             # Win Rate Calculation
-            total_played = user_data.get('total_played', 0)
-            win_rate = (user_data.get('total_won', 0) / total_played * 100) if total_played > 0 else 0
-            
-            embed.add_field(
-                name=f"Performance",
-                value=(
-                    f"**Win Rate:** {win_rate:.2f}%\n"
-                    f"**Profit/Loss:** {user_data.get('total_earned', 0) - user_data.get('total_spent', 0):,.2f}"
-                ),
-                inline=False
-            )
-            
             # Set user avatar as thumbnail if available
             if user and hasattr(user, 'avatar') and user.avatar:
                 embed.set_thumbnail(url=user.avatar.url)
             
-            embed.set_footer(text=f"Requested by {ctx.author.name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
+            embed.set_footer(text=f"Admin lookup by {ctx.author.name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
             
             await ctx.reply(embed=embed)
             print(f"[DEBUG] Successfully sent fetch response")
