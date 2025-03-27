@@ -71,6 +71,74 @@ class Users:
         except Exception as e:
             print(f"Error updating user history: {e}")
             return False
+            
+    def save(self, user_id):
+        """
+        Syncs a user's wallet and points based on their primary coin.
+        Similar to the balance command's currency switching functionality.
+        
+        Args:
+            user_id (int): The Discord ID of the user.
+            
+        Returns:
+            bool: True if successful, False otherwise.
+        """
+        from colorama import Fore, Style
+        import datetime
+        
+        try:
+            # Get user data
+            user_data = self.fetch_user(user_id)
+            if not user_data:
+                print(f"{Fore.RED}[!] {Fore.WHITE}Cannot save user {Fore.RED}{user_id}{Fore.WHITE}: User not found")
+                return False
+                
+            # Currency conversion rates from main.py
+            crypto_values = {
+                "BTC": 0.00000024,  # 1 point = 0.00000024 btc
+                "LTC": 0.00023,     # 1 point = 0.00023 ltc
+                "ETH": 0.000010,    # 1 point = 0.000010 eth
+                "USDT": 0.0212,     # 1 point = 0.0212 usdt
+                "SOL": 0.0001442    # 1 point = 0.0001442 sol
+            }
+            
+            # Get current primary coin and points
+            current_primary_coin = user_data.get("primary_coin", "BTC")
+            points = user_data.get("points", 0)
+            wallet = user_data.get("wallet", {
+                "BTC": 0,
+                "SOL": 0,
+                "ETH": 0,
+                "LTC": 0,
+                "USDT": 0
+            })
+            
+            # Calculate how much of the current primary coin the user has based on points
+            current_coin_amount = points * crypto_values[current_primary_coin]
+            
+            # Update wallet with current coin value
+            wallet[current_primary_coin] = current_coin_amount
+            
+            # Update database with synchronized values
+            update_result = self.collection.update_one(
+                {"discord_id": user_id},
+                {
+                    "$set": {
+                        f"wallet.{current_primary_coin}": current_coin_amount
+                    }
+                }
+            )
+            
+            # Log the action with timestamp
+            rn = datetime.datetime.now().strftime("%X")
+            print(f"{Fore.GREEN}[+] {Fore.WHITE}{rn} Synced user {Fore.CYAN}{user_id}{Fore.WHITE} wallet: {Fore.YELLOW}{current_primary_coin}={current_coin_amount:.8f}{Fore.WHITE}")
+            
+            return True
+            
+        except Exception as e:
+            rn = datetime.datetime.now().strftime("%X")
+            print(f"{Fore.RED}[!] {Fore.WHITE}{rn} Error saving user {user_id}: {Fore.RED}{str(e)}{Fore.WHITE}")
+            return False
 
 
 class Servers:
