@@ -128,7 +128,7 @@ class BaccaratGame(commands.Cog):
             # Extract bet information
             tokens_used = bet_info["tokens_used"]
             #credits_used = bet_info["credits_used"]
-            print(bet_info["remaining_tokens"])
+            #print(bet_info["remaining_tokens"])
             total_bet = bet_info["total_bet_amount"]
             
             # Determine currency used for results
