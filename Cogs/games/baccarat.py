@@ -131,11 +131,11 @@ class BaccaratGame(commands.Cog):
             total_bet = bet_info["total_bet_amount"]
             
             # Determine currency used for results
-            currency_used = "tokens"
+            currency_used = "points"
             
             # Format bet description
             
-            bet_description = f"Bet: **{tokens_used:.2f} credits**"
+            bet_description = f"Bet: **{tokens_used:.2f} points**"
             
             # Validate bet_on parameter or handle interactive selection
             valid_options = ["player", "p", "banker", "b", "tie", "t"]
@@ -195,7 +195,8 @@ class BaccaratGame(commands.Cog):
                     # Refund the bet
                     user_db = Users()
                     #if tokens_used > 0:
-                    user_db.update_balance(ctx.author.id, tokens_used, "tokens", "$inc")
+                    user_db.update_balance(ctx.author.id, tokens_used, "points", "$inc")
+                    await user_db.save(ctx.author.id)
                     #if credits_used > 0:
                         #user_db.update_balance(ctx.author.id, credits_used, "credits", "$inc")
                     
@@ -311,73 +312,21 @@ class BaccaratGame(commands.Cog):
             
             if win_amount > 0:
                 # Player wins - add winnings to balance
-                user_db.update_balance(ctx.author.id, win_amount, "tokens", "$inc")
+                user_db.update_balance(ctx.author.id, win_amount, "points", "$inc")
                 
-                # Add win to history
-                history_entry = {
-                    "type": "win",
-                    "game": "baccarat",
-                    "amount": win_amount,
-                    "bet": total_bet,
-                    "multiplier": win_multiplier,
-                    "timestamp": timestamp
-                }
-                
-                user_db.collection.update_one(
-                    {"discord_id": ctx.author.id},
-                    {
-                        "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                        "$inc": {"total_earned": win_amount, "total_won": 1, "total_played": 1}
-                    }
-                )
+
                 
                 # Update server stats - casino loses
                 server_db.update_server_profit(ctx.guild.id, -(win_amount - total_bet), game="baccarat")
                 
-                # Add to server history
-                server_history_entry = {
-                    "type": "win",
-                    "game": "baccarat",
-                    "user_id": ctx.author.id,
-                    "user_name": ctx.author.name,
-                    "bet_amount": total_bet,
-                    "win_amount": win_amount,
-                    "timestamp": timestamp
-                }
                 
-                server_db.update_history(ctx.guild.id, server_history_entry)
             else:
-                # Player loses - record loss
-                history_entry = {
-                    "type": "loss",
-                    "game": "baccarat",
-                    "amount": total_bet,
-                    "timestamp": timestamp
-                }
-                
-                user_db.collection.update_one(
-                    {"discord_id": ctx.author.id},
-                    {
-                        "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                        "$inc": {"total_spent": total_bet, "total_lost": 1, "total_played": 1}
-                    }
-                )
                 
                 # Update server stats - casino wins
                 server_db.update_server_profit(ctx.guild.id, total_bet, game="baccarat")
                 
-                # Add to server history
-                server_history_entry = {
-                    "type": "loss",
-                    "game": "baccarat",
-                    "user_id": ctx.author.id,
-                    "user_name": ctx.author.name,
-                    "bet_amount": total_bet,
-                    "timestamp": timestamp
-                }
                 
-                server_db.update_history(ctx.guild.id, server_history_entry)
-            
+            await user_db.save(ctx.author.id)
             # Remove game from ongoing games
             if ctx.author.id in self.ongoing_games:
                 del self.ongoing_games[ctx.author.id]

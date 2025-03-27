@@ -72,7 +72,7 @@ class Users:
             print(f"Error updating user history: {e}")
             return False
             
-    def save(self, user_id):
+    async def save(self, user_id):
         """
         Syncs a user's wallet and points based on their primary coin.
         Similar to the balance command's currency switching functionality.

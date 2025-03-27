@@ -36,7 +36,7 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
         )
         return False, None, error_embed
 
-    tokens_balance = user_data.get('tokens', 0)
+    tokens_balance = user_data.get('points', 0)
 
     # Process bet amount and determine value
     try:
@@ -85,7 +85,7 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
         return False, None, error_embed
 
     # Update the user's balance by deducting the tokens
-    db.update_balance(user.id, -tokens_used, "tokens", "$inc")
+    db.update_balance(user.id, -tokens_used, "points", "$inc")
 
     # Calculate the total bet amount
     total_bet_amount = tokens_used
