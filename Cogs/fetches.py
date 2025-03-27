@@ -321,7 +321,7 @@ class Fetches(commands.Cog):
                 inline=False
             )
         
-        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)or.blue())
+        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
         
         # Currency info field
         embed.add_field(
@@ -332,7 +332,7 @@ class Fetches(commands.Cog):
         
         # Separator
         embed.add_field(
-            name="▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+            name="",
             value="\u200b",  # Zero-width space
             inline=False
         )
