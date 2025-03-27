@@ -10,8 +10,8 @@ class Notifier:
     Utility class for sending notifications via Discord webhooks
     """
     
-    @staticmethod
-    async def bet_event(webhook_url, user_id, bet_amount):
+    #@staticmethod
+    async def bet_event(self, webhook_url, user_id, bet_amount):
         """
         Send a bet event notification to a webhook
         
