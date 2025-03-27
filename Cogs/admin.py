@@ -61,12 +61,13 @@ class AdminCommands(commands.Cog):
         return user_id in self.admin_ids
     
     @commands.command(name="addcash")
-    async def addcash(self, ctx, user: discord.Member, amount: float):
-        """Add or remove points from a user (Admin only)
+    async def addcash(self, ctx, user: discord.Member, amount: float, currency: str = "points"):
+        """Add or remove balance from a user (Admin only)
         
         Usage: 
-        - To add: !addcash @user 100
-        - To remove: !addcash @user -100
+        - To add points: !addcash @user 100
+        - To remove points: !addcash @user -100
+        - For specific currency: !addcash @user 0.5 ETH
         """
         # Check if command user is an admin
         if not self.is_admin(ctx.author.id):
@@ -90,21 +91,7 @@ class AdminCommands(commands.Cog):
             db.register_new_user(dump)
             user_data = db.fetch_user(user.id)
         
-        # Get current balance and primary coin
-        current_points = user_data.get("points", 0)
-        primary_coin = user_data.get("primary_coin", "BTC")
-        
-        # Update user balance (add or subtract based on amount sign)
-        new_balance = current_points + amount
-        
-        # Prevent negative balance
-        if new_balance < 0:
-            new_balance = 0
-            
-        # Update points balance
-        db.update_balance(user.id, new_balance, "points", "$set")
-        
-        # Also update the wallet for the primary coin
+        # Define crypto values for conversion
         crypto_values = {
             "BTC": 0.00000024,   # 1 point = 0.00000024 btc
             "LTC": 0.00023,      # 1 point = 0.00023 ltc
@@ -113,33 +100,103 @@ class AdminCommands(commands.Cog):
             "SOL": 0.0001442     # 1 point = 0.0001442 sol
         }
         
-        # Calculate crypto amount for wallet update
-        crypto_amount = new_balance * crypto_values[primary_coin]
+        # Normalize currency to uppercase
+        currency = currency.upper()
         
-        # Update wallet
-        db.collection.update_one(
-            {"discord_id": user.id},
-            {"$set": {f"wallet.{primary_coin}": crypto_amount}}
-        )
+        # Check if this is a specific cryptocurrency update
+        if currency in crypto_values:
+            # Get current wallet
+            wallet = user_data.get("wallet", {
+                "BTC": 0, "SOL": 0, "ETH": 0, "LTC": 0, "USDT": 0
+            })
+            
+            # Get current amount of the specified cryptocurrency
+            current_crypto_amount = wallet.get(currency, 0)
+            
+            # Calculate new amount (add or subtract)
+            new_crypto_amount = current_crypto_amount + amount
+            
+            # Prevent negative balance
+            if new_crypto_amount < 0:
+                new_crypto_amount = 0
+            
+            # Update wallet for the specified currency
+            db.collection.update_one(
+                {"discord_id": user.id},
+                {"$set": {f"wallet.{currency}": new_crypto_amount}}
+            )
+            
+            # If this is the user's primary currency, also update points
+            primary_coin = user_data.get("primary_coin", "BTC")
+            if currency == primary_coin:
+                # Calculate points based on crypto amount
+                new_points = new_crypto_amount / crypto_values[currency] if crypto_values[currency] > 0 else 0
+                
+                # Update points balance
+                db.update_balance(user.id, new_points, "points", "$set")
+            
+            # Create response embed for crypto update
+            action = "added to" if amount > 0 else "removed from"
+            embed = discord.Embed(
+                title=f"💰 Cash {action.split()[0].title()}!",
+                description=f"{abs(amount):.8f} {currency} has been {action} {user.mention}'s wallet.\nNew {currency} balance: {new_crypto_amount:.8f}",
+                color=0x00FF00 if amount > 0 else 0xFF9900
+            )
+            
+            # Add to history
+            history_entry = {
+                "type": "admin_add",
+                "amount": amount,
+                "currency": currency,
+                "timestamp": int(discord.utils.utcnow().timestamp()),
+                "admin_id": ctx.author.id
+            }
+            
+        else:
+            # Default to points update if currency is not recognized or specified as "points"
+            current_points = user_data.get("points", 0)
+            primary_coin = user_data.get("primary_coin", "BTC")
+            
+            # Update user balance (add or subtract based on amount sign)
+            new_balance = current_points + amount
+            
+            # Prevent negative balance
+            if new_balance < 0:
+                new_balance = 0
+                
+            # Update points balance
+            db.update_balance(user.id, new_balance, "points", "$set")
+            
+            # Calculate crypto amount for wallet update
+            crypto_amount = new_balance * crypto_values[primary_coin]
+            
+            # Update wallet for primary coin
+            db.collection.update_one(
+                {"discord_id": user.id},
+                {"$set": {f"wallet.{primary_coin}": crypto_amount}}
+            )
+            
+            # Create response embed for points update
+            action = "added to" if amount > 0 else "removed from"
+            embed = discord.Embed(
+                title=f"💰 Cash {action.split()[0].title()}!",
+                description=f"{abs(amount):.2f} points have been {action} {user.mention}'s balance.\nNew balance: {new_balance:.2f} points",
+                color=0x00FF00 if amount > 0 else 0xFF9900
+            )
+            
+            # Add to history
+            history_entry = {
+                "type": "admin_add",
+                "amount": amount,
+                "currency": "points",
+                "timestamp": int(discord.utils.utcnow().timestamp()),
+                "admin_id": ctx.author.id
+            }
         
-        # Create response embed
-        action = "added to" if amount > 0 else "removed from"
-        embed = discord.Embed(
-            title=f"💰 Cash {action.split()[0].title()}!",
-            description=f"{abs(amount):.2f} points have been {action} {user.mention}'s balance.\nNew balance: {new_balance:.2f} points",
-            color=0x00FF00 if amount > 0 else 0xFF9900
-        )
+        # Send response
         await ctx.reply(embed=embed)
         
-        # Add to history
-        history_entry = {
-            "type": "admin_add",
-            "amount": amount,
-            "currency": "points",
-            "timestamp": int(discord.utils.utcnow().timestamp()),
-            "admin_id": ctx.author.id
-        }
-        
+        # Add entry to history
         db.collection.update_one(
             {"discord_id": user.id},
             {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}  # Keep last 100 entries
