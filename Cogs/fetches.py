@@ -261,6 +261,68 @@ class Fetches(commands.Cog):
         money = emoji()["money"]
         embed = discord.Embed(title=f"{money} | {user.name}'s Balance", color=discord.Color.blue())
         
+        # Prepare currency emojis
+        btc_emoji = "<:btc:1339343483089063976>"
+        ltc_emoji = "<:ltc:1339343445675868191>"
+        eth_emoji = "<:eth:1340981832799485985>"
+        usdt_emoji = "<:usdt:1340981835563401217>"
+        sol_emoji = "<:sol:1340981839497793556>"
+        
+        # Conversion rates
+        crypto_values = {
+            "BTC": 0.00000024,
+            "LTC": 0.00023,
+            "ETH": 0.000010,
+            "USDT": 0.0212,
+            "SOL": 0.0001442
+        }
+        
+        # Calculate token values in each crypto
+        tokens = user_data.get("tokens", 0)
+        
+        # Current primary coin balance 
+        if current_primary_coin in user_data.get("wallet", {}):
+            primary_balance = user_data["wallet"][current_primary_coin]
+        else:
+            primary_balance = 0
+            
+        # Main tokens/credits balance field
+        embed.add_field(
+            name="Balance",
+            value=f"**Tokens:** `{tokens:.2f}`\n**Credits:** `{credits:.2f}`",
+            inline=False
+        )
+        
+        # Add conversion field showing token value in each currency
+        conversions = []
+        for crypto, rate in crypto_values.items():
+            emoji_map = {
+                "BTC": btc_emoji,
+                "LTC": ltc_emoji, 
+                "ETH": eth_emoji,
+                "USDT": usdt_emoji,
+                "SOL": sol_emoji
+            }
+            emoji_icon = emoji_map.get(crypto, "")
+            value = tokens * rate
+            conversions.append(f"{emoji_icon} `{value:.8f}` {crypto}")
+        
+        embed.add_field(
+            name="Token Conversion Rates",
+            value="\n".join(conversions),
+            inline=False
+        )
+        
+        # Add USD value
+        if usd_value > 0:
+            embed.add_field(
+                name="Estimated Value",
+                value=f"**USD:** `${usd_value:.2f}`",
+                inline=False
+            )
+        
+        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)or.blue())
+        
         # Currency info field
         embed.add_field(
             name="Currency Info", 
