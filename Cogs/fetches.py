@@ -262,11 +262,13 @@ class Fetches(commands.Cog):
         embed = discord.Embed(title=f"{money} | {user.name}'s Balance", color=discord.Color.blue())
         
         # Prepare currency emojis
-        btc_emoji = "<:btc:1339343483089063976>"
-        ltc_emoji = "<:ltc:1339343445675868191>"
-        eth_emoji = "<:eth:1340981832799485985>"
-        usdt_emoji = "<:usdt:1340981835563401217>"
-        sol_emoji = "<:sol:1340981839497793556>"
+        emoji_map = {
+            "BTC": "<:btc:1339343483089063976>",
+            "LTC": "<:ltc:1339343445675868191>", 
+            "ETH": "<:eth:1340981832799485985>",
+            "USDT": "<:usdt:1340981835563401217>",
+            "SOL": "<:sol:1340981839497793556>"
+        }
         
         # Conversion rates
         crypto_values = {
@@ -277,44 +279,22 @@ class Fetches(commands.Cog):
             "SOL": 0.0001442
         }
         
-        # Calculate token values in each crypto
-        user_data = db.fetch_user(ctx.author.id)
-        tokens = user_data.get("points", 0)
+        # Get the user data and points
+        tokens = info.get("points", 0)
         
-        # Current primary coin balance 
-        if current_primary_coin in user_data.get("wallet", {}):
-            primary_balance = user_data["wallet"][current_primary_coin]
-        else:
-            primary_balance = 0
-            
-        # Main tokens/credits balance field
+        # Current primary coin balance and conversion
+        primary_rate = crypto_values.get(current_primary_coin, 0)
+        primary_value = tokens * primary_rate
+        primary_emoji = emoji_map.get(current_primary_coin, "")
+        
+        # Main balance display - clean and minimalistic
         embed.add_field(
             name="Balance",
-            value=f"**Points:** `{tokens:.2f}`",
+            value=f"**Points:** `{tokens:.2f}`\n{primary_emoji} `{primary_value:.8f}` {current_primary_coin}",
             inline=False
         )
         
-        # Add conversion field showing token value in each currency
-        conversions = []
-        for crypto, rate in crypto_values.items():
-            emoji_map = {
-                "BTC": btc_emoji,
-                "LTC": ltc_emoji, 
-                "ETH": eth_emoji,
-                "USDT": usdt_emoji,
-                "SOL": sol_emoji
-            }
-            emoji_icon = emoji_map.get(crypto, "")
-            value = tokens * rate
-            conversions.append(f"{emoji_icon} `{value:.8f}` {crypto}")
-        
-        embed.add_field(
-            name="Token Conversion Rates",
-            value="\n".join(conversions),
-            inline=False
-        )
-        
-        # Add USD value
+        # Add USD value if available
         if usd_value > 0:
             embed.add_field(
                 name="Estimated Value",
@@ -322,42 +302,15 @@ class Fetches(commands.Cog):
                 inline=False
             )
         
-        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-        
-        # Currency info field
+        # Currency info field - simplified
         embed.add_field(
             name="Currency Info", 
-            value=f"**Your primary currency is {current_primary_coin}. Use `!bal <currency>` to change it.**",
+            value=f"**Primary Currency:** {primary_emoji} {current_primary_coin}\n**Rate:** 1 Point = {primary_rate:.8f} {current_primary_coin}\n\nUse `!bal <currency>` to change your primary currency.",
             inline=False
         )
         
-        # Separator
-        embed.add_field(
-            name="",
-            value="\u200b",  # Zero-width space
-            inline=False
-        )
-        
-        # Combined points and USD value field
-        if coin_usd_price:
-            embed.add_field(
-                name=":moneybag: Points", 
-                value=f"```{round(points, 2)} Points (${usd_value:.2f} USD)```",
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name=":moneybag: Points", 
-                value=f"```{round(points, 2)} Points```",
-                inline=False
-            )
-        
-        # Conversion rate field
-        embed.add_field(
-            name=":arrows_counterclockwise: Conversion Rate", 
-            value=f"```1 Point = {coin_value:.8f} {current_primary_coin}```",
-            inline=False
-        )
+        # The information is already displayed in the main balance field,
+        # so we don't need these redundant fields anymore.
         
         embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
         db.save(ctx.author.id)
