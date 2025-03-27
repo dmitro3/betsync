@@ -25,7 +25,7 @@ class Fetches(commands.Cog):
             print(f"{Fore.RED}[-] {Fore.WHITE}Failed to fetch crypto prices. Status Code: {Fore.RED}{response.status_code}{Fore.WHITE}")
             return None
 
-    @commands.command(name="rate")
+    #@commands.command(name="rate")
     async def rate(self, ctx, amount: float = None, currency: str = None):
         bot_icon = self.bot.user.avatar.url
 
@@ -102,7 +102,7 @@ class Fetches(commands.Cog):
 
         await ctx.message.reply(embed=embed)
 
-    @commands.command()
+    #@commands.command()
     async def stats(self, ctx, user: discord.Member = None):
         user = ctx.author
         user_id = user.id
@@ -481,7 +481,7 @@ class Fetches(commands.Cog):
                 except:
                     pass
 
-    @commands.command(aliases=["lb", "top"])
+    #@commands.command(aliases=["lb", "top"])
     async def leaderboard(self, ctx, arg1: str = None, arg2: str = None):
         """View the leaderboard for wins, losses, or wagered amount
 

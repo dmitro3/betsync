@@ -220,7 +220,7 @@ class ServersCog(commands.Cog):
         self.bot = bot
         self.active_airdrops = {}  # Store active airdrops
 
-    @commands.command(aliases=["ss"])
+    #@commands.command(aliases=["ss"])
     async def serverstats(self, ctx):
         """View server stats (Server Admins and Bot Admins only)
 
@@ -272,7 +272,7 @@ class ServersCog(commands.Cog):
 
         await ctx.reply(embed=embed)
 
-    @commands.command(aliases=["serverbets", "serverhistory", "sbets", "sb"])
+    #@commands.command(aliases=["serverbets", "serverhistory", "sbets", "sb"])
     async def serverbethistory(self, ctx):
         """View server's bet history with filtering by category and pagination"""
         # Send loading embed first
@@ -311,7 +311,7 @@ class ServersCog(commands.Cog):
         # Store the message for later reference in the view
         view.message = message
 
-    @commands.command(aliases=["ad", "gw", "giveaway"])
+    #@commands.command(aliases=["ad", "gw", "giveaway"])
     async def airdrop(self, ctx, amount=None, currency_type=None, duration=None):
         """
         Create an airdrop to distribute tokens or credits to participants
@@ -760,7 +760,7 @@ class ServersCog(commands.Cog):
             if airdrop_data["author_id"] in self.active_airdrops:
                 del self.active_airdrops[airdrop_data["author_id"]]
 
-    @commands.command(aliases=["serverbets", "serverhistory", "sbets", "sb"])
+    #@commands.command(aliases=["serverbets", "serverhistory", "sbets", "sb"])
     async def serverbethistory(self, ctx):
         """View server's bet history with filtering by category and pagination"""
         # Send loading embed first
