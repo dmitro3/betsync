@@ -159,39 +159,32 @@ class Servers:
             new_server_ = self.collection.insert_one(dump) 
             return self.collection.find_one({"server_id": server_id})
 
-    def update_server_profit(self, server_id, amount, game=None):
-        """Update server profit statistics"""
-        npc = self.db["net_profit"]
-        profit_tracker = ProfitData()
-        server_profit_tracker = ServerProfit()
+    def update_server_profit(self, ctx, server_id, amount, game=None):
 
         try:
             # Get server name
             server_info = self.collection.find_one({"server_id": server_id})
             server_name = server_info.get("server_name", f"Unknown Server ({server_id})")
-
+            users_db = Users()
+            response = users_db.fetch_user(ctx.author.id)
+            crypto_values = {
+            "BTC": 0.00000024,  # 1 point = 0.00000024 btc
+            "LTC": 0.00023,     # 1 point = 0.00023 ltc
+            "ETH": 0.000010,    # 1 point = 0.000010 eth
+            "USDT": 0.0212,     # 1 point = 0.0212 usdt
+            "SOL": 0.0001442    # 1 point = 0.0001442 sol
+            }
+            primary_coin = response["primary_coin"]
+            crypto_value = amount * crypto_values[primary_coin]
+            
             # Update server profit
             self.collection.update_one(
                 {"server_id": server_id},
-                {"$inc": {"total_profit": amount}}
+                {"$inc": {"total_profit": crypto_value}}
             )
 
-            # Update daily profit tracking
-            profit_tracker.update_daily_profit(amount)
-
-            # Update server-specific profit tracking
-            server_profit_tracker.update_server_profit(server_id, server_name, amount)
-
-            # Update net profit
-
-            # Update game-specific profit
-            if game:
-                if npc.count_documents({"game": game}):
-                    npc.update_one({"game": game}, {"$inc": {"total_profit": amount}})
-                else: 
-                    npc.insert_one({"game": game, "total_profit": amount})
-                rn = datetime.datetime.now().strftime("%X")
-                print(f"{Back.CYAN}  {Style.DIM}{server_id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{amount} ({round((amount)*0.0212, 3)}$){Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}{game}, sv_profit{Fore.WHITE}")
+            rn = datetime.datetime.now().strftime("%X")
+            print(f"{Back.CYAN}  {Style.DIM}{server_name} - {server_id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{amount} Points - {crypto_value:.9f} {primary_coin}{Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}{game}, sv_profit{Fore.WHITE}")
             return True
         except Exception as e:
             print(f"Error updating server profit: {e}")

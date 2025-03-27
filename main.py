@@ -69,7 +69,13 @@ async def on_guild_join(guild):
         dump = {
             "server_id": guild.id,
             "server_name": guild.name,
-            "total_profit": 0,
+            "wallet":{
+                "BTC":0,
+                "LTC":0,
+                "ETH":0,
+                "SOL":0,
+                "USDT":0
+            },
             "giveaway_channel": None,
             "server_admins": [],
             "server_bet_history": [],

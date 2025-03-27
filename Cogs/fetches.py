@@ -157,7 +157,7 @@ class Fetches(commands.Cog):
         """
         user = ctx.author
         db = Users()
-        
+        #db.save(ctx.author.id)
         # Check if a user was mentioned or ID provided
         mentioned_user = None
         if param:
@@ -280,17 +280,17 @@ class Fetches(commands.Cog):
         }
         
         # Get the user data and points
-        tokens = info.get("points", 0)
+        #tokens = info.get("points", 0)
         
         # Current primary coin balance and conversion
         primary_rate = crypto_values.get(current_primary_coin, 0)
-        primary_value = tokens * primary_rate
+        primary_value = points * primary_rate
         primary_emoji = emoji_map.get(current_primary_coin, "")
         
         # Main balance display - clean and minimalistic
         embed.add_field(
             name="Balance",
-            value=f"```Points: {tokens:.2f}\n{primary_value:.8f} {current_primary_coin}\n\nUSD Value: {usd_value:.2f}```",
+            value=f"```Points: {points:.2f}\n{primary_value:.8f} {current_primary_coin}\n\nUSD Value: {usd_value:.2f}$```",
             inline=False
         )
         
