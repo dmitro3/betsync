@@ -184,7 +184,7 @@ class LimboGame:
 
         # Bulk update database
         # Credit user with total winnings
-        total_winnings = wins * self.bet_amount * self.target_multiplier
+        total_winnings = self.total_profit
         if total_winnings > 0:
             db.update_balance(self.user_id, total_winnings)
 
@@ -196,8 +196,8 @@ class LimboGame:
 
         # Now display the final result with the last roll
         embed = self.create_embed()
-        file = await self.generate_multiplier_image(last_roll_multiplier, last_roll_won)
-        embed.set_image(url="attachment://limbo_result.png")
+        #file = await self.generate_multiplier_image(last_roll_multiplier, last_roll_won)
+        #embed.set_image(url="attachment://limbo_result.png")
 
         # Create results summary embed field
         embed.add_field(
@@ -490,7 +490,7 @@ class LimboCog(commands.Cog):
                 title="🎮 How to Play Limbo",
                 description=(
                     "**Limbo** is a game where you set a target multiplier. If the rolled number is higher than or equal to your target, you win!\n\n"
-                    "**Usage:** `!limbo <bet_amount> <target_multiplier> [rolls|auto]`\n"
+                    "**Usage:** `!limbo <bet_amount> <target_multiplier> [rolls]`\n"
                     "**Example:** `!limbo 100 1.5` or `!limbo 50 2.75 10` or `!limbo 100 2 auto`\n\n"
                     "- **Lower target multipliers are easier to win but pay less**\n"
                     "- **Higher target multipliers are harder to win but pay more**\n"
@@ -580,7 +580,8 @@ class LimboCog(commands.Cog):
                         return
                 except ValueError:
                     # Not a valid number, treat as currency type
-                    currency_type = rolls_or_currency
+                    rolls = 1
+                    currency_type = "points"
 
         # Import the currency helper
         from Cogs.utils.currency_helper import process_bet_amount
