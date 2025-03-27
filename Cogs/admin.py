@@ -454,21 +454,21 @@ class AdminCommands(commands.Cog):
                 # Try to parse as ID
                 try:
                     user_id = int(user_input.strip())
-                    print(f"[DEBUG] Trying to fetch user with ID: {user_id}")
+                    #print(f"[DEBUG] Trying to fetch user with ID: {user_id}")
                     user = self.bot.get_user(user_id)
-                    print(f"[DEBUG] Result from get_user: {user}")
+                    #print(f"[DEBUG] Result from get_user: {user}")
                     if user is None:
                         # Try to fetch user if not in cache
                         try:
-                            print(f"[DEBUG] Attempting fetch_user for {user_id}")
+                            #print(f"[DEBUG] Attempting fetch_user for {user_id}")
                             user = await self.bot.fetch_user(user_id)
-                            print(f"[DEBUG] Result from fetch_user: {user}")
+                            #print(f"[DEBUG] Result from fetch_user: {user}")
                         except discord.NotFound:
                             print(f"[DEBUG] User with ID {user_id} not found in Discord")
                         except Exception as e:
                             print(f"[DEBUG] Error fetching user: {str(e)}")
                 except ValueError:
-                    print(f"[DEBUG] Input '{user_input}' is not a valid ID")
+                    #print(f"[DEBUG] Input '{user_input}' is not a valid ID")
                     embed = discord.Embed(
                         title="<:no:1344252518305234987> | Invalid Input",
                         description="Please provide a valid user mention or ID.",
@@ -477,13 +477,13 @@ class AdminCommands(commands.Cog):
                     return await ctx.reply(embed=embed)
             
             # Get user data from database
-            print(f"[DEBUG] Fetching user data from database for ID: {user_id}")
+            #print(f"[DEBUG] Fetching user data from database for ID: {user_id}")
             db = Users()
             user_data = db.fetch_user(user_id)
-            print(f"[DEBUG] Database result: {user_data is not None}")
+            #print(f"[DEBUG] Database result: {user_data is not None}")
             
             if not user_data:
-                print(f"[DEBUG] User {user_id} not found in database")
+                #print(f"[DEBUG] User {user_id} not found in database")
                 # Handle case where user is None
                 user_id_str = f"`{user_id}`"
                 user_mention = user.mention if user else user_id_str
@@ -530,13 +530,6 @@ class AdminCommands(commands.Cog):
                 name="Balance",
                 value=f"**Points:** {points:,.2f}\n**Currency:** {primary_coin}",
                 inline=False
-            )dd_field(
-                name=f"Balance",
-                value=(
-                    f"**Tokens:** {user_data.get('tokens', 0):,.2f}\n"
-                    f"**Credits:** {user_data.get('credits', 0):,.2f}"
-                ),
-                inline=False
             )
             
             # Transaction History
@@ -549,26 +542,7 @@ class AdminCommands(commands.Cog):
                 inline=True
             )
             
-            # Betting History
-            embed.add_field(
-                name=f"Betting Stats",
-                value=(
-                    f"**Games Played:** {user_data.get('total_played', 0):,}\n"
-                    f"**Games Won:** {user_data.get('total_won', 0):,}\n"
-                    f"**Games Lost:** {user_data.get('total_lost', 0):,}"
-                ),
-                inline=True
-            )
             
-            # Money Stats
-            embed.add_field(
-                name=f"Money Stats",
-                value=(
-                    f"**Total Spent:** {user_data.get('total_spent', 0):,.2f}\n"
-                    f"**Total Earned:** {user_data.get('total_earned', 0):,.2f}"
-                ),
-                inline=True
-            )
             
             # Win Rate Calculation
             # Set user avatar as thumbnail if available
