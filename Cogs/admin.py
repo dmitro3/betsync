@@ -120,20 +120,11 @@ class AdminCommands(commands.Cog):
             if new_crypto_amount < 0:
                 new_crypto_amount = 0
             
-            # Update wallet for the specified currency
+            # Update wallet for the specified currency - directly without conversions
             db.collection.update_one(
                 {"discord_id": user.id},
                 {"$set": {f"wallet.{currency}": new_crypto_amount}}
             )
-            
-            # If this is the user's primary currency, also update points
-            primary_coin = user_data.get("primary_coin", "BTC")
-            if currency == primary_coin:
-                # Calculate points based on crypto amount
-                new_points = new_crypto_amount / crypto_values[currency] if crypto_values[currency] > 0 else 0
-                
-                # Update points balance
-                db.update_balance(user.id, new_points, "points", "$set")
             
             # Create response embed for crypto update
             action = "added to" if amount > 0 else "removed from"
@@ -164,17 +155,8 @@ class AdminCommands(commands.Cog):
             if new_balance < 0:
                 new_balance = 0
                 
-            # Update points balance
+            # Update points balance - directly without conversions
             db.update_balance(user.id, new_balance, "points", "$set")
-            
-            # Calculate crypto amount for wallet update
-            crypto_amount = new_balance * crypto_values[primary_coin]
-            
-            # Update wallet for primary coin
-            db.collection.update_one(
-                {"discord_id": user.id},
-                {"$set": {f"wallet.{primary_coin}": crypto_amount}}
-            )
             
             # Create response embed for points update
             action = "added to" if amount > 0 else "removed from"
