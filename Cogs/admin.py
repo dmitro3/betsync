@@ -61,10 +61,11 @@ class AdminCommands(commands.Cog):
         return user_id in self.admin_ids
     
     @commands.command(name="addcash")
-    async def addcash(self, ctx, user: discord.Member, amount: float):
-        """Add points to a user (Admin only)
+    async def addcash(self, ctx, user: discord.Member, amount: float, currency_type: str):
+        """Add tokens or credits to a user (Admin only)
         
-        Usage: !addcash @user 100
+        Usage: !addcash @user 100 tokens
+               !addcash @user 50 credits
         """
         # Check if command user is an admin
         if not self.is_admin(ctx.author.id):
@@ -75,28 +76,46 @@ class AdminCommands(commands.Cog):
             )
             return await ctx.reply(embed=embed)
         
+        # Validate currency type
+        currency_type = currency_type.lower()
+        if currency_type not in ["token", "tokens", "credit", "credits"]:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Invalid Currency",
+                description="Please specify either 'tokens' or 'credits'.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
+        
+        # Normalize currency type
+        if currency_type in ["token", "tokens"]:
+            db_field = "tokens"
+            display_currency = "tokens"
+        else:
+            db_field = "credits"
+            display_currency = "credits"
+        
         # Add the amount to the user's balance
         db = Users()
         user_data = db.fetch_user(user.id)
         
         # If user doesn't exist, register them
         if not user_data:
-            dump = {"discord_id": user.id, "points": 0, "history": [], 
+            dump = {"discord_id": user.id, "tokens": 0, "credits": 0, "history": [], 
                    "total_deposit_amount": 0, "total_withdraw_amount": 0, "total_spent": 0, 
                    "total_earned": 0, 'total_played': 0, 'total_won': 0, 'total_lost': 0}
             db.register_new_user(dump)
             user_data = db.fetch_user(user.id)
         
         # Update user balance
-        current_amount = user_data.get("points", 0)
+        current_amount = user_data[db_field]
         new_amount = current_amount + amount
-        db.update_balance(user.id, new_amount, "points")
+        db.update_balance(user.id, new_amount, db_field)
         
         # Add to history
         history_entry = {
             "type": "admin_add",
             "amount": amount,
-            "currency": "points",
+            "currency": db_field,
             "timestamp": int(discord.utils.utcnow().timestamp()),
             "admin_id": ctx.author.id
         }
@@ -109,13 +128,13 @@ class AdminCommands(commands.Cog):
         # Send confirmation message
         money_emoji = emoji()["money"]
         embed = discord.Embed(
-            title=f"{money_emoji} | Admin Action: Added Points",
-            description=f"Successfully added **{amount:,.2f} points** to {user.mention}'s balance.",
+            title=f"{money_emoji} | Admin Action: Added {display_currency.capitalize()}",
+            description=f"Successfully added **{amount:,.2f} {display_currency}** to {user.mention}'s balance.",
             color=0x00FFAE
         )
         embed.add_field(
             name="New Balance",
-            value=f"**{new_amount:,.2f} points**",
+            value=f"**{new_amount:,.2f} {display_currency}**",
             inline=False
         )
         embed.set_footer(text=f"Admin: {ctx.author.name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
