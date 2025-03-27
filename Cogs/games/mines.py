@@ -352,7 +352,7 @@ class MinesTileView(discord.ui.View):
         server_db.update_server_profit(ctx.guild.id, -profit, game="mines")
 
         # Update user stats
-        )
+        
 
     async def process_loss(self, ctx):
         """Process loss for the player"""

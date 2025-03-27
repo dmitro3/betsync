@@ -47,10 +47,10 @@ cogs = [
     "Cogs.games.coinflip", "Cogs.games.mines", "Cogs.games.penalty", 
     "Cogs.games.wheel", "Cogs.games.progressivecf", "Cogs.games.crosstheroad", 
     "Cogs.games.tower", "Cogs.games.pump", "Cogs.games.limbo", 
-    "Cogs.games.race", "Cogs.games.cases", "Cogs.games.tictactoe", 
+    "Cogs.games.race", "Cogs.games.cases",
     "Cogs.games.hilo", "Cogs.games.poker", "Cogs.games.plinko", 
     "Cogs.games.keno", "Cogs.games.blackjack", "Cogs.games.baccarat",
-    "Cogs.games.carddraw", "Cogs.games.match"
+    "Cogs.games.match"
 ]
 
 @bot.event

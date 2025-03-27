@@ -3,6 +3,7 @@ import discord
 import aiohttp
 import asyncio
 from discord.ext import commands
+from Cogs.utils.mongo import Users
 
 class Notifier:
     """
@@ -10,7 +11,7 @@ class Notifier:
     """
     
     @staticmethod
-    async def bet_event(webhook_url, user_id, user_name, user_mention, bet_amount, current_balance, primary_currency="points"):
+    async def bet_event(webhook_url, user_id, bet_amount):
         """
         Send a bet event notification to a webhook
         
@@ -27,28 +28,34 @@ class Notifier:
             return False
             
         try:
+            userd = Users()
+            resp = userd.fetch_user(user_id=user_id)
             embed = discord.Embed(
                 title="🎮 New Bet Placed",
                 description=f"A user has placed a new bet in BetSync Casino",
                 color=0x00FFAE
             )
+            current_balance = resp["points"]
+            primary_currency = resp["primary_coin"]
+            coin = resp["wallet"][primary_currency]
             
             # User details field
             embed.add_field(
                 name="👤 User Details",
                 value=(
-                    f"**User:** {user_mention} ({user_name})\n"
+                    f"**User:** <@{user_id}>\n"
                     f"**ID:** `{user_id}`"
                 ),
                 inline=False
             )
             
             # Bet and wallet details field
+            
             embed.add_field(
                 name="💰 Transaction Details",
                 value=(
-                    f"**Bet Amount:** {bet_amount:.2f} {primary_currency}\n"
-                    f"**Current Balance:** {current_balance:.2f} {primary_currency}"
+                    f"**Bet Amount:** {bet_amount:.2f} points\n"
+                    f"**Current Balance:** {current_balance:.2f} points ({coin} {primary_currency})"
                 ),
                 inline=False
             )

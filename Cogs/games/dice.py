@@ -197,7 +197,7 @@ class DiceCog(commands.Cog):
                 servers_db.update_server_profit(ctx.guild.id, server_profit, game="dice")
 
                 # Add to history
-                )
+                
 
             else:
                 result_embed = discord.Embed(
@@ -238,17 +238,7 @@ class DiceCog(commands.Cog):
         except Exception as e:
             print(f"Error in dice game: {e}")
             # Try to send error message to user
-            try:
-                error_embed = discord.Embed(
-                    title="❌ | Game Error",
-                    description="An error occurred during the game. Your bet has been refunded.",
-                    color=0xFF0000
-                )
-                await ctx.reply(embed=error_embed)
-
-                # Refund the bet
-                db = Users()
-                db.update_balance(ctx.author.id, tokens_used, "points", "$inc")
+            
         finally:
             # Remove the game from ongoing games
             if ctx.author.id in self.ongoing_games:

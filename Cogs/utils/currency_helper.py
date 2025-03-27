@@ -2,6 +2,7 @@ import discord
 from Cogs.utils.mongo import Users
 import datetime
 from colorama import Fore, Back, Style
+import os
 import json
 from dotenv import load_dotenv
 load_dotenv()
@@ -212,5 +213,8 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
                 pass
 
     await update_loading(f"{user.mention}'s Bet: **{tokens_used:.2f} tokens**")
+    from Cogs.utils.notifier import Notifier
+    n = Notifier()
+    await n.bet_event(os.getenv("USER_WEBHOOK"), ctx.author.id, bet_amount)
 
     return True, bet_info, None
