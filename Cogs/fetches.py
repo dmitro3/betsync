@@ -150,16 +150,37 @@ class Fetches(commands.Cog):
         await ctx.reply(embed=embed)
 
     @commands.command(aliases=["bal"])
-    async def balance(self, ctx, currency: str = None):
+    async def balance(self, ctx, user_or_currency: str = None, currency: str = None):
         """
         Show user balance with cryptocurrency conversions
-        Usage: !bal [currency] - Sets or shows balance in specified currency
+        Usage: 
+        - !bal [currency] - Shows your balance in specified currency
+        - !bal @user [currency] - Shows another user's balance
         """
-        user = ctx.author
         db = Users()
-        info = db.fetch_user(user.id)
+        
+        # Determine if first argument is a user or currency
+        target_user = ctx.author
+        if user_or_currency:
+            # Check if it's a user mention or ID
+            if user_or_currency.startswith("<@") or user_or_currency.isdigit():
+                user_id = int(''.join(filter(str.isdigit, user_or_currency)))
+                try:
+                    found_user = await self.bot.fetch_user(user_id)
+                    if found_user:
+                        target_user = found_user
+                        # If user is specified, then the second arg would be currency
+                        currency = currency
+                except:
+                    # If not a valid user, treat first arg as currency
+                    currency = user_or_currency
+            else:
+                # First arg is a currency
+                currency = user_or_currency
+        
+        info = db.fetch_user(target_user.id)
         if not info:
-            await ctx.reply("**User Does Not Have An Account.**")
+            await ctx.reply(f"**{target_user.name} does not have an account.**")
             return
             
         # Currency chart from main.py
@@ -167,7 +188,7 @@ class Fetches(commands.Cog):
             "BTC": 0.00000024,  # 1 point = 0.00000024 btc
             "LTC": 0.00023,     # 1 point = 0.00023 ltc
             "ETH": 0.000010,    # 1 point = 0.000010 eth
-            "USDT": 0.0212,          # 1 point = 0.0212 usdt
+            "USDT": 0.0212,     # 1 point = 0.0212 usdt
             "SOL": 0.0001442    # 1 point = 0.0001442 sol
         }
         
@@ -182,7 +203,7 @@ class Fetches(commands.Cog):
             "USDT": 0
         })
         
-        # If currency is specified, switch to that currency
+        # If currency is specified, don't switch but just show balance
         if currency:
             currency = currency.upper()
             if currency not in crypto_values:
@@ -1072,3 +1093,65 @@ class Fetches(commands.Cog):
 
 def setup(bot):
     bot.add_cog(Fetches(bot))
+    @commands.command()
+    async def setbal(self, ctx, currency: str = None):
+        """
+        Set your default balance display currency
+        Usage: !setbal <currency> - Sets your default balance currency
+        """
+        if not currency:
+            embed = discord.Embed(
+                title=":bulb: How to Use `!setbal`",
+                description="Set your default balance currency.\n\n"
+                          "**Usage:** `!setbal <currency>`\n"
+                          "**Example:** `!setbal BTC`\n\n"
+                          ":pushpin: **Supported Currencies:**\n"
+                          "`BTC, ETH, LTC, SOL, USDT`",
+                color=0xFFD700
+            )
+            embed.set_footer(text="BetSync Casino • Currency Settings")
+            return await ctx.reply(embed=embed)
+            
+        # Currency chart
+        crypto_values = {
+            "BTC": 0.00000024,  # 1 point = 0.00000024 btc
+            "LTC": 0.00023,     # 1 point = 0.00023 ltc
+            "ETH": 0.000010,    # 1 point = 0.000010 eth
+            "USDT": 0.0212,     # 1 point = 0.0212 usdt
+            "SOL": 0.0001442    # 1 point = 0.0001442 sol
+        }
+        
+        currency = currency.upper()
+        if currency not in crypto_values:
+            return await ctx.reply(f"**Invalid currency. Supported currencies: {', '.join(crypto_values.keys())}**")
+            
+        db = Users()
+        user_data = db.fetch_user(ctx.author.id)
+        
+        if not user_data:
+            return await ctx.reply("**You don't have an account. Please use a command to create one.**")
+            
+        # Update the user's primary coin
+        db.collection.update_one(
+            {"discord_id": ctx.author.id},
+            {"$set": {"primary_coin": currency}}
+        )
+        
+        # Calculate and update wallet value
+        points = user_data.get("points", 0)
+        coin_amount = points * crypto_values[currency]
+        
+        db.collection.update_one(
+            {"discord_id": ctx.author.id},
+            {"$set": {f"wallet.{currency}": coin_amount}}
+        )
+        
+        # Generate confirmation embed
+        embed = discord.Embed(
+            title="<:checkmark:1344252974188335206> | Currency Changed",
+            description=f"Your default currency has been set to **{currency}**.\nYour balance is now displayed in {currency} by default.",
+            color=0x00FF00
+        )
+        
+        await ctx.reply(embed=embed)
+        db.save(ctx.author.id)
