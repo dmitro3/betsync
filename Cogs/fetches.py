@@ -150,16 +150,35 @@ class Fetches(commands.Cog):
         await ctx.reply(embed=embed)
 
     @commands.command(aliases=["bal"])
-    async def balance(self, ctx, currency: str = None):
+    async def balance(self, ctx, param: str = None):
         """
         Show user balance with cryptocurrency conversions
-        Usage: !bal [currency] - Sets or shows balance in specified currency
+        Usage: !bal [currency/user] - Sets currency or shows balance of mentioned user
         """
         user = ctx.author
         db = Users()
+        
+        # Check if a user was mentioned or ID provided
+        mentioned_user = None
+        if param:
+            # Try to convert mention to a user
+            try:
+                # Extract user ID from mention format or use parameter directly
+                user_id = int(''.join(filter(str.isdigit, param)))
+                try:
+                    mentioned_user = await self.bot.fetch_user(user_id)
+                    user = mentioned_user  # Set user to mentioned user
+                except:
+                    # If not a valid user, assume it's a currency
+                    pass
+            except ValueError:
+                # Not a user ID or mention, treat as currency
+                pass
+        
+        # Fetch user info
         info = db.fetch_user(user.id)
         if not info:
-            await ctx.reply("**User Does Not Have An Account.**")
+            await ctx.reply(f"**{user.name} Does Not Have An Account.**")
             return
             
         # Currency chart from main.py
@@ -167,7 +186,7 @@ class Fetches(commands.Cog):
             "BTC": 0.00000024,  # 1 point = 0.00000024 btc
             "LTC": 0.00023,     # 1 point = 0.00023 ltc
             "ETH": 0.000010,    # 1 point = 0.000010 eth
-            "USDT": 0.0212,          # 1 point = 0.0212 usdt
+            "USDT": 0.0212,     # 1 point = 0.0212 usdt
             "SOL": 0.0001442    # 1 point = 0.0001442 sol
         }
         
@@ -182,9 +201,10 @@ class Fetches(commands.Cog):
             "USDT": 0
         })
         
-        # If currency is specified, switch to that currency
-        if currency:
-            currency = currency.upper()
+        # If it's not a user mention and param is specified, treat as currency
+        currency = None
+        if param and not mentioned_user:
+            currency = param.upper()
             if currency not in crypto_values:
                 await ctx.reply(f"**Invalid currency. Supported currencies: {', '.join(crypto_values.keys())}**")
                 return
