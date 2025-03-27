@@ -392,7 +392,7 @@ class Blackjack(commands.Cog):
         self.ongoing_games = {}
 
     @commands.command(aliases=["bj", "21"])
-    async def blackjack(self, ctx, bet_amount: str = None, currency_type=None):
+    async def blackjack(self, ctx, bet_amount: str = None):
         """
         Play a game of Blackjack against the dealer
 
@@ -405,7 +405,7 @@ class Blackjack(commands.Cog):
                 title="♠️ How to Play Blackjack",
                 description=(
                     "**Blackjack** is a classic card game where you play against the dealer!\n\n"
-                    "**Usage:** `!blackjack <amount> [currency_type]`\n"
+                    "**Usage:** `!blackjack <amount>`\n"
                     "**Example:** `!blackjack 100` or `!blackjack 100 tokens`\n\n"
                     "**Rules:**\n"
                     "- Get closer to 21 than the dealer without going over\n"
@@ -443,24 +443,10 @@ class Blackjack(commands.Cog):
 
             # Import the currency helper
             from Cogs.utils.currency_helper import process_bet_amount
-
-            # Handle 'all' bet amount
-            if bet_amount.lower() == 'all':
-                user_db = Users()
-                user_data = user_db.fetch_user(ctx.author.id)
-                if not user_data:
-                    await loading_message.delete()
-                    return await ctx.reply("Could not fetch user data.")
-                
-                if currency_type == "tokens":
-                    bet_amount = str(user_data.get("tokens", 0))
-                elif currency_type == "credits":
-                    bet_amount = str(user_data.get("credits", 0))
-                else:
-                    bet_amount = str(user_data.get("tokens", 0) + user_data.get("credits", 0))
+            
 
             # Process the bet amount using the currency helper
-            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
             if not success:
                 try:
                     await loading_message.delete()
@@ -473,14 +459,9 @@ class Blackjack(commands.Cog):
 
             # Determine currency used
             tu = bet_info["tokens_used"]
-            cu = bet_info["credits_used"]
+            #cu = bet_info["credits_used"]
 
-            if tu > 0:
-                currency_used = "tokens"
-            elif cu > 0:
-                currency_used = "credits"
-            else:
-                currency_used = "mixed/none"
+            currency_used = "points"
 
             # Create the game view
             view = BlackjackView(self, ctx, bet_amount_value, currency_used)

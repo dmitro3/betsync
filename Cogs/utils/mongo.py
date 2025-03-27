@@ -32,7 +32,7 @@ class Users:
         else:
             return False
 
-    def update_balance(self, user_id, amount, currency_type="tokens", operation="$set"):
+    def update_balance(self, user_id, amount, currency_type="points", operation="$inc"):
         """Updates the balance field for the specified user.
 
         Args:
@@ -48,13 +48,14 @@ class Users:
             if operation == "$set":
                 response = self.collection.update_one(
                     {"discord_id": user_id},
-                    {"$set": {"tokens": amount}}
+                    {"$set": {"points": amount}}
                 )
             else:  # $inc
                 response = self.collection.update_one(
                     {"discord_id": user_id},
-                    {"$inc": {"tokens": amount}}
+                    {"$inc": {"points": amount}}
                 )
+            self.save(user_id)
             return response
         except Exception as e:
             print(f"Error updating balance: {e}")

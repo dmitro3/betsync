@@ -128,6 +128,7 @@ class BaccaratGame(commands.Cog):
             # Extract bet information
             tokens_used = bet_info["tokens_used"]
             #credits_used = bet_info["credits_used"]
+            print(bet_info["remaining_tokens"])
             total_bet = bet_info["total_bet_amount"]
             
             # Determine currency used for results
@@ -196,7 +197,7 @@ class BaccaratGame(commands.Cog):
                     user_db = Users()
                     #if tokens_used > 0:
                     user_db.update_balance(ctx.author.id, tokens_used, "points", "$inc")
-                    await user_db.save(ctx.author.id)
+                    #user_db.save(ctx.author.id)
                     #if credits_used > 0:
                         #user_db.update_balance(ctx.author.id, credits_used, "credits", "$inc")
                     
@@ -326,7 +327,7 @@ class BaccaratGame(commands.Cog):
                 server_db.update_server_profit(ctx.guild.id, total_bet, game="baccarat")
                 
                 
-            await user_db.save(ctx.author.id)
+            #user_db.save(ctx.author.id)
             # Remove game from ongoing games
             if ctx.author.id in self.ongoing_games:
                 del self.ongoing_games[ctx.author.id]
