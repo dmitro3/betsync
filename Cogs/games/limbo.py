@@ -118,7 +118,7 @@ class LimboGame:
 
             # Update balances for additional rolls
             if additional_tokens_used > 0:
-                db.update_balance(self.user_id, user_data['points'] - additional_tokens_used)
+                db.update_balance(self.user_id, -additional_tokens_used)
 
 
             # Add to the already used amounts
@@ -184,7 +184,7 @@ class LimboGame:
 
         # Bulk update database
         # Credit user with total winnings
-        total_winnings = self.total_profit
+        total_winnings = (self.bet_amount * self.total_bets) + self.total_profit
         if total_winnings > 0:
             db.update_balance(self.user_id, total_winnings)
 
