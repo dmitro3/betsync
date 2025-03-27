@@ -72,10 +72,10 @@ class Users:
             print(f"Error updating user history: {e}")
             return False
             
-    async def save(self, user_id):
+    def save(self, user_id):
         """
-        Syncs a user's wallet and points based on their primary coin.
-        Similar to the balance command's currency switching functionality.
+        Syncs a user's wallet based on their points and primary coin.
+        Updates the wallet value based on how many points the user has.
         
         Args:
             user_id (int): The Discord ID of the user.
@@ -113,13 +113,13 @@ class Users:
                 "USDT": 0
             })
             
-            # Calculate how much of the current primary coin the user has based on points
+            # Calculate wallet amount based on the points the user has
             current_coin_amount = points * crypto_values[current_primary_coin]
             
             # Update wallet with current coin value
             wallet[current_primary_coin] = current_coin_amount
             
-            # Update database with synchronized values
+            # Update database with the wallet value
             update_result = self.collection.update_one(
                 {"discord_id": user_id},
                 {
@@ -131,7 +131,7 @@ class Users:
             
             # Log the action with timestamp
             rn = datetime.datetime.now().strftime("%X")
-            print(f"{Fore.GREEN}[+] {Fore.WHITE}{rn} Synced user {Fore.CYAN}{user_id}{Fore.WHITE} wallet: {Fore.YELLOW}{current_primary_coin}={current_coin_amount:.8f}{Fore.WHITE}")
+            print(f"{Fore.GREEN}[+] {Fore.WHITE}{rn} Synced user {Fore.CYAN}{user_id}{Fore.WHITE} wallet: {Fore.YELLOW}{current_primary_coin}={current_coin_amount:.8f}{Fore.WHITE} from {Fore.GREEN}{points}{Fore.WHITE} points")
             
             return True
             
