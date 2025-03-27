@@ -180,7 +180,7 @@ class Servers:
             # Update server profit
             self.collection.update_one(
                 {"server_id": server_id},
-                {"$inc": {"total_profit": crypto_value}}
+                {"$inc": {f"wallet.{primary_coin}": crypto_value}}
             )
 
             rn = datetime.datetime.now().strftime("%X")
