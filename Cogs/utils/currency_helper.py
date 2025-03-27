@@ -194,7 +194,7 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
 
     # Add debug log for rakeback
     if rakeback_amount > 0:
-        print(f"{Back.YELLOW}  {Style.DIM}{user.id}{Style.RESET_ALL}{Back.RESET}{Fore.YELLOW}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}+{rakeback_amount:.2f} ({rank_name} {rakeback_percentage}%){Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}rakeback{Fore.WHITE}")
+        print(f"{Back.YELLOW}  {Style.DIM}{user.id}{Style.RESET_ALL}{Back.RESET}{Fore.YELLOW}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}+{rakeback_amount:.6f} ({rank_name} {rakeback_percentage}%){Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}rakeback{Fore.WHITE}")
 
     # Add debug log for rank change only if rank actually changed
     if rank_changed and new_rank != current_rank:
