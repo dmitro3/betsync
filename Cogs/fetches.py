@@ -278,7 +278,8 @@ class Fetches(commands.Cog):
         }
         
         # Calculate token values in each crypto
-        tokens = user_data.get("tokens", 0)
+        user_data = db.fetch_user(ctx.author.id)
+        tokens = user_data.get("points", 0)
         
         # Current primary coin balance 
         if current_primary_coin in user_data.get("wallet", {}):
@@ -289,7 +290,7 @@ class Fetches(commands.Cog):
         # Main tokens/credits balance field
         embed.add_field(
             name="Balance",
-            value=f"**Tokens:** `{tokens:.2f}`\n**Credits:** `{credits:.2f}`",
+            value=f"**Points:** `{tokens:.2f}`",
             inline=False
         )
         
@@ -359,6 +360,7 @@ class Fetches(commands.Cog):
         )
         
         embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+        db.save(ctx.author.id)
         await ctx.reply(embed=embed)
 
     # Leaderboard Pagination View
