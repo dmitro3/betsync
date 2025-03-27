@@ -139,6 +139,14 @@ class Tip(commands.Cog):
             {"$set": {f"wallet.{sender_primary_coin}": new_wallet_amount}}
         )
         
+        # If the recipient's primary coin is the same as the sender's,
+        # we also need to update their points to reflect the new wallet value
+        recipient_primary_coin = recipient_data.get("primary_coin", "BTC")
+        if recipient_primary_coin == sender_primary_coin:
+            recipient_points = recipient_data.get("points", 0)
+            new_recipient_points = recipient_points + amount
+            db.update_balance(recipient.id, new_recipient_points, "points", "$set")
+        
         # Record in history for both users
         timestamp = int(datetime.datetime.now().timestamp())
 
