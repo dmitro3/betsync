@@ -922,10 +922,10 @@ class Fetches(commands.Cog):
             )
             
             # Add the rakeback tokens to user's tokens
-            balance_result = db.update_balance(self.user_id, rakeback_tokens, "tokens", "$inc")
+            balance_result = db.update_balance(self.user_id, rakeback_tokens)
             
             # Log after claiming
-            print(f"{Back.GREEN}  {Style.DIM}{self.user_id}{Style.RESET_ALL}{Back.RESET}{Fore.GREEN}    SUCCESS    {Fore.WHITE}Rakeback claimed: {rakeback_tokens:.2f} tokens | DB updates: {update_result.modified_count}, {balance_result}{Style.RESET_ALL}")
+            print(f"{Back.GREEN}  {Style.DIM}{self.user_id}{Style.RESET_ALL}{Back.RESET}{Fore.GREEN}    SUCCESS    {Fore.WHITE}Rakeback claimed: {rakeback_tokens:.2f} points | DB updates: {update_result.modified_count}, {balance_result}{Style.RESET_ALL}")
             
             # Disable the button
             for child in self.children:
@@ -944,14 +944,14 @@ class Fetches(commands.Cog):
             # Add field for claimed amount with styled box
             claim_embed.add_field(
                 name="🎉 Claimed Amount",
-                value=f"```ini\n[{rakeback_tokens:,.2f} tokens added to your balance]\n```",
+                value=f"```ini\n[{rakeback_tokens:,.2f} points added to your balance]\n```",
                 inline=False
             )
             
             # Add a field showing new balance
-            new_balance = db.fetch_user(self.user_id).get('tokens', 0)
+            new_balance = db.fetch_user(self.user_id).get('points', 0)
             claim_embed.add_field(
-                name="💵 New Token Balance",
+                name="💵 New points Balance",
                 value=f"**{new_balance:,.2f} tokens**",
                 inline=True
             )
@@ -1022,7 +1022,7 @@ class Fetches(commands.Cog):
         # Add tokens section with styled text
         embed.add_field(
             name="💵 Available Rakeback",
-            value=f"```ini\n[{formatted_rakeback} tokens]\n```",
+            value=f"```ini\n[{formatted_rakeback} points]\n```",
             inline=True
         )
         
@@ -1040,12 +1040,12 @@ class Fetches(commands.Cog):
                 "🔒 **Claim Status: Locked**\n"
                 f"Progress to claim: `{rakeback_tokens:.2f}/1.00`\n"
                 f"```\n[{'■' * filled_bars}{' ' * empty_bars}] {int(progress * 100)}%\n```"
-                "You need at least **1.00 tokens** to claim your rakeback rewards."
+                "You need at least **1.00 rakeback points** to claim your rakeback rewards."
             )
         else:
             claim_status = (
                 "✅ **Claim Status: Ready**\n"
-                "Your rakeback tokens are ready to claim!\n"
+                "Your rakeback points are ready to claim!\n"
                 "Click the button below to add these tokens to your balance."
             )
         
@@ -1062,7 +1062,7 @@ class Fetches(commands.Cog):
                 "```\nRakeback is a loyalty reward system that returns a percentage of your bets.\n```\n"
                 f"• Every bet earns {rank_emoji} **{rank_name}** rank members **{rakeback_percentage}%** rakeback\n"
                 "• Higher ranks receive higher rakeback percentages\n"
-                "• Claim your rakeback tokens to convert them to spendable tokens"
+                "• Claim your rakeback points to convert them to spendable points"
             ),
             inline=False
         )
