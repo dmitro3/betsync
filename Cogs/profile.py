@@ -90,28 +90,29 @@ class Profile(commands.Cog):
             value=(
                 f"**Rank:** {user_data.get('rank', 0)}\n"
                 f"**Level:** {current_level}\n"
-                f"**XP Progress:** {current_xp}/{xp_limit}\n"
-                f"```{xp_progress}```"
+                f"**Title:** {title}\n\n"
+                
+                f" **XP Progress {current_xp}/{xp_limit}**\n```{xp_progress}```"
             ),
             inline=False
         )
 
         # Add balance information
-        embed.add_field(
-            name="Balance",
-            value=(
-                f"**Tokens:** {user_data.get('tokens', 0):.2f}\n"
-                f"**Credits:** {user_data.get('credits', 0):.2f}"
-            ),
-            inline=True
-        )
+        #embed.add_field(
+            #name="Balance",
+            #value=(
+                #f"**Tokens:** {user_data.get('tokens', 0):.2f}\n"
+               # f"**Credits:** {user_data.get('credits', 0):.2f}"
+            #),
+            #inline=True
+        #)
 
         # Add title information
-        embed.add_field(
-            name="Title",
-            value=f"**{title}**",
-            inline=True
-        )
+        #embed.add_field(
+            #name="Title",
+            #value=f"**{title}**",
+            #inline=True
+        #)
 
         # Set footer
         embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)

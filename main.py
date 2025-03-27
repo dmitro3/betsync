@@ -41,7 +41,7 @@ bot.remove_command("help")
 
 # List of cogs to load
 cogs = [
-    "Cogs.guide", "Cogs.loterry", "Cogs.fetches", "Cogs.profile", 
+    "Cogs.guide", "Cogs.fetches", "Cogs.profile", 
     "Cogs.start", "Cogs.currency", "Cogs.history", "Cogs.admin", 
     "Cogs.servers", "Cogs.tip", "Cogs.games.crash", "Cogs.games.dice", 
     "Cogs.games.coinflip", "Cogs.games.mines", "Cogs.games.penalty", 
