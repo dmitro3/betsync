@@ -55,7 +55,7 @@ class PumpGameView(discord.ui.View):
         self.difficulty = difficulty.lower()
         self.tokens_used = tokens_used
         #self.credits_used = credits_used
-        #self.currency_type = "credits"  # Always pay out in credits
+        self.currency_type = "points"  # Always pay out in credits
         self.message = None
         self.current_pumps = 0
         self.max_pumps = 12
@@ -350,7 +350,7 @@ class PumpGameView(discord.ui.View):
                 server_profit = self.bet_amount - payout
 
                 # Update server profit
-                server_db.update_server_profit(self.ctx.guild.id, server_profit, game="pump")
+                server_db.update_server_profit(self.ctx, self.ctx.guild.id, server_profit, game="pump")
 
                 # Add to server history
                 server_bet_entry = win_entry.copy()
@@ -423,7 +423,7 @@ class PumpGameView(discord.ui.View):
             server_db = Servers()
 
             # Update server profit directly
-            server_db.update_server_profit(self.ctx.guild.id, self.bet_amount, game="pump")
+            server_db.update_server_profit(self.ctx, self.ctx.guild.id, self.bet_amount, game="pump")
 
             # Add to server history
             server_bet_entry = loss_entry.copy()

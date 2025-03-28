@@ -153,7 +153,7 @@ class HiLoView(discord.ui.View):
 
         # Create final game image showing cash out
         game_image = await self.cog.create_game_image(self.current_card, self.previous_cards, 
-                                                     0, 0, winnings, self.currency_used, 
+                                                     0, 0, winnings,
                                                      cashed_out=True, current_winnings=self.current_winnings)
 
         # Get database connections
@@ -183,7 +183,7 @@ class HiLoView(discord.ui.View):
             # Update the embed
             embed = discord.Embed(
                 title="🃏 HiLo - CASHED OUT 💰",
-                description=f"**{self.ctx.author.name}** cashed out with **{winnings:.2f}** {self.currency_used}!",
+                description=f"**{self.ctx.author.name}** cashed out with **{winnings:.2f}** points!",
                 color=discord.Color.green()
             )
 
@@ -195,7 +195,7 @@ class HiLoView(discord.ui.View):
 
             embed.add_field(
                 name="Final Winnings", 
-                value=f"{winnings:.2f} {self.currency_used}",
+                value=f"{winnings:.2f} Points",
                 inline=True
             )
 
@@ -226,14 +226,14 @@ class HiLoView(discord.ui.View):
             embed.set_image(url="attachment://hilo_game.png")
 
             # Add to user and server history
-            self.cog.add_to_history(self.ctx.author.id, self.ctx.guild.id, winnings, self.bet_amount, "win", "hilo")
+            self.cog.add_to_history(self.ctx, self.ctx.author.id, self.ctx.guild.id, winnings, self.bet_amount, "win", "hilo")
 
             # Remove from ongoing games
             if self.ctx.author.id in self.cog.ongoing_games:
                 del self.cog.ongoing_games[self.ctx.author.id]
 
             # Create a new view with just the Play Again button
-            view = PlayAgainView(self.cog, self.ctx, self.bet_amount, self.currency_used)
+            view = PlayAgainView(self.cog, self.ctx, self.bet_amount)
             view.message = self.message
 
             await interaction.message.edit(embed=embed, file=file, view=view)
@@ -369,7 +369,7 @@ class HiLoView(discord.ui.View):
 
             # Create final game image showing the losing card
             game_image = await self.cog.create_game_image(new_card, self.previous_cards, 
-                                                          0, 0, 0, self.currency_used, 
+                                                          0, 0, 0,
                                                           game_over=True, lost_choice=choice, current_winnings=self.current_winnings)
 
             # Create losing embed
@@ -381,7 +381,7 @@ class HiLoView(discord.ui.View):
 
             embed.add_field(
                 name="Potential Winnings Lost", 
-                value=f"{self.current_winnings:.2f} {self.currency_used}",
+                value=f"{self.current_winnings:.2f} Points",
                 inline=True
             )
 
@@ -415,14 +415,14 @@ class HiLoView(discord.ui.View):
             embed.set_image(url="attachment://hilo_game.png")
 
             # Add to history
-            self.cog.add_to_history(self.ctx.author.id, self.ctx.guild.id, 0, self.bet_amount, "loss", "hilo")
+            self.cog.add_to_history(self.ctx, self.ctx.author.id, self.ctx.guild.id, 0, self.bet_amount, "loss", "hilo")
 
             # Remove from ongoing games
             if self.ctx.author.id in self.cog.ongoing_games:
                 del self.cog.ongoing_games[self.ctx.author.id]
 
             # Create play again view
-            view = PlayAgainView(self.cog, self.ctx, self.bet_amount, self.currency_used)
+            view = PlayAgainView(self.cog, self.ctx, self.bet_amount)
             view.message = self.message
 
             # Update the message with the embed and play again button
@@ -842,16 +842,16 @@ class HiLo(commands.Cog):
             self.card_cache[card_key] = card_img
             return card_img
 
-    def add_to_history(self, user_id, server_id, amount, bet_amount, result_type, game):
+    def add_to_history(self, ctx, user_id, server_id, amount, bet_amount, result_type, game):
         """Add game result to user and server history"""
         try:
             server_db = Servers()
 
             # Update server profit
             if result_type == "win":
-                server_db.update_server_profit(server_id, (bet_amount - amount), game="hilo")
+                server_db.update_server_profit(ctx, server_id, (bet_amount - amount), game="hilo")
             else:
-                server_db.update_server_profit(server_id, bet_amount, game="hilo")
+                server_db.update_server_profit(ctx, server_id, bet_amount, game="hilo")
 
         except Exception as e:
             print(f"Error updating history: {e}")

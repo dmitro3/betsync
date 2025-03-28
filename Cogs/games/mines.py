@@ -349,7 +349,7 @@ class MinesTileView(discord.ui.View):
 
             # Update server profit (negative value because server loses when player wins)
         profit = winnings - self.bet_amount
-        server_db.update_server_profit(ctx.guild.id, -profit, game="mines")
+        server_db.update_server_profit(ctx, ctx.guild.id, -profit, game="mines")
 
         # Update user stats
         
@@ -367,7 +367,7 @@ class MinesTileView(discord.ui.View):
 
         if server_data:
             
-            server_db.update_server_profit(ctx.guild.id, self.bet_amount, game="mines")
+            server_db.update_server_profit(ctx, ctx.guild.id, self.bet_amount, game="mines")
 
         
 

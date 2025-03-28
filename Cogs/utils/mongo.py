@@ -182,6 +182,9 @@ class Servers:
                 {"server_id": server_id},
                 {"$inc": {f"wallet.{primary_coin}": crypto_value}}
             )
+            PD = ProfitData()
+            DailyResponse = PD.update_daily_profit(primary_coin, crypto_value)
+            #print(DailyResponse )
 
             rn = datetime.datetime.now().strftime("%X")
             print(f"{Back.CYAN}  {Style.DIM}{server_name} - {server_id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{amount} Points - {crypto_value:.9f} {primary_coin}{Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}{game}, sv_profit{Fore.WHITE}")
@@ -299,7 +302,7 @@ class ProfitData:
         self.db = mongodb["BetSync"]
         self.collection = self.db["profit_data"]
 
-    def update_daily_profit(self, amount, game=None):
+    def update_daily_profit(self, coin, amount, game=None):
         # Convert datetime.date to string format (YYYY-MM-DD)
         today = datetime.date.today().strftime("%Y-%m-%d")
         try:
@@ -309,28 +312,16 @@ class ProfitData:
             result = self.collection.update_one(
                 {"date": today},
                 {
-                    "$inc": {"total_profit": amount},
+                    "$inc": {f"wallet.{coin}": amount},
                     "$setOnInsert": {
                         "date": today,
-                        "games": {}  # Initialize games object if needed
+                        #"games": {}  # Initialize games object if needed
                     }
                 },
                 upsert=True  # Create document if it doesn't exist
             )
 
-            # If game is specified, update game-specific profit
-            if game:
-                # Use dot notation to safely update nested fields
-                game_field = f"games.{game}"
-                self.collection.update_one(
-                    {"date": today},
-                    {
-                        "$inc": {game_field: amount}
-                    },
-                    upsert=True
-                )
-
-            return True
+            return result
         except Exception as e:
             print(f"Error updating daily profit: {e}")
             print(f"Details: {str(e)}")  # More detailed error logging

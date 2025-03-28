@@ -15,7 +15,7 @@ class PlayAgainView(discord.ui.View):
         self.ctx = ctx
         self.bet_amount = bet_amount
         self.difficulty = difficulty
-        #self.currency_type = currency_type
+        self.currency_type = "points"
         self.message = None
 
     async def on_timeout(self):
@@ -52,7 +52,7 @@ class TowerGameView(discord.ui.View):
         self.difficulty = difficulty.lower()
         self.tokens_used = tokens_used
         #self.credits_used = credits_used
-        self.currency_type = "credits"  # Always pay out in credits
+        self.currency_type = "points"  # Always pay out in credits
         self.message = None
         self.current_level = 0
         self.max_levels = 9
@@ -418,7 +418,7 @@ class TowerGameView(discord.ui.View):
             server_profit = self.bet_amount - payout
 
                 # Update server profit directly
-            server_db.update_server_profit(self.ctx.guild.id, server_profit, game="tower")
+            server_db.update_server_profit(self.ctx, self.ctx.guild.id, server_profit, game="tower")
 
                 # Add to server history
             server_bet_entry = win_entry.copy()
@@ -484,7 +484,7 @@ class TowerGameView(discord.ui.View):
         try:
             server_db = Servers()
             # Update server profit using the correct method
-            server_db.update_server_profit(self.ctx.guild.id, self.bet_amount, game="tower")
+            server_db.update_server_profit(self.ctx, self.ctx.guild.id, self.bet_amount, game="tower")
 
             # Add to server history
             server_bet_entry = loss_entry.copy()
@@ -502,7 +502,7 @@ class TowerGameView(discord.ui.View):
             self.ctx, 
             self.bet_amount, 
             self.difficulty, 
-            self.currency_type,
+            #self.currency_type,
             timeout=15
         )
 

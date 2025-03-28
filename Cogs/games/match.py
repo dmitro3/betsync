@@ -205,12 +205,14 @@ class MatchGameView(discord.ui.View):
 class Match(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.ongoing_games = {}
+        self.ongoing_games = {},
+        self.ctx = None
 
     @commands.command(aliases=["mat", "matchgame"])
     async def match(self, ctx, bet_amount: str = None):
         """Match Game - Match 3 of the same multiplier to win!"""
         # Check if bet is provided
+        self.ctx = ctx
         if bet_amount is None:
             embed = discord.Embed(
                 title=":game_die: Match Game",
@@ -325,7 +327,7 @@ class Match(commands.Cog):
                 profit = match_game.bet_amount - winnings
                 from Cogs.utils.mongo import Servers
                 dbb = Servers()
-                dbb.update_server_profit(s, profit, game="match")
+                dbb.update_server_profit(self.ctx,s, profit, game="match")
                 
                 
             else:

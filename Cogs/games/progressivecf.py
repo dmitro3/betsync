@@ -13,7 +13,7 @@ class PCFView(discord.ui.View):
         self.ctx = ctx
         self.message = message
         self.bet_amount = bet_amount
-        #elf.currency_used = currency_used
+        self.currency_used = "points"
         self.current_flips = 0
         self.current_multiplier = initial_multiplier
         self.max_flips = 15
@@ -157,7 +157,7 @@ class PCFView(discord.ui.View):
             await interaction.response.edit_message(embed=embed, view=self)
 
             # Add play again button
-            play_again_view = PlayAgainView(self.cog, self.ctx, self.bet_amount, self.currency_used)
+            play_again_view = PlayAgainView(self.cog, self.ctx, self.bet_amount)
             await interaction.message.edit(view=play_again_view)
             play_again_view.message = interaction.message
 
@@ -193,7 +193,7 @@ class PCFView(discord.ui.View):
                         "flips": self.current_flips,
                         "timestamp": int(time.time())
                     }
-                    server_db.update_server_profit(ctx.guild.id, self.bet_amount, game="progressivecoinflip")
+                    server_db.update_server_profit(self.ctx, self.ctx.guild.id, self.bet_amount, game="progressivecoinflip")
 
                 # Update user stats
                 db.collection.update_one(
@@ -554,7 +554,7 @@ class ProgressiveCoinflipCog(commands.Cog):
             )
 
             # Update server profit (negative because player won)
-            server_db.update_server_profit(ctx.guild.id, (bet_amount - winnings), game="progressivecoinflip")
+            server_db.update_server_profit(ctx, ctx.guild.id, (bet_amount - winnings), game="progressivecoinflip")
 
         # Update user stats
         db.collection.update_one(
@@ -821,7 +821,7 @@ class ProgressiveCoinflipCog(commands.Cog):
 
             # Update server profit (negative value because server loses when player wins)
             profit = winnings - bet_amount
-            server_db.update_server_profit(ctx.guild.id, -profit)
+            server_db.update_server_profit(ctx, ctx.guild.id, -profit)
 
         # Update user stats
         db.collection.update_one(
@@ -868,7 +868,7 @@ class ProgressiveCoinflipCog(commands.Cog):
             )
 
             # Update server profit
-            server_db.update_server_profit(ctx.guild.id, bet_amount)
+            server_db.update_server_profit(ctx, ctx.guild.id, bet_amount)
 
         # Update user stats
         db.collection.update_one(

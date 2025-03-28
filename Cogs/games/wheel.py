@@ -357,7 +357,7 @@ class WheelCog(commands.Cog):
 
             # Update server data with all spins
             if server_data and server_history_entries:
-                server_db.update_server_profit(ctx.guild.id, house_profit, game="wheel")
+                server_db.update_server_profit(ctx, ctx.guild.id, house_profit, game="wheel")
 
             # Set final embed color based on overall result
             if total_winnings > total_bet_amount:

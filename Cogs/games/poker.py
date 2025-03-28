@@ -623,7 +623,7 @@ class Poker(commands.Cog):
             # Update server profit (negative because server loses when player wins)
             try:
                 profit = bet_amount - winnings  # Server profit is negative when player wins
-                server_db.update_server_profit(ctx.guild.id, profit, game="poker")
+                server_db.update_server_profit(ctx, ctx.guild.id, profit, game="poker")
                 
             except Exception as e:
                 print(f"Error updating server profit for win: {e}")
@@ -657,7 +657,7 @@ class Poker(commands.Cog):
 
             # Update server profit for loss (positive for server when player loses)
             try:
-                server_db.update_server_profit(ctx.guild.id, bet_amount*multiplier, game="poker")
+                server_db.update_server_profit(ctx, ctx.guild.id, bet_amount*multiplier, game="poker")
 
                 # Add to server history
                 server_loss_entry = loss_entry.copy()
@@ -704,7 +704,7 @@ class Poker(commands.Cog):
 
             # Update server profit for loss (positive for server when player loses)
             try:
-                server_db.update_server_profit(ctx.guild.id, bet_amount, game="poker")
+                server_db.update_server_profit(ctx, ctx.guild.id, bet_amount, game="poker")
 
                 # Add to server history
                 server_loss_entry = loss_entry.copy()

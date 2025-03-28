@@ -887,7 +887,7 @@ class Blackjack(commands.Cog):
             )
 
             # Update server stats - casino loses
-            server_db.update_server_profit(ctx.guild.id, -(win_amount - bet_amount), game="blackjack")
+            server_db.update_server_profit(ctx, ctx.guild.id, -(win_amount - bet_amount), game="blackjack")
 
             # Add to server history
             server_history_entry = {
@@ -921,7 +921,7 @@ class Blackjack(commands.Cog):
             )
 
             # Update server stats - casino wins
-            server_db.update_server_profit(ctx.guild.id, bet_amount, game="blackjack")
+            server_db.update_server_profit(ctx, ctx.guild.id, bet_amount, game="blackjack")
 
             # Add to server history
             server_history_entry = {

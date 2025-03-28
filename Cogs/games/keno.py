@@ -183,7 +183,7 @@ class KenoView(discord.ui.View):
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
-        #self.currency_used = currency_used
+        self.currency_used = "points"
         self.selected_numbers = []
         self.max_selections = 10
         self.message = None
@@ -275,7 +275,7 @@ class KenoView(discord.ui.View):
                     
                     # Update server profit (positive for casino win)
                     server_db = Servers()
-                    server_db.update_server_profit(self.ctx.guild.id, self.bet_amount, game="keno")
+                    server_db.update_server_profit(self.ctx, self.ctx.guild.id, self.bet_amount, game="keno")
                     
                     embed = discord.Embed(
                         title="<:no:1344252518305234987> | Game Timed Out",
@@ -878,7 +878,7 @@ class Keno(commands.Cog):
                 
                 # Update server profit (negative for casino loss)
                 server_db = Servers()
-                server_db.update_server_profit(ctx.guild.id, -1 * (winnings - bet_amount), game="keno")
+                server_db.update_server_profit(ctx, ctx.guild.id, -1 * (winnings - bet_amount), game="keno")
                 
                 # Add to server bet history
                 
@@ -888,7 +888,7 @@ class Keno(commands.Cog):
                 
                 # Update server profit (positive for casino win)
                 server_db = Servers()
-                server_db.update_server_profit(ctx.guild.id, bet_amount, game="keno")
+                server_db.update_server_profit(ctx, ctx.guild.id, bet_amount, game="keno")
                 
                 # Add to server bet history
                 

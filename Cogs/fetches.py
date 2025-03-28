@@ -289,8 +289,8 @@ class Fetches(commands.Cog):
         
         # Main balance display - clean and minimalistic
         embed.add_field(
-            name="Balance",
-            value=f"```Points: {points:.2f}\n{primary_value:.8f} {current_primary_coin}\n\nUSD Value: {usd_value:.2f}$```",
+            name="Points",
+            value=f"`{points:.2f}` `({usd_value:.2f}$)`",
             inline=False
         )
         
@@ -299,15 +299,15 @@ class Fetches(commands.Cog):
         
         # Currency info field - simplified
         embed.add_field(
-            name="Currency Info", 
-            value=f"**Primary Currency:** {primary_emoji} `{current_primary_coin}`\n**Rate:** 1 Point = `{primary_rate:.8f} {current_primary_coin}`\n**Use `!bal <currency>` to change your primary currency and to check other currency points.**",
+            name="Primary Currency", 
+            value=f"`{current_primary_coin} (1 Point => {primary_rate:.8f} {current_primary_coin})`",
             inline=False
         )
         
         # The information is already displayed in the main balance field,
         # so we don't need these redundant fields anymore.
         
-        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+        embed.set_footer(text="Use !bal <currency> to change your primary currency and to check other currency points.", icon_url=self.bot.user.avatar.url)
         db.save(ctx.author.id)
         await ctx.reply(embed=embed)
 

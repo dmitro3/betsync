@@ -192,7 +192,7 @@ class LimboGame:
 
             # Calculate server profit/loss
             server_profit = losses * self.bet_amount - wins * (self.bet_amount * self.target_multiplier - self.bet_amount)
-            server_db.update_server_profit(self.ctx.guild.id, server_profit, game="limbo")
+            server_db.update_server_profit(self.ctx, self.ctx.guild.id, server_profit, game="limbo")
 
         # Now display the final result with the last roll
         embed = self.create_embed()
@@ -202,7 +202,7 @@ class LimboGame:
         # Create results summary embed field
         embed.add_field(
             name="Fixed Rolls Summary", 
-            value=f"Total Rolls: **{self.rolls_remaining}**\nWins: **{wins}**\nLosses: **{losses}**\nWin Rate: **{(wins/self.rolls_remaining)*100:.1f}%**", 
+            value=f"`Total Rolls: {self.rolls_remaining}`\n`Wins: {wins} Losses: {losses}`", 
             inline=False
         )
 
@@ -251,7 +251,7 @@ class LimboGame:
                         embed.description = f"You don't have enough funds to continue betting {self.bet_amount}.\nGame stopped."
                         embed.color = 0xFF0000
                         # Keep using the existing rolled multiplier image in the embed
-                        embed.set_image(url="attachment://limbo_result.png")
+                        #embed.set_image(url="attachment://limbo_result.png")
                         await self.message.edit(embed=embed, view=None)
                         self.running = False
                         break
@@ -300,7 +300,7 @@ class LimboGame:
 
                     # Update server profit (user won)
                     loss = winnings - self.bet_amount
-                    server_db.update_server_profit(self.ctx.guild.id, -loss)
+                    server_db.update_server_profit(self.ctx, self.ctx.guild.id, -loss)
                 else:
                     self.total_profit -= self.bet_amount
 
@@ -312,7 +312,7 @@ class LimboGame:
                         
 
                         # Update server profit (user lost)
-                        server_db.update_server_profit(self.ctx.guild.id, self.bet_amount, game="limbo")
+                        server_db.update_server_profit(self.ctx, self.ctx.guild.id, self.bet_amount, game="limbo")
 
                     
 
@@ -341,7 +341,7 @@ class LimboGame:
             game_mode_text = "Auto-betting mode" if self.roll_mode == "auto" else f"Fixed {self.rolls_remaining} rolls mode"
             embed = discord.Embed(
                 title="🎮 Limbo Game",
-                description=f"Target Multiplier: **{self.target_multiplier:.2f}x**\nBet Amount: **{self.bet_amount}**\nMode: **{game_mode_text}**",
+                description=f"`Target Multiplier: {self.target_multiplier:.2f}x`\n`Bet Per Roll: {self.bet_amount}`",
                 color=0x2B2D31
             )
             embed.add_field(name="Status", value="Game starting...", inline=False)
@@ -353,20 +353,20 @@ class LimboGame:
             # Profit (green)
             embed = discord.Embed(
                 title="🎮 Limbo Game",
-                description=f"Target Multiplier: **{self.target_multiplier:.2f}x**\nBet Amount: **{self.bet_amount}**\nRolled: **{self.current_multiplier:.2f}x**",
+                description=f"`Target Multiplier: {self.target_multiplier:.2f}\nBet Amount: {self.bet_amount}\nRolled: {self.current_multiplier:.2f}x`",
                 color=0x00FF00
             )
         else:
             # Loss (red)
             embed = discord.Embed(
                 title="🎮 Limbo Game",
-                description=f"Target Multiplier: **{self.target_multiplier:.2f}x**\nBet Amount: **{self.bet_amount}**\nRolled: **{self.current_multiplier:.2f}x**",
+                description=f"`Target Multiplier: {self.target_multiplier:.2f}x\nBet Amount: {self.bet_amount}\nRolled: {self.current_multiplier:.2f}x`",
                 color=0xFF0000
             )
 
         embed.add_field(
             name="Stats",
-            value=f"Total Bets: **{self.total_bets}**\nTotal Profit/Loss: **{self.total_profit:.2f}**",
+            value=f"`Total Bets: {self.total_bets}\nTotal Profit/Loss: {self.total_profit:.2f}`",
             inline=False
         )
 
@@ -374,9 +374,9 @@ class LimboGame:
         if self.history:
             history_text = ""
             for i, (mult, won) in enumerate(self.history):
-                emoji_prefix = "✅" if won else "❌"
-                history_text += f"{emoji_prefix} {mult:.2f}x\n"
-            embed.add_field(name="History (Last 10)", value=history_text, inline=False)
+                #emoji_prefix = "✅" if won else "❌"
+                history_text += f"**{mult:.2f}x**\n"
+            embed.add_field(name="Results", value=history_text, inline=False)
 
         embed.set_footer(text="BetSync Casino • Limbo", icon_url=self.ctx.bot.user.avatar.url)
         return embed

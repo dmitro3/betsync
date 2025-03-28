@@ -44,10 +44,10 @@ class CasesPlayAgainView(discord.ui.View):
         self.ctx.author = interaction.user
 
         # Check user balance before proceeding
-        db = Users()
-        user_data = db.fetch_user(interaction.user.id)
-        if not user_data:
-            return await interaction.response.send_message("Could not fetch user data.", ephemeral=True)
+        #db = Users()
+        #user_data = db.fetch_user(interaction.user.id)
+        #if not user_data:
+            #return await interaction.response.send_message("Could not fetch user data.", ephemeral=True)
 
         # Defer the response and update the message
         await interaction.response.defer()
@@ -459,7 +459,7 @@ class CasesCog(commands.Cog):
 
         if server_data:
 
-            server_db.update_server_profit(ctx.guild.id, (bet_amount_value - win_amount), game="cases")
+            server_db.update_server_profit(ctx, ctx.guild.id, (bet_amount_value - win_amount), game="cases")
 
 
 

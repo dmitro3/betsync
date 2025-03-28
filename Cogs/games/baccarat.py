@@ -318,13 +318,13 @@ class BaccaratGame(commands.Cog):
 
                 
                 # Update server stats - casino loses
-                server_db.update_server_profit(ctx.guild.id, -(win_amount - total_bet), game="baccarat")
+                server_db.update_server_profit(ctx, ctx.guild.id, -(win_amount - total_bet), game="baccarat")
                 
                 
             else:
                 
                 # Update server stats - casino wins
-                server_db.update_server_profit(ctx.guild.id, total_bet, game="baccarat")
+                server_db.update_server_profit(ctx, ctx.guild.id, total_bet, game="baccarat")
                 
                 
             #user_db.save(ctx.author.id)
