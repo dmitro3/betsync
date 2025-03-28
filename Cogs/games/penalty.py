@@ -14,7 +14,7 @@ class RoleSelectionView(discord.ui.View):
         #self.currency_type = currency_type
         self.message = None
 
-    @discord.ui.button(label="Penalty Taker", style=discord.ButtonStyle.primary, emoji="⚽", custom_id="taker")
+    @discord.ui.button(label="Striker", style=discord.ButtonStyle.primary, custom_id="taker")
     async def taker_button(self, button, interaction: discord.Interaction):
         if interaction.user.id != self.ctx.author.id:
             return await interaction.response.send_message("This is not your game!", ephemeral=True)
@@ -28,7 +28,7 @@ class RoleSelectionView(discord.ui.View):
         # Start game as penalty taker
         await self.cog.start_as_taker(self.ctx, interaction, self.bet_amount)
 
-    @discord.ui.button(label="Goalkeeper", style=discord.ButtonStyle.success, emoji="🧤", custom_id="goalkeeper")
+    @discord.ui.button(label="Goalkeeper", style=discord.ButtonStyle.success, custom_id="goalkeeper")
     async def goalkeeper_button(self, button, interaction: discord.Interaction):
         if interaction.user.id != self.ctx.author.id:
             return await interaction.response.send_message("This is not your game!", ephemeral=True)
@@ -224,7 +224,7 @@ class PenaltyCog(commands.Cog):
 
         # Create loading embed
         loading_embed = discord.Embed(
-            title="⚽ Setting up the penalty game...",
+            title="Setting up the penalty game...",
             description="Processing your bet...",
             color=0x00FFAE
         )
@@ -265,12 +265,12 @@ class PenaltyCog(commands.Cog):
 
         # Create role selection embed
         embed = discord.Embed(
-            title="⚽ PENALTY KICK - CHOOSE YOUR ROLE",
+            title="Choose Your Role",
             description=(
-                f"**Your bet:** {bet_amount:,.2f} points\n\n"
-                "**Choose your role:**\n"
-                "**🧤 Goalkeeper:** You dive to save the shot. Win 2.1x if you save!\n"
-                "**⚽ Penalty Taker:** You shoot at goal. Win 1.45x if you score!"
+                f"Your bet: `{bet_amount:,.2f} points`\n"
+                #"**Choose your role:**\n"
+                "Goalkeeper: **You dive to save the shot. Win 2.1x if you save!**\n"
+                "Penalty Taker: **You shoot at goal. Win 1.45x if you score!**"
             ),
             color=0x00FFAE
         )
@@ -287,10 +287,10 @@ class PenaltyCog(commands.Cog):
         """Start the game as a penalty taker"""
         #await self.message.delete()
         embed = discord.Embed(
-            title="⚽ PENALTY KICK - YOU ARE THE TAKER",
+            title="Striker - Beat The Keeper",
             description=(
-                f"**Your bet:** {bet_amount:,.2f} points\n"
-                f"**Potential win:** {bet_amount*1.45:,.2f} credits\n\n"
+                f"Your bet: `{bet_amount:,.2f} points`\n\n"
+                #f"**Potential win:** {bet_amount*1.45:,.2f} credits\n\n"
                 "**Choose where to shoot by clicking a button below:**"
             ),
             color=0x00FFAE
@@ -306,10 +306,10 @@ class PenaltyCog(commands.Cog):
         """Start the game as a goalkeeper"""
         #await self.message.delete()
         embed = discord.Embed(
-            title="🧤 PENALTY KICK - YOU ARE THE GOALKEEPER",
+            title="Goalkeeper - Save the shot!",
             description=(
-                f"**Your bet:** {bet_amount:,.2f} points\n"
-                f"**Potential win:** {bet_amount*2.1:,.2f} credits\n\n"
+                f"Your bet: `{bet_amount:,.2f} points`\n\n"
+                #f"**Potential win:** {bet_amount*2.1:,.2f} credits\n\n"
                 "**Choose where to dive by clicking a button below:**"
             ),
             color=0x00FFAE
@@ -341,8 +341,8 @@ class PenaltyCog(commands.Cog):
 
         # Create result embed
         if goal_scored:
-            title = "🎉 GOAL! YOU SCORED! 🎉"
-            description = f"You shot **{shot_direction.upper()}**, the goalkeeper dove **{goalkeeper_direction.upper()}**.\n\n**You won {winnings:,.2f} credits!**"
+            title = "Goal!"
+            description = f"You Scored Against The Goal Keeper And Won `{winnings:.2f} points`"
             color = 0x00FF00  # Green for win
 
             # Update user balance with winnings
@@ -352,10 +352,10 @@ class PenaltyCog(commands.Cog):
             
 
             # Result text
-            result_text = f"**You shot {shot_direction.upper()} and the goalkeeper went {goalkeeper_direction.upper()}!**"
+            result_text = f""
         else:
-            title = "❌ SAVED! THE GOALKEEPER STOPPED YOUR SHOT! ❌"
-            description = f"You shot **{shot_direction.upper()}**, the goalkeeper dove **{goalkeeper_direction.upper()}**.\n\n**You lost {bet_amount:,.2f} credits.**"
+            title = "Shot Saved"
+            description = f"Your Shot Was Saved And You Lost Your Bet."
             color = 0xFF0000  # Red for loss
 
             # Update statistics
@@ -366,15 +366,15 @@ class PenaltyCog(commands.Cog):
             )
 
             # Result text
-            result_text = f"**You shot {shot_direction.upper()} and the goalkeeper went {goalkeeper_direction.upper()}!**"
+            result_text = f""
 
         # Create embed
         embed = discord.Embed(
             title=title,
-            description=f"{result_text}\n\n{description}",
+            description=f"{result_text}{description}",
             color=color
         )
-        embed.set_footer(text="BetSync Casino | Want to try again?", icon_url=self.bot.user.avatar.url)
+        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
 
         # Add betting history
         self.update_bet_history(ctx, "penalty_taker", bet_amount, shot_direction, goalkeeper_direction, goal_scored, multiplier, winnings)
@@ -404,8 +404,8 @@ class PenaltyCog(commands.Cog):
 
         # Create result embed
         if save_made:
-            title = "🎉 SAVE! YOU STOPPED THE SHOT! 🎉"
-            description = f"You dove **{dive_direction.upper()}**, the striker shot **{striker_direction.upper()}**.\n\n**You won {winnings:,.2f} credits!**"
+            title = "Shot Saved"
+            description = f"You Saved The Shot And Won `{winnings:.2f} points`"
             color = 0x00FF00  # Green for win
 
             # Update user balance with winnings
@@ -416,10 +416,10 @@ class PenaltyCog(commands.Cog):
             nnn = Servers()
             nnn.update_server_profit(ctx, ctx.guild.id, -winnings, game="penalty")
             # Result text
-            result_text = f"**You dove {dive_direction.upper()} and the striker shot {striker_direction.upper()}!**"
+            result_text = f""
         else:
-            title = "❌ GOAL! THE STRIKER SCORED PAST YOU! ❌"
-            description = f"You dove **{dive_direction.upper()}**, the striker shot **{striker_direction.upper()}**.\n\n**You lost {bet_amount:,.2f} credits.**"
+            title = "Shot Not Saved"
+            description = f"The Striker Scored And You Lost Your Bet"
             color = 0xFF0000  # Red for loss
 
             # Update statistics
@@ -427,12 +427,12 @@ class PenaltyCog(commands.Cog):
             
 
             # Result text
-            result_text = f"**You dove {dive_direction.upper()} and the striker shot {striker_direction.upper()}!**"
+            result_text = f""
 
         # Create embed
         embed = discord.Embed(
             title=title,
-            description=f"{result_text}\n\n{description}",
+            description=f"{result_text}{description}",
             color=color
         )
         embed.set_footer(text="BetSync Casino | Want to try again?", icon_url=self.bot.user.avatar.url)
