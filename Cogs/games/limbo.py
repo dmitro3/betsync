@@ -354,9 +354,9 @@ class LimboGame:
         # Regular game embed
         # Determine color based on profit/loss
         embed_color = 0x00FF00 if self.total_profit >= 0 else 0xFF0000 # Green for profit, Red for loss
-
+        emoji = "<:yes:1355501647538815106>" if self.total_profit >= 0 else "<:no:1344252518305234987>"
         embed = discord.Embed(
-            title="Limbo Game",
+            title=f"{emoji} | Limbo Game",
             description=(
                 f"**Target Multiplier**: `{self.target_multiplier:.2f}x`\n"
                 f"**Bet Amount**: `{self.bet_amount}`\n"
