@@ -1,8 +1,11 @@
 from pymongo import MongoClient
 import os
 import datetime
+import asyncio # Added for create_task
 from colorama import Back, Fore, Style
 from dotenv import load_dotenv
+from Cogs.utils.notifier import Notifier # Import Notifier
+
 load_dotenv()
 
 mongodb = MongoClient(os.environ["MONGO"])
@@ -160,37 +163,76 @@ class Servers:
             return self.collection.find_one({"server_id": server_id})
 
     def update_server_profit(self, ctx, server_id, amount, game=None):
-
+        """Updates server profit and sends a webhook notification."""
         try:
-            # Get server name
+            # Get server info
             server_info = self.collection.find_one({"server_id": server_id})
+            if not server_info:
+                print(f"Error: Server {server_id} not found.")
+                return False
             server_name = server_info.get("server_name", f"Unknown Server ({server_id})")
-            users_db = Users()
-            response = users_db.fetch_user(ctx.author.id)
-            crypto_values = {
-            "BTC": 0.00000024,  # 1 point = 0.00000024 btc
-            "LTC": 0.00023,     # 1 point = 0.00023 ltc
-            "ETH": 0.000010,    # 1 point = 0.000010 eth
-            "USDT": 0.0212,     # 1 point = 0.0212 usdt
-            "SOL": 0.0001442    # 1 point = 0.0001442 sol
-            }
-            primary_coin = response["primary_coin"]
-            crypto_value = amount * crypto_values[primary_coin]
-            
-            # Update server profit
-            self.collection.update_one(
-                {"server_id": server_id},
-                {"$inc": {f"wallet.{primary_coin}": crypto_value}}
-            )
-            PD = ProfitData()
-            DailyResponse = PD.update_daily_profit(primary_coin, crypto_value)
-            #print(DailyResponse )
+            current_wallet = server_info.get("wallet", {})
 
+            # Get user's primary coin and calculate crypto value
+            users_db = Users()
+            user_data = users_db.fetch_user(ctx.author.id)
+            if not user_data:
+                 print(f"Error: User {ctx.author.id} not found for server profit update.")
+                 # For now, let's assume we need the user's primary coin
+                 return False
+
+            primary_coin = user_data.get("primary_coin", "BTC") # Default to BTC if not set
+            crypto_values = {
+                "BTC": 0.00000024,
+                "LTC": 0.00023,
+                "ETH": 0.000010,
+                "USDT": 0.0212,
+                "SOL": 0.0001442
+            }
+            # Use .get() with default 0 to avoid KeyError if primary_coin isn't in crypto_values
+            crypto_value_change = amount * crypto_values.get(primary_coin, 0) # Profit/Loss in crypto
+
+            # Get current balance for the specific coin before update
+            current_coin_balance = current_wallet.get(primary_coin, 0)
+
+            # Update server profit in DB
+            update_result = self.collection.update_one(
+                {"server_id": server_id},
+                {"$inc": {f"wallet.{primary_coin}": crypto_value_change}}
+            )
+
+            if update_result.modified_count == 0 and not update_result.upserted_id:
+                 print(f"Warning: Server profit update didn't modify document for server {server_id}.")
+                 # Continue for logging and notification, but be aware.
+
+            # Calculate new balance
+            new_coin_balance = current_coin_balance + crypto_value_change
+
+            # Update daily profit data
+            PD = ProfitData()
+            PD.update_daily_profit(primary_coin, crypto_value_change)
+
+            # Log the update
             rn = datetime.datetime.now().strftime("%X")
-            print(f"{Back.CYAN}  {Style.DIM}{server_name} - {server_id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{amount} Points - {crypto_value:.9f} {primary_coin}{Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}{game}, sv_profit{Fore.WHITE}")
+            profit_color = Fore.GREEN if crypto_value_change >= 0 else Fore.RED
+            print(f"{Back.CYAN}  {Style.DIM}{server_name} - {server_id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{profit_color}{amount} Points ({crypto_value_change:+.8f} {primary_coin}){Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}{game}, sv_profit{Fore.WHITE}")
+
+            # Send webhook notification asynchronously
+            notifier = Notifier()
+            asyncio.create_task(notifier.server_profit_update(
+                server_id=server_id,
+                server_name=server_name,
+                profit_loss_amount=crypto_value_change,
+                new_wallet_balance=new_coin_balance,
+                currency=primary_coin
+            ))
+
             return True
         except Exception as e:
             print(f"Error updating server profit: {e}")
+            # Optionally log the full traceback
+            # import traceback
+            # traceback.print_exc()
             return False
 
     def get_np(self, game=None):
