@@ -342,13 +342,20 @@ class Fetches(commands.Cog):
 
     @commands.command(aliases=["wa"]) # Added alias for convenience
     async def wallet(self, ctx, user: discord.Member = None):
-        """Shows the user's full cryptocurrency wallet balances."""
+        """Shows the user's full cryptocurrency wallet balances and total USD value."""
         target_user = user or ctx.author # Default to command author if no user is mentioned
         db = Users()
         
         info = db.fetch_user(target_user.id)
         if not info:
-            await ctx.reply(f"**{target_user.name} Does Not Have An Account.**")
+            # Use a more informative embed for non-registered users
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Account Not Found",
+                description=f"**{target_user.mention}** does not have a BetSync account yet.",
+                color=0xFF0000
+            )
+            embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url)
+            await ctx.reply(embed=embed)
             return
 
         # Fetch the wallet, providing defaults if it doesn't exist or is incomplete
@@ -358,33 +365,58 @@ class Fetches(commands.Cog):
             "LTC": wallet_data.get("LTC", 0),
             "ETH": wallet_data.get("ETH", 0),
             "USDT": wallet_data.get("USDT", 0),
-            "SOL": wallet_data.get("SOL", 0)
+            "SOL": wallet_data.get("SOL", 0),
+            "DOGE": wallet_data.get("DOGE", 0) # Added DOGE based on calculate_total_usd
         }
 
-        # Prepare currency emojis (reuse from balance command)
+        # Calculate total USD value
+        total_usd = self.calculate_total_usd(info)
+
+        # Prepare currency emojis (ensure consistency)
         emoji_map = {
             "BTC": "<:btc:1339343483089063976>",
             "LTC": "<:ltc:1339343445675868191>",
             "ETH": "<:eth:1340981832799485985>",
             "USDT": "<:usdt:1340981835563401217>",
-            "SOL": "<:sol:1340981839497793556>"
+            "SOL": "<:sol:1340981839497793556>",
+            "DOGE": "<:doge:1344252518305234987>" # Placeholder emoji, replace if available
         }
         
-        # Create embed - styled similarly to balance
-        embed = discord.Embed(title=f"💰 | {target_user.name}'s Wallet", color=discord.Color.blue())
-        
-        description_lines = []
-        for coin, balance in balances.items():
-            emoji = emoji_map.get(coin, "") # Get emoji, default to empty string if not found
-            # Format balance to 8 decimal places for crypto
-            description_lines.append(f"{emoji} **{coin}**: `{balance:.8f}`")
-            
-        if not description_lines:
-            embed.description = "Wallet is empty."
-        else:
-            embed.description = "\n".join(description_lines)
+        # Create enhanced embed
+        embed = discord.Embed(
+            title=f"{target_user.display_name}'s Wallet",
+            color=discord.Color.blue() # Consistent color
+        )
+        # Set author to show user's avatar
+        embed.set_author(name=target_user.name, icon_url=target_user.avatar.url if target_user.avatar else target_user.default_avatar.url)
 
-        embed.set_footer(text="BetSync Wallet Balances", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url)
+        # Add Total Value Field
+        embed.add_field(
+            name="💰 Total Wallet Value (USD)",
+            value=f"**${total_usd:,.2f}**",
+            inline=False
+        )
+        
+        # Add a separator for clarity
+        embed.add_field(name="\u200b", value="**Individual Balances**", inline=False) # Invisible separator field
+
+        # Add individual balances
+        balance_lines = []
+        for coin, balance in balances.items():
+            if balance > 0: # Only show currencies with a balance > 0
+                coin_emoji = emoji_map.get(coin, "❓") # Default emoji if not found
+                # Format balance to appropriate decimal places (e.g., 8 for crypto, 2 for USDT)
+                decimal_places = 2 if coin == "USDT" else 8
+                balance_lines.append(f"{coin_emoji} **{coin}**: `{balance:,.{decimal_places}f}`")
+            
+        if not balance_lines:
+            embed.add_field(name="Empty Wallet", value="No cryptocurrency balances found.", inline=False)
+        else:
+            # Join balances into a single field value for better spacing control
+            embed.add_field(name="Cryptocurrencies", value="\n".join(balance_lines), inline=False)
+
+        # Updated footer
+        embed.set_footer(text="BetSync Wallet | All values are approximate.", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url)
         
         await ctx.reply(embed=embed)
 
