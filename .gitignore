@@ -1,5 +1,9 @@
 .git
 .replit
+.env
+Cogs/__pycache__
+Cogs/games/__pycache__
+Cogs/utils/__pycache__
 replit.nix
 generated-icon.png
 pyproject.toml
