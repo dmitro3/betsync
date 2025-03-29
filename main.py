@@ -139,7 +139,7 @@ async def on_command(ctx):
                 embed = discord.Embed(
                 title=":wave: Welcome to BetSync Casino!", 
                 color=0x00FFAE, 
-                description="**Type** `!guide` **to get started**"
+                description="**Type** `!help` **to get started**"
                 )
                 embed.set_footer(text="BetSync Casino", icon_url=bot.user.avatar.url)
                 await ctx.reply("By using BetSync, you agree to our TOS. Type `!tos` to know more.", embed=embed)
