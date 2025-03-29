@@ -42,10 +42,8 @@ class WheelCog(commands.Cog):
                     "🔴 **Red** - 2x\n"
                     "🔵 **Blue** - 3x\n"
                     "🟢 **Green** - 5x\n\n"
-                    "You can bet using tokens (T) or credits (C):\n"
-                    "- Winnings are always paid in credits\n"
-                    "- If you have enough tokens, they will be used first\n"
-                    "- If you don't have enough tokens, credits will be used"
+                    "You bet using points.\n"
+                    "- Winnings are always paid in points."
                 ),
                 color=0x00FFAE
             )
@@ -246,7 +244,7 @@ class WheelCog(commands.Cog):
         for i, result in enumerate(spin_results):
             if result["multiplier"] > 0:
                 wins_count += 1
-            results_summary += f"Spin {i+1}: {result['emoji']} ({result['color'].capitalize()}) - {result['multiplier']}x - {result['winnings']:.2f} credits\n"
+            results_summary += f"Spin {i+1}: {result['emoji']} ({result['color'].capitalize()}) - {result['multiplier']}x - {result['winnings']:.2f} points\n"
 
         # Add overall results summary
         wheel_embed.add_field(
@@ -260,7 +258,7 @@ class WheelCog(commands.Cog):
             net_profit = total_winnings - total_bet_amount
             wheel_embed.add_field(
                 name=f"🎉 Overall Results",
-                value=f"**Total Bet:** {total_bet_amount:.2f}\n**Total Winnings:** {total_winnings:.2f} credits\n**Net Profit:** {net_profit:.2f} credits",
+                value=f"**Total Bet:** {total_bet_amount:.2f}\n**Total Winnings:** {total_winnings:.2f} points\n**Net Profit:** {net_profit:.2f} points",
                 inline=False
             )
 

@@ -335,47 +335,49 @@ class LimboGame:
                 del self.cog.ongoing_games[self.user_id]
 
     def create_embed(self):
-        """Create an embed displaying the game status"""
+        """Create a minimalist embed displaying the game status"""
         if self.total_bets == 0:
-            # Initial embed
-            game_mode_text = "Auto-betting mode" if self.roll_mode == "auto" else f"Fixed {self.rolls_remaining} rolls mode"
+            # Initial embed (simplified)
             embed = discord.Embed(
-                title="🎮 Limbo Game",
-                description=f"`Target Multiplier: {self.target_multiplier:.2f}x`\n`Bet Per Roll: {self.bet_amount}`",
-                color=0x2B2D31
+                title="Limbo Game",
+                description="Game starting...",
+                color=0x2B2D31 # Dark grey
             )
-            embed.add_field(name="Status", value="Game starting...", inline=False)
+            embed.add_field(
+                name="Setup",
+                value=f"**Target Multiplier**: `{self.target_multiplier:.2f}x`\n**Bet Per Roll**: `{self.bet_amount}`",
+                inline=False
+            )
             embed.set_footer(text="BetSync Casino • Limbo", icon_url=self.ctx.bot.user.avatar.url)
             return embed
 
         # Regular game embed
-        if self.total_profit >= 0:
-            # Profit (green)
-            embed = discord.Embed(
-                title="🎮 Limbo Game",
-                description=f"`Target Multiplier: {self.target_multiplier:.2f}\nBet Amount: {self.bet_amount}\nRolled: {self.current_multiplier:.2f}x`",
-                color=0x00FF00
-            )
-        else:
-            # Loss (red)
-            embed = discord.Embed(
-                title="🎮 Limbo Game",
-                description=f"`Target Multiplier: {self.target_multiplier:.2f}x\nBet Amount: {self.bet_amount}\nRolled: {self.current_multiplier:.2f}x`",
-                color=0xFF0000
-            )
+        # Determine color based on profit/loss
+        embed_color = 0x00FF00 if self.total_profit >= 0 else 0xFF0000 # Green for profit, Red for loss
+
+        embed = discord.Embed(
+            title="Limbo Game",
+            description=(
+                f"**Target Multiplier**: `{self.target_multiplier:.2f}x`\n"
+                f"**Bet Amount**: `{self.bet_amount}`\n"
+                f"**Rolled**: `{self.current_multiplier:.2f}x`"
+            ),
+            color=embed_color
+        )
 
         embed.add_field(
             name="Stats",
-            value=f"`Total Bets: {self.total_bets}\nTotal Profit/Loss: {self.total_profit:.2f}`",
+            value=(
+                f"**Total Bets**: `{self.total_bets}`\n"
+                f"**Total Profit/Loss**: `{self.total_profit:,.2f}`" # Added comma formatting for profit
+            ),
             inline=False
         )
 
-        # Add history
+        # Add history (simplified)
         if self.history:
-            history_text = ""
-            for i, (mult, won) in enumerate(self.history):
-                #emoji_prefix = "✅" if won else "❌"
-                history_text += f"**{mult:.2f}x**\n"
+            # Show only the multipliers, newest first
+            history_text = "\n".join([f"`{mult:.2f}x`" for mult, won in self.history])
             embed.add_field(name="Results", value=history_text, inline=False)
 
         embed.set_footer(text="BetSync Casino • Limbo", icon_url=self.ctx.bot.user.avatar.url)

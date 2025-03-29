@@ -137,7 +137,7 @@ class CrossTheRoadGame(discord.ui.View):
         #elif self.tokens_used > 0:
             #bet_description = f"**{self.tokens_used} tokens**"
         #else:
-        bet_description = f"**{self.tokens_used} points**"
+        bet_description = f"`{self.tokens_used} points`"
 
         if status == "playing":
             embed = discord.Embed(
@@ -152,7 +152,7 @@ class CrossTheRoadGame(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Bet & Winnings",
-                value=f"**Bet:** {bet_description}\n**Potential Win:** {self.calculate_payout()} credits\n\n",
+                value=f"**Bet:** {bet_description}\n**Potential Win:** `{self.calculate_payout()} points`\n\n",
                 inline=True
             )
             embed.add_field(
@@ -169,13 +169,13 @@ class CrossTheRoadGame(discord.ui.View):
         elif status == "win":
             payout = self.calculate_payout()
             embed = discord.Embed(
-                title="🎉 Chicken Safely Crossed!",
+                title="<:yes:1355501647538815106> Chicken Safely Crossed!",
                 description=f"**Congratulations!** Your chicken has safely crossed **{self.lanes_crossed}/{self.max_lanes}** lanes!",
                 color=0x00FF00
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Initial Bet:** {bet_description}\n**Final Multiplier:** {self.current_multiplier:.2f}x\n**Payout:** {payout} credits",
+                value=f"**Initial Bet:** {bet_description}\n**Final Multiplier:** {self.current_multiplier:.2f}x\n**Payout:** `{payout} points`",
                 inline=False
             )
             embed.add_field(
@@ -186,13 +186,13 @@ class CrossTheRoadGame(discord.ui.View):
 
         elif status == "lost":
             embed = discord.Embed(
-                title="💥 Chicken Got Hit!",
+                title="<:no:1344252518305234987> Chicken Got Hit!",
                 description=f"**Oh no!** Your chicken got hit by a car after crossing **{self.lanes_crossed}/{self.max_lanes}** lanes.",
                 color=0xFF0000
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Initial Bet:** {bet_description}\n**Lost Amount:** {self.bet_amount}",
+                value=f"**Initial Bet:** {bet_description}\n**Lost Amount:** `{self.bet_amount}`",
                 inline=False
             )
             embed.add_field(

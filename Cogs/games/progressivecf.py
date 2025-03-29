@@ -458,7 +458,7 @@ class ProgressiveCoinflipCog(commands.Cog):
         initial_embed = discord.Embed(
             title="🪙 | Progressive Coinflip",
             description=(
-                f"**Bet:** {total_bet:,.2f} {currency_used}\n"
+                f"**Bet:** `{total_bet:,.2f} {currency_used}`\n"
                 f"**Initial Multiplier:** 1.96x\n\n"
                 "Choose heads or tails to start flipping!"
             ),
@@ -488,10 +488,10 @@ class ProgressiveCoinflipCog(commands.Cog):
         cashout_embed = discord.Embed(
             title="🪙 | Progressive Coinflip - CASHED OUT!",
             description=(
-                f"**Initial Bet:** {bet_amount:.2f} points\n"
+                f"**Initial Bet:** `{bet_amount:.2f} points`\n"
                 f"**Successful Flips:** {flips}\n"
                 f"**Final Multiplier:** {multiplier:.2f}x\n\n"
-                f"**Winnings:** {winnings:.2f} credits"
+                f"**Winnings:** `{winnings:.2f} points`"
             ),
             color=0x00FF00
         )
@@ -579,7 +579,7 @@ class ProgressiveCoinflipCog(commands.Cog):
             initial_embed = discord.Embed(
                 title="🪙 | Progressive Coinflip",
                 description=(
-                    f"**Bet:** {bet_amount:.2f} points\n"
+                    f"**Bet:** `{bet_amount:.2f} points`\n"
                     f"**Your Choice:** {side.capitalize()}\n"
                     f"**Initial Multiplier:** {initial_multiplier}x\n\n"
                     f"{coin_flip_animated} Flipping coin..."
@@ -670,13 +670,13 @@ class ProgressiveCoinflipCog(commands.Cog):
                 result_embed = discord.Embed(
                     title="🪙 | Progressive Coinflip - MAX FLIPS REACHED!",
                     description=(
-                        f"**Bet:** {bet_amount:.2f} points\n"
+                        f"**Bet:** `{bet_amount:.2f} points`\n"
                         f"**Your Choice:** {side.capitalize()}\n"
                         f"**Result:** {result.capitalize()} {result_emoji}\n"
                         f"**Flips:** {current_flips}/15\n"
                         f"**Final Multiplier:** {new_multiplier}x\n\n"
                         f"{flip_visualization}\n\n"
-                        f"🎉 **YOU WON {potential_winnings:.2f} CREDITS!** 🎉\n"
+                        f"🎉 **YOU WON {potential_winnings:.2f} POINTS!** 🎉\n"
                         f"*Maximum flips reached - auto cashed out!*"
                     ),
                     color=0x00FF00
@@ -702,12 +702,12 @@ class ProgressiveCoinflipCog(commands.Cog):
                 result_embed = discord.Embed(
                     title="🪙 | Progressive Coinflip - YOU WON!",
                     description=(
-                        f"**Bet:** {bet_amount:.2f} points\n"
+                        f"**Bet:** `{bet_amount:.2f} points`\n"
                         f"**Your Choice:** {side.capitalize()}\n"
                         f"**Result:** {result.capitalize()} {result_emoji}\n"
                         f"**Flips:** {current_flips}/15\n"
                         f"**Current Multiplier:** {new_multiplier}x\n"
-                        f"**Potential Win:** {potential_winnings:.2f} credits\n\n"
+                        f"**Potential Win:** `{potential_winnings:.2f} points`\n\n"
                         f"{flip_visualization}\n\n"
                         f"Would you like to continue flipping or cash out?"
                     ),
@@ -743,7 +743,7 @@ class ProgressiveCoinflipCog(commands.Cog):
             result_embed = discord.Embed(
                 title="🪙 | Progressive Coinflip - YOU LOST!",
                 description=(
-                    f"**Bet:** {bet_amount:.2f} points\n"
+                    f"**Bet:** `{bet_amount:.2f} points`\n"
                     f"**Your Choice:** {side.capitalize()}\n"
                     f"**Result:** {result.capitalize()} {result_emoji}\n"
                     f"**Flips:** {current_flips}/15\n\n"

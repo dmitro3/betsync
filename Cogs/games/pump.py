@@ -142,7 +142,7 @@ class PumpGameView(discord.ui.View):
     def create_embed(self, status="playing", display_message=""):
         """Create game embed with current state"""
         
-        bet_description = f"**{self.tokens_used} points**"
+        bet_description = f"`{self.tokens_used} points`"
 
         # Get balloon visual representation
         balloon_display = self.get_balloon_display()
@@ -162,7 +162,7 @@ class PumpGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Bet & Potential Win",
-                value=f"**Bet:** {bet_description}\n**Multiplier:** {self.current_multiplier:.2f}x\n**Potential Win:** {self.calculate_payout():.2f} credits",
+                value=f"**Bet:** {bet_description}\n**Multiplier:** {self.current_multiplier:.2f}x\n**Potential Win:** `{self.calculate_payout():.2f} points`",
                 inline=False
             )
             if self.current_pumps > 0:
@@ -183,7 +183,7 @@ class PumpGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Bet & Potential Win",
-                value=f"**Bet:** {bet_description}\n**Multiplier:** {self.current_multiplier:.2f}x\n**Potential Win:** {self.calculate_payout():.2f} credits",
+                value=f"**Bet:** {bet_description}\n**Multiplier:** {self.current_multiplier:.2f}x\n**Potential Win:** `{self.calculate_payout():.2f} points`",
                 inline=False
             )
             if self.current_pumps == self.max_pumps:
@@ -199,7 +199,7 @@ class PumpGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Bet:** {bet_description}\n**Lost Amount:** {self.bet_amount:.2f} credits",
+                value=f"**Bet:** {bet_description}\n**Lost Amount:** `{self.bet_amount:.2f} points`",
                 inline=False
             )
             embed.set_footer(text=f"BetSync Casino • The balloon popped!")
@@ -214,7 +214,7 @@ class PumpGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Bet:** {self.bet_amount:.2f} credits\n**Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout:.2f} credits\n**Profit:** {profit:.2f} credits",
+                value=f"**Bet:** `{self.bet_amount:.2f} points`\n**Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout:.2f} credits\n**Profit:** {profit:.2f} credits",
                 inline=False
             )
             embed.set_footer(text=f"BetSync Casino • You've secured your winnings!")
@@ -229,7 +229,7 @@ class PumpGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Bet:** {self.bet_amount:.2f} points\n**Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout:.2f} points\n**Profit:** {profit:.2f} points",
+                value=f"**Bet:** `{self.bet_amount:.2f} points`\n**Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** `{payout:.2f} points`\n**Profit:** `{profit:.2f} points`",
                 inline=False
             )
             embed.set_footer(text=f"BetSync Casino • Maximum pumps achieved! Automatic cashout!")

@@ -636,8 +636,8 @@ class Poker(commands.Cog):
                 description=(
                     f"**Hand:** {hand_type}\n"
                     f"**Multiplier:** {multiplier}x\n"
-                    f"**Bet:** {bet_amount}\n"
-                    f"**Won:** {winnings} credits"
+                    f"**Bet:** `{bet_amount} points`\n"
+                    f"**Won:** `{winnings} points`"
                 ),
                 color=embed_color
             )
@@ -670,11 +670,11 @@ class Poker(commands.Cog):
                 print(f"Error updating server profit for loss: {e}")
 
             embed = discord.Embed(
-                title="❌ No Win",
+                title="<:no:1344252518305234987> No Win",
                 description=(
                     f"**Hand:** {hand_type}\n"
-                    f"**Bet:** {bet_amount}"
-                    f"**Return: {bet_amount*multiplier} credits**"
+                    f"**Bet:** `{bet_amount}`"
+                    f"**Return: `{bet_amount*multiplier} points`"
                 ),
                 color=0xFF0000
             )
@@ -720,7 +720,7 @@ class Poker(commands.Cog):
                 title="❌ No Win",
                 description=(
                     f"**Hand:** {hand_type}\n"
-                    f"**Bet:** {bet_amount}"
+                    f"**Bet:** `{bet_amount} points`"
                 ),
                 color=0xFF0000
             )

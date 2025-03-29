@@ -181,8 +181,8 @@ class DiceCog(commands.Cog):
                         f"Your Roll: {user_dice} ({user_roll})\n"
                         f"Dealer Roll: {dealer_dice} ({dealer_roll})\n\n"
                         f"**Multiplier:** {multiplier}x\n"
-                        f"**Winnings:** {round(winnings,2)} credits\n"
-                        f"**Profit:** {round(profit, 2)} credits"
+                        f"**Winnings:** `{round(winnings,2)} points`\n"
+                        f"**Profit:** `{round(profit, 2)} points`"
                     ),
                     color=0x00FF00
                 )
@@ -222,7 +222,7 @@ class DiceCog(commands.Cog):
 
             currency_used = "points"
 
-            bet_display = f"{total_bet} {currency_used}"
+            bet_display = f"`{total_bet} {currency_used}`"
 
 
             # Add play again button that expires after 15 seconds

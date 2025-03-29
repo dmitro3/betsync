@@ -305,10 +305,10 @@ class MinesTileView(discord.ui.View):
             profit = (self.bet_amount * multiplier) - self.bet_amount
 
         # Create description based on game state
-        description = f"**Bet Amount:** {self.bet_amount:.2f}\n**Current Multiplier:** {self.current_multiplier:.2f}x\n"
+        description = f"**Bet Amount:** `{self.bet_amount:.2f} points`\n**Current Multiplier:** {self.current_multiplier:.2f}x\n"
 
         if status == "playing":
-            description += f"**Profit:** {profit:.2f} points\n"
+            description += f"**Profit:** `{profit:.2f} points`\n"
             description += f"**Mines:** {self.mines_count}/{self.board_size * self.board_size} | {len(self.revealed_tiles)}💎"
 
             # Add cash out instruction
@@ -316,19 +316,19 @@ class MinesTileView(discord.ui.View):
                 description += "\n\nReact with 💰 to cash out!"
         elif status == "win":
             winnings = self.bet_amount * self.current_multiplier
-            description += f"**Profit:** {profit:.2f} points\n"
+            description += f"**Profit:** `{profit:.2f} points`\n"
             description += f"**Mines:** {self.mines_count}/{self.board_size * self.board_size} | {len(self.revealed_tiles)}💎\n\n"
-            description += f"**You won {winnings:.2f} credits!**"
+            description += f"**You won** `{winnings:.2f} credits!`"
         elif status == "lose":
-            description += f"**Profit:** 0 points\n"
+            description += f"**Profit:** `0 points`\n"
             description += f"**Mines:** {self.mines_count}/{self.board_size * self.board_size} | {len(self.revealed_tiles)}💎\n\n"
             description += "**You lost!**"
         elif status == "cashed_out":
             description += f"**Payout:** {payout:.2f}\n"
             description += f"**Multiplier:** {multiplier:.2f}x\n"
-            description += f"**Profit:** {profit:.2f} points\n"
+            description += f"**Profit:** `{profit:.2f} points`\n"
             description += f"**Mines:** {self.mines_count}/{self.board_size * self.board_size} | {len(self.revealed_tiles)}💎\n\n"
-            description += f"**You cashed out {payout:.2f} credits!**"
+            description += f"**You cashed out** `{payout:.2f} points`!"
 
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text="BetSync Casino", icon_url=self.ctx.bot.user.avatar.url)

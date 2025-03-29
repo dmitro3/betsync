@@ -108,7 +108,7 @@ class RaceCog(commands.Cog):
         # Create car selection embed
         embed = discord.Embed(
             title="🏎️ CAR RACE - CHOOSE YOUR CAR",
-            description=f"**Bet Amount:** {bet_amount} {currency_used}\n\nSelect a car to bet on:",
+            description=f"**Bet Amount:** `{bet_amount} {currency_used}`\n\nSelect a car to bet on:",
             color=0x00FFAE
         )
 
@@ -145,7 +145,7 @@ class RaceCog(commands.Cog):
                 title="🚫 Race Cancelled",
                 description=(
                     "You didn't pick a car in time.\n"
-                    f"Your bet of {bet_amount:.2f} {currency_used} has been refunded."
+                    f"Your bet of `{bet_amount:.2f} {currency_used}` has been refunded."
                 ),
                 color=0xFF0000
             )
@@ -344,8 +344,8 @@ class RaceCog(commands.Cog):
                 title="🏆 You Won!",
                 description=(
                     f"**Car {winner}** crossed the finish line first!\n\n"
-                    f"You bet **{bet_amount:.2f} {currency_used}** on Car {selected_car} and won **{win_amount:.2f} credits**!\n\n"
-                    f"**Winnings:** {win_amount:.2f} credits"
+                    f"You bet **{bet_amount:.2f} {currency_used}** on Car {selected_car} and won **{win_amount:.2f} points**!\n\n"
+                    f"**Winnings:** `{win_amount:.2f} points`"
                 ),
                 color=0x00FF00
             )

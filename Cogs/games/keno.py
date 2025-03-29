@@ -249,7 +249,7 @@ class KenoView(discord.ui.View):
         
         embed = discord.Embed(
             title="<:no:1344252518305234987> | Game Cancelled",
-            description=f"Game cancelled. Your bet of {self.bet_amount} points has been refunded.",
+            description=f"Game cancelled. Your bet of `{self.bet_amount} points` has been refunded.",
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed)
@@ -279,7 +279,7 @@ class KenoView(discord.ui.View):
                     
                     embed = discord.Embed(
                         title="<:no:1344252518305234987> | Game Timed Out",
-                        description=f"Game timed out. Your bet of {self.bet_amount} {self.currency_used} has been lost.",
+                        description=f"Game timed out. Your bet of `{self.bet_amount} {self.currency_used}` has been lost.",
                         color=discord.Color.red()
                     )
                     await self.ctx.reply(embed=embed)
@@ -457,7 +457,7 @@ class Keno(commands.Cog):
             # Update loading message to indicate progress
             await loading_message.edit(embed=discord.Embed(
                 title=f"Setting Up Game...",
-                description=f"Placing bet of {bet_amount} points...",
+                description=f"Placing bet of `{bet_amount} points...`",
                 color=0x00FFAE
             ))
             
@@ -507,7 +507,7 @@ class Keno(commands.Cog):
             description=(
                 f"Click on the buttons to select up to 10 numbers.\n"
                 f"Press **PLAY** when you're ready to draw.\n\n"
-                f"**Bet Amount:** {bet_amount} {currency_used}\n"
+                f"**Bet Amount:** `{bet_amount} {currency_used}`\n"
                 f"**Numbers Selected:** {num_picks}/10"
             ),
             color=0x00FFAE
@@ -806,13 +806,13 @@ class Keno(commands.Cog):
                     f"**Congratulations!** You matched **{num_matches}** out of **{num_selected}** picks!\n\n"
                     f"**Bet:** {bet_amount} {currency_used}\n"
                     f"**Multiplier:** {multiplier}x\n"
-                    f"**Win Amount:** {winnings:.2f} {currency_used}"
+                    f"**Win Amount:** `{winnings:.2f} {currency_used}`"
                 )
                 embed.color = discord.Color.green()
             else:
                 embed.description = (
                     f"You matched **{num_matches}** out of **{num_selected}** picks.\n\n"
-                    f"**Bet:** {bet_amount} {currency_used}\n"
+                    f"**Bet:** `{bet_amount} {currency_used}`\n"
                     f"**Result:** No win"
                 )
                 embed.color = discord.Color.red()

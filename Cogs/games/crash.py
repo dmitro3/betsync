@@ -192,7 +192,7 @@ class CrashCog(commands.Cog):
 
         # Format bet amount description
 
-        bet_description = f"**Bet Amount:** {tokens_used} points"
+        bet_description = f"**Bet Amount:** `{tokens_used} points`"
 
         # Create initial graph
         try:
@@ -251,7 +251,7 @@ class CrashCog(commands.Cog):
             multiplier = 1.0
             growth_rate = 0.05  # Controls how fast the multiplier increases
 
-            bet_description = f"**Bet Amount:** {bet_amount} points"
+            bet_description = f"**Bet Amount:** `{bet_amount} points`"
 
             # Create an event to track reaction cash out
             cash_out_event = asyncio.Event()
@@ -282,9 +282,9 @@ class CrashCog(commands.Cog):
                                          crash_game.cash_out_multiplier,
                                          2)  # Round to 2 decimal places
                         feedback_embed = discord.Embed(
-                            title="✅ Cash Out Successful!",
+                            title="<:yes:1355501647538815106> Cash Out Successful!",
                             description=
-                            f"You cashed out at **{crash_game.cash_out_multiplier:.2f}x**\nWinnings: **{round(winnings, 2)} credits**",
+                            f"You cashed out at **{crash_game.cash_out_multiplier:.2f}x**\nWinnings: `{round(winnings, 2)} points`",
                             color=0x00FF00)
                         await ctx.send(embed=feedback_embed, delete_after=5)
                 except Exception as e:
@@ -373,11 +373,11 @@ class CrashCog(commands.Cog):
                 try:
                     # Generate crash graph
                     embed, file = self.generate_crash_graph(multiplier, True)
-                    embed.title = "💥 | CRASHED!"
+                    embed.title = "<:no:1344252518305234987> | CRASHED!"
                     embed.description = (
                         f"{bet_description}\n"
-                        f"**Crashed At:** {multiplier:.2f}x\n\n"
-                        f"**Result:** You lost your bet!")
+                        f"**Crashed At:** {multiplier:.2f}x\n\n")
+                        #f"**Result:** You lost your bet!")
                     embed.color = 0xFF0000
 
                     # Add to history
@@ -396,8 +396,8 @@ class CrashCog(commands.Cog):
                     play_again_view = discord.ui.View()
                     play_again_button = discord.ui.Button(
                         label="Play Again",
-                        style=discord.ButtonStyle.primary,
-                        emoji="🔄")
+                        style=discord.ButtonStyle.primary
+                        )
 
                     async def play_again_callback(interaction):
                         if interaction.user.id != ctx.author.id:
@@ -415,24 +415,25 @@ class CrashCog(commands.Cog):
                     await message.edit(embed=embed,
                                        files=[file],
                                        view=play_again_view)
+                #except: pass
 
                 except Exception as crash_error:
                     print(f"Error handling crash: {crash_error}")
                     # Simple fallback
                     try:
                         embed = discord.Embed(
-                            title="💥 | CRASHED!",
+                            title="<:no:1344252518305234987> | CRASHED!",
                             description=(
                                 f"{bet_description}\n"
-                                f"**Crashed At:** {multiplier:.2f}x\n\n"
-                                f"**Result:** You lost your bet!"),
+                                f"**Crashed At:** {multiplier:.2f}x\n\n"),
+                                #f"**Result:** You lost your bet!"),
                             color=0xFF0000)
                         # Add Play Again button
                         play_again_view = discord.ui.View()
                         play_again_button = discord.ui.Button(
                             label="Play Again",
-                            style=discord.ButtonStyle.primary,
-                            emoji="🔄")
+                            style=discord.ButtonStyle.primary
+                            )
 
                         async def play_again_callback(interaction):
                             if interaction.user.id != ctx.author.id:
@@ -464,12 +465,12 @@ class CrashCog(commands.Cog):
                     # Generate success graph
                     embed, file = self.generate_crash_graph(
                         cash_out_multiplier, False, cash_out=True)
-                    embed.title = "💰 | CASHED OUT!"
+                    embed.title = "<:yes:1355501647538815106> | CASHED OUT!"
                     embed.description = (
                         f"{bet_description}\n"
                         f"**Cashed Out At:** {cash_out_multiplier:.2f}x\n"
-                        f"**Winnings:** {round(winnings, 2)} credits\n"
-                        f"**Profit:** {round(profit, 2)} credits")
+                        f"**Winnings:** `{round(winnings, 2)} points`\n"
+                        f"**Profit:** `{round(profit, 2)} points`")
                     embed.color = 0x00FF00
 
                     # Update server profit (negative value because server loses when player wins)
@@ -499,7 +500,7 @@ class CrashCog(commands.Cog):
                     play_again_button = discord.ui.Button(
                         label="Play Again",
                         style=discord.ButtonStyle.primary,
-                        emoji="🔄")
+                    )
 
                     async def play_again_callback(interaction):
                         if interaction.user.id != ctx.author.id:
@@ -523,19 +524,19 @@ class CrashCog(commands.Cog):
                     # Simple fallback
                     try:
                         embed = discord.Embed(
-                            title="💰 | CASHED OUT!",
+                            title="<:yes:1355501647538815106> | CASHED OUT!",
                             description=
                             (f"{bet_description}\n"
                              f"**Cashed Out At:** {cash_out_multiplier:.2f}x\n"
-                             f"**Winnings:** {winnings} credits\n"
-                             f"**Profit:** {profit} credits"),
+                             f"**Winnings:** `{winnings} points`\n"
+                             f"**Profit:** `{profit} points`"),
                             color=0x00FF00)
                         # Add Play Again button
                         play_again_view = discord.ui.View()
                         play_again_button = discord.ui.Button(
                             label="Play Again",
                             style=discord.ButtonStyle.primary,
-                            emoji="🔄")
+                            )
 
                         async def play_again_callback(interaction):
                             if interaction.user.id != ctx.author.id:

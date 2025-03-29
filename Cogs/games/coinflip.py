@@ -147,7 +147,7 @@ class CoinflipCog(commands.Cog):
         currency_used = "points"
 
        
-        currency_display = f"{bet_amount_value} {currency_used}"
+        currency_display = f"`{bet_amount_value} {currency_used}`"
 
         loading_embed.description = f"Setting up your {currency_display} coinflip game..."
         await loading_message.edit(embed=loading_embed)
@@ -233,25 +233,25 @@ class CoinflipCog(commands.Cog):
             user_data = db.fetch_user(ctx.author.id)
 
             
-            currency_display = f"{bet_amount_value} {currency_used}"
+            currency_display = f"`{bet_amount_value} {currency_used}`"
 
             # Prepare result embed
             if user_won:
                 result_embed = discord.Embed(
-                    title=f"🎉 | You won {win_amount} credits!",
+                    title=f"<:yes:1355501647538815106> | Coinflip Game",
                     description=(
                         f"**You chose:** {heads_emoji if side == 'heads' else tails_emoji} **{side.capitalize()}**\n"
                         f"**Result:** {result_emoji} **{result.capitalize()}**\n\n"
                         f"**Bet:** {currency_display}\n"
                         f"**Multiplier:** {multiplier}x\n"
-                        f"**Winnings:** {win_amount} credits\n"
+                        f"**Winnings:** `{win_amount} points`\n"
                         #f"**New Balance:** {user_data['credits']} credits | {user_data['tokens']} tokens"
                     ),
                     color=0x00FF00
                 )
             else:
                 result_embed = discord.Embed(
-                    title=f"😢 | You lost your bet!",
+                    title=f"<:yes:1355501647538815106> | You lost",
                     description=(
                         f"**You chose:** {heads_emoji if side == 'heads' else tails_emoji} **{side.capitalize()}**\n"
                         f"**Result:** {result_emoji} **{result.capitalize()}**\n\n"

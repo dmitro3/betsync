@@ -415,7 +415,7 @@ class Blackjack(commands.Cog):
                     "**Commands:**\n"
                     "- **Hit**: Take another card\n"
                     "- **Stand**: End your turn\n"
-                    "- **Double Down**: Double your bet and take exactly one more card"
+                    #"- **Double Down**: Double your bet and take exactly one more card"
                 ),
                 color=0x00FFAE
             )
@@ -505,8 +505,8 @@ class Blackjack(commands.Cog):
                     win_amount = bet_amount_value * 1.5
 
                     embed = discord.Embed(
-                        title="♠️ Blackjack - Blackjack!",
-                        description=f"Blackjack! You win {win_amount:.2f} {currency_used}!",
+                        title="<:yes:1355501647538815106> Blackjack - Blackjack!",
+                        description=f"**You win** `{win_amount:.2f} {currency_used}`",
                         color=discord.Color.green()
                     )
 

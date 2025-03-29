@@ -212,7 +212,7 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
             except:
                 pass
 
-    await update_loading(f"{user.mention}'s Bet: **{tokens_used:.2f} tokens**")
+    await update_loading(f"{user.mention}'s Bet: `{tokens_used:.2f} points`")
     from Cogs.utils.notifier import Notifier
     n = Notifier()
     await n.bet_event(os.getenv("USER_WEBHOOK"), ctx.author.id, bet_info["total_bet_amount"])

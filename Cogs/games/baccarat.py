@@ -105,9 +105,9 @@ class BaccaratGame(commands.Cog):
             
         try:
             # Send loading message
-            loading_emoji = emoji()["loading"]
+            #loading_emoji = emoji()["loading"]
             loading_embed = discord.Embed(
-                title=f"{loading_emoji} | Preparing Baccarat Game...",
+                title=f"Preparing Baccarat Game...",
                 description="Please wait while we set up your game.",
                 color=0x00FFAE
             )
@@ -292,9 +292,9 @@ class BaccaratGame(commands.Cog):
             
             # Show result
             if win_amount > 0:
-                result_text = f"**YOU WON!** {bet_on.title()} wins!\nWon: **{win_amount:.2f}** {currency_used}"
+                result_text = f"<:yes:1355501647538815106> {bet_on.title()} wins!\n**Won:** `{win_amount:.2f}** {currency_used}`"
             else:
-                result_text = f"**YOU LOST!** {winner.title()} wins!\nLost: **{total_bet:.2f}** {currency_used}"
+                result_text = f"<:no:1344252518305234987>{winner.title()} wins!\n**Lost:** `{total_bet:.2f} {currency_used}`"
             
             result_embed.add_field(
                 name="Result",

@@ -52,7 +52,7 @@ class PlayAgainView(discord.ui.View):
             # Handle any errors
             print(f"Error in Play Again: {e}")
             error_embed = discord.Embed(
-                title="❌ Error Starting New Game",
+                title="<:no:1344252518305234987> Error Starting New Game",
                 description=f"There was a problem starting a new HiLo game. Please try again later.",
                 color=0xFF0000
             )
@@ -182,8 +182,8 @@ class HiLoView(discord.ui.View):
 
             # Update the embed
             embed = discord.Embed(
-                title="🃏 HiLo - CASHED OUT 💰",
-                description=f"**{self.ctx.author.name}** cashed out with **{winnings:.2f}** points!",
+                title="<:yes:1355501647538815106> CASHED OUT",
+                description=f"**{self.ctx.author.name}** cashed out with `{winnings:.2f} points`",
                 color=discord.Color.green()
             )
 
@@ -195,7 +195,7 @@ class HiLoView(discord.ui.View):
 
             embed.add_field(
                 name="Final Winnings", 
-                value=f"{winnings:.2f} Points",
+                value=f"`{winnings:.2f} points`",
                 inline=True
             )
 
@@ -381,7 +381,7 @@ class HiLoView(discord.ui.View):
 
             embed.add_field(
                 name="Potential Winnings Lost", 
-                value=f"{self.current_winnings:.2f} Points",
+                value=f"`{self.current_winnings:.2f} points`",
                 inline=True
             )
 
@@ -451,7 +451,7 @@ class HiLoView(discord.ui.View):
 
         embed.add_field(
             name="Current Winnings", 
-            value=f"{self.current_winnings:.2f} points",
+            value=f"`{self.current_winnings:.2f} points`",
             inline=True
         )
 
@@ -896,9 +896,9 @@ class HiLo(commands.Cog):
 
         try:
             # Send loading message
-            loading_emoji = emoji()["loading"]
+            #loading_emoji = emoji()["loading"]
             loading_embed = discord.Embed(
-                title=f"{loading_emoji} | Preparing HiLo Game...",
+                title=f"Preparing HiLo Game...",
                 description="Please wait while we set up your game.",
                 color=0x00FFAE
             )
@@ -922,7 +922,7 @@ class HiLo(commands.Cog):
             currency_used = "points"
             # Update loading message to indicate progress
             await loading_message.edit(embed=discord.Embed(
-                title=f"{loading_emoji} | Setting Up Game...",
+                title=f"Setting Up Game...",
                 description=f"Placing bet of {bet_amount} {currency_used}...",
                 color=0x00FFAE
             ))
@@ -941,7 +941,7 @@ class HiLo(commands.Cog):
 
             # Update loading message again
             await loading_message.edit(embed=discord.Embed(
-                title=f"{loading_emoji} | Generating Game...",
+                title=f"Generating Game...",
                 description=f"Creating game display...",
                 color=0x00FFAE
             ))

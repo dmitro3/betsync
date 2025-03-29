@@ -384,7 +384,7 @@ class CasesCog(commands.Cog):
             embed = discord.Embed(
                 title="📦 How to Play Cases",
                 description=(
-                    "**Cases** is a game where you open a case to win credits based on multipliers!\n\n"
+                    "**Cases** is a game where you open a case to win points based on multipliers!\n\n"
                     "**Usage:** `!cases <amount>`\n"
                     "**Example:** `!cases 100`\n\n"
                     "**Possible Rewards:**\n"
@@ -395,7 +395,7 @@ class CasesCog(commands.Cog):
                     f"🔹 **COMMON** (1.09x) - 10% chance\n"
                     f"💢 **BAD LUCK** (0.4x) - 35% chance\n"
                     f"💀 **TERRIBLE** (0.1x) - 41% chance\n\n"
-                    "**Payouts are made in credits!**"
+                    #"**Payouts are made in credits!**"
                 ),
                 color=0x00FFAE
             )
@@ -403,9 +403,9 @@ class CasesCog(commands.Cog):
             return await ctx.reply(embed=embed)
 
         # Send loading message immediately
-        loading_emoji = emoji()["loading"]
+        #loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Processing Case...",
+            title=f"Processing Case...",
             description="Please wait while we process your request...",
             color=0x00FFAE
         )
@@ -431,7 +431,7 @@ class CasesCog(commands.Cog):
         currency_used ="points"
 
         
-        currency_display = f"{bet_amount_value} {currency_used}"
+        currency_display = f"`{bet_amount_value} {currency_used}`"
 
         loading_embed.description = f"Opening case for {currency_display}..."
         await loading_message.edit(embed=loading_embed)
@@ -486,10 +486,10 @@ class CasesCog(commands.Cog):
         result_embed = discord.Embed(
             title=f"Case Opening",
             description=(
-                f"**Multiplier: {selected_multiplier['value']}x**\n"
-                f"**Bet:** {bet_amount_value:.2f} {currency_used}\n"
-                f"**Payout:** {win_amount:.2f} credits\n"
-                f"**Profit:** {win_amount - bet_amount_value:.2f} credits"
+                f"**Multiplier:** `{selected_multiplier['value']}x`\n"
+                f"**Bet:** `{bet_amount_value:.2f} {currency_used}`\n"
+                f"**Payout:** `{win_amount:.2f} points`\n"
+                f"**Profit:** `{win_amount - bet_amount_value:.2f} points`"
             ),
             color=color
         )
@@ -512,7 +512,7 @@ class CasesCog(commands.Cog):
             inline=False
         )
 
-        result_embed.set_footer(text=f"BetSync Casino • {currency_used.capitalize()} bet: {bet_amount_value:.2f}", icon_url=self.bot.user.avatar.url)
+        result_embed.set_footer(text=f"BetSync Casino", icon_url=self.bot.user.avatar.url)
 
         # Add play again button
         play_again_view = CasesPlayAgainView(self, ctx, bet_amount_value, currency_used, self.bot)

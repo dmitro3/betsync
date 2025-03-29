@@ -186,7 +186,7 @@ class TowerGameView(discord.ui.View):
     def create_embed(self, status="playing", selected_tile=None):
         """Create game embed with current state"""
         
-        bet_description = f"**{self.tokens_used} points**"
+        bet_description = f"`{self.tokens_used} points`"
 
         if status == "playing":
             embed = discord.Embed(
@@ -201,7 +201,7 @@ class TowerGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Bet & Winnings",
-                value=f"**Bet:** {bet_description}\n**Potential Win:** {self.calculate_payout()} credits\n\n",
+                value=f"**Bet:** {bet_description}\n**Potential Win:** `{self.calculate_payout()} points`\n\n",
                 inline=True
             )
             embed.add_field(
@@ -228,7 +228,7 @@ class TowerGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Bet & Winnings",
-                value=f"**Bet:** {bet_description}\n**Potential Win:** {self.calculate_payout()} credits\n\n",
+                value=f"**Bet:** {bet_description}\n**Potential Win:** `{self.calculate_payout()} cpoints`\n\n",
                 inline=True
             )
             embed.add_field(
@@ -269,7 +269,7 @@ class TowerGameView(discord.ui.View):
             )
             embed.add_field(
                 name="💰 Game Results",
-                value=f"**Initial Bet:** {self.bet_amount} points\n**Final Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** {payout} credits\n**Profit:** {profit} credits",
+                value=f"**Initial Bet:** `{self.bet_amount} points`\n**Final Multiplier:** {self.current_multiplier:.2f}x\n**Winnings:** `{payout} points`\n**Profit:** `{profit} points`",
                 inline=False
             )
             embed.add_field(

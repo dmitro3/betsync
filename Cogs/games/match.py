@@ -315,7 +315,7 @@ class Match(commands.Cog):
 
             embed.add_field(
                 name="Game Summary",
-                value=f"**Bet Amount:** {match_game.bet_amount} {currency_used}\n**Multiplier:** {matched_multiplier}x\n**Winnings:** {winnings} {currency_used}",
+                value=f"**Bet Amount:** `{match_game.bet_amount} {currency_used}`\n**Multiplier:** {matched_multiplier}x\n**Winnings:** `{winnings} {currency_used}`",
                 inline=False
             )
 
@@ -343,7 +343,7 @@ class Match(commands.Cog):
 
             embed.add_field(
                 name="Game Summary",
-                value=f"**Bet Amount:** {match_game.bet_amount} {currency_used}\n**Multiplier:** None\n**Loss:** {match_game.bet_amount} {currency_used}",
+                value=f"**Bet Amount:** `{match_game.bet_amount} {currency_used}`\n**Multiplier:** None\n**Loss:** `{match_game.bet_amount} {currency_used}`",
                 inline=False
             )
 
