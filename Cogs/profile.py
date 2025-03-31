@@ -85,14 +85,17 @@ class Profile(commands.Cog):
         xp_progress = self.create_progress_bar(current_xp, xp_limit, length=15)
 
         # Add core profile info
+        # Get total deposits in USD
+        total_deposits_usd = user_data.get('total_deposit_amount_usd', 0)
+        
         embed.add_field(
             name="Stats",
             value=(
                 f"**Rank:** {user_data.get('rank', 0)}\n"
                 f"**Level:** {current_level}\n"
-                f"**Title:** {title}\n\n"
-                
-                f" **XP Progress {current_xp}/{xp_limit}**\n```{xp_progress}```"
+                f"**Title:** {title}\n"
+                f"**Total Deposits:** ${total_deposits_usd:,.2f} USD\n\n"
+                f"**XP Progress {current_xp}/{xp_limit}**\n```{xp_progress}```"
             ),
             inline=False
         )

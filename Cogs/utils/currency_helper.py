@@ -4,9 +4,12 @@ import datetime
 from colorama import Fore, Back, Style
 import os
 import json
+import aiohttp # Add import for http requests
 from dotenv import load_dotenv
 load_dotenv()
 
+# CoinGecko API endpoint
+COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
 async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
     """
     Processes bet amounts based on user's token balance.
@@ -218,3 +221,36 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
     await n.bet_event(os.getenv("USER_WEBHOOK"), ctx.author.id, bet_info["total_bet_amount"])
 
     return True, bet_info, None
+
+async def get_crypto_price(crypto_id: str) -> float | None:
+    """
+    Fetches the current price of a cryptocurrency in USD from CoinGecko.
+
+    Args:
+        crypto_id: The CoinGecko ID of the cryptocurrency (e.g., 'litecoin', 'bitcoin').
+
+    Returns:
+        The price in USD as a float, or None if fetching fails.
+    """
+    params = {
+        'ids': crypto_id,
+        'vs_currencies': 'usd'
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(COINGECKO_API_URL, params=params) as response:
+                response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+                data = await response.json()
+                # Example response: {'litecoin': {'usd': 75.5}}
+                price = data.get(crypto_id, {}).get('usd')
+                if price is not None:
+                    return float(price)
+                else:
+                    print(f"{Fore.RED}[!] Could not find USD price for '{crypto_id}' in CoinGecko response.{Style.RESET_ALL}")
+                    return None
+    except aiohttp.ClientError as e:
+        print(f"{Fore.RED}[!] aiohttp error fetching price for {crypto_id}: {e}{Style.RESET_ALL}")
+        return None
+    except Exception as e:
+        print(f"{Fore.RED}[!] Unexpected error fetching price for {crypto_id}: {e}{Style.RESET_ALL}")
+        return None
