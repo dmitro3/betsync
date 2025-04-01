@@ -8,3 +8,4 @@ replit.nix
 generated-icon.png
 pyproject.toml
 uv.lock
+roocode-setting.json
