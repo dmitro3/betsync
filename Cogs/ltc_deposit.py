@@ -242,6 +242,7 @@ class DepositView(discord.ui.View):
                 main_embed.title = "<:yes:1355501647538815106> | Deposit Success"
                 main_embed.description = f"<:ltc:1339343445675868191> **+{total_ltc:,.8f} LTC** from {len(deposits)} transaction(s)"
                 main_embed.clear_fields()
+                main_embed.set_image(url=None)  # Remove QR code image
 
                 # Show each transaction
                 for i, deposit in enumerate(deposits, 1):
@@ -745,7 +746,7 @@ class LtcDeposit(commands.Cog):
         return embed
 
 
-    @commands.command(name="deposit", aliases=["dep", "depo"])
+    @commands.command(name="deposit_ltc", aliases=["ltcdep", "ltcdeposit"])
     async def deposit_ltc(self, ctx, currency: str = None):
         """Handles cryptocurrency deposits"""
         if not currency:
@@ -779,7 +780,7 @@ class LtcDeposit(commands.Cog):
             )
             embed.add_field(
                 name="Usage",
-                value="`.dep <currency>`\nExample: `.dep ltc`",
+                value="`.ltcdep`\nExample: `.ltcdep`",
                 inline=False
             )
             embed.set_footer(text="BetSync Casino")
@@ -821,7 +822,7 @@ class LtcDeposit(commands.Cog):
         )
         # Add address in a code block field for easy copying
         embed.add_field(name="\u200B", value=f"```{address}```", inline=False) # \u200B is a zero-width space for an empty field name
-        embed.add_field(name="Conversion Rate", value=f"`1 point = {LTC_CONVERSION_RATE} LTC`", inline=False)
+        embed.add_field(name="Conversion Rate", value="`1 point = 0.00023 LTC`", inline=False)
         embed.set_image(url="attachment://ltc_deposit_qr.png")
         # Removed footer and timestamp for minimalism
         # embed.set_footer(text="BetSync Casino") # Optional: Add back if needed
