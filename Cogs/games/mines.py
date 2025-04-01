@@ -303,6 +303,9 @@ class MinesTileView(discord.ui.View):
             profit = (self.bet_amount * self.current_multiplier) - self.bet_amount
         elif status == "cashed_out":
             profit = (self.bet_amount * multiplier) - self.bet_amount
+        elif status == "playing" and len(self.revealed_tiles) > 0:
+            # Calculate potential profit based on current multiplier
+            profit = (self.bet_amount * self.current_multiplier) - self.bet_amount
 
         # Create description based on game state
         description = f"**Bet Amount:** `{self.bet_amount:.2f} points`\n**Current Multiplier:** {self.current_multiplier:.2f}x\n"

@@ -834,7 +834,7 @@ class Blackjack(commands.Cog):
                 new_ctx.author = interaction.user
 
                 # Run the command with the same bet amount and currency
-                await bet_command(new_ctx, str(bet_amount), currency_used)
+                await bet_command(new_ctx, str(bet_amount))
 
         play_again_button.callback = play_again_callback
         view.add_item(play_again_button)
