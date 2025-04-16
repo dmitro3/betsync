@@ -44,14 +44,14 @@ cogs = [
     "Cogs.guide", "Cogs.fetches", "Cogs.profile",
     "Cogs.start", "Cogs.currency", "Cogs.history", "Cogs.admin",
     "Cogs.deposit",
-    "Cogs.servers", "Cogs.tip", "Cogs.ltc_deposit", "Cogs.btc_deposit", "Cogs.games.crash", "Cogs.games.dice",
+    "Cogs.servers", "Cogs.tip", "Cogs.ltc_deposit", "Cogs.ltc_withdraw", "Cogs.btc_deposit", "Cogs.eth_usdt_deposit", "Cogs.games.crash", "Cogs.games.dice",
     "Cogs.games.coinflip", "Cogs.games.mines", "Cogs.games.penalty",
     "Cogs.games.wheel", "Cogs.games.progressivecf", "Cogs.games.crosstheroad", 
     "Cogs.games.tower", "Cogs.games.pump", "Cogs.games.limbo", 
     "Cogs.games.race", "Cogs.games.cases",
     "Cogs.games.hilo", "Cogs.games.poker", "Cogs.games.plinko", 
     "Cogs.games.keno", "Cogs.games.blackjack", "Cogs.games.baccarat",
-    "Cogs.games.match"
+    "Cogs.games.match", "Cogs.sol_deposit" # Added sol_deposit cog
 ]
 
 @bot.event

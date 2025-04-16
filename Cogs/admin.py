@@ -18,6 +18,23 @@ class AdminCommands(commands.Cog):
         
         # Set default matplotlib style
         plt.style.use('dark_background')
+        
+        # Add command check for blacklisted users
+        self.bot.add_check(self.check_blacklist)
+
+    async def check_blacklist(self, ctx):
+        """Check if user is blacklisted before command execution"""
+        if ctx.author.id in self.blacklisted_ids:
+            # Don't send embed if the command is blacklist/unblacklist
+            if ctx.command.name not in ['blacklist', 'unblacklist']:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Blacklisted",
+                    description="You have been blacklisted from using this bot.",
+                    color=0xFF0000
+                )
+                await ctx.reply(embed=embed)
+            return False
+        return True
     
     def load_admin_ids(self):
         """Load admin IDs from admins.txt file"""

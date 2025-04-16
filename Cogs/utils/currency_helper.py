@@ -48,8 +48,8 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
         if isinstance(bet_amount, str) and bet_amount.lower() in ["all", "max"]:
             if tokens_balance <= 0:
                 error_embed = discord.Embed(
-                    title="<:no:1344252518305234987> | Insufficient Tokens",
-                    description=f"{user.mention} doesn't have any tokens to bet.",
+                    title="<:no:1344252518305234987> | Insufficient Points",
+                    description=f"{user.mention} doesn't have any points to bet.",
                     color=0xFF0000
                 )
                 return False, None, error_embed
@@ -82,8 +82,8 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
         tokens_used = bet_amount_value
     else:
         error_embed = discord.Embed(
-            title="<:no:1344252518305234987> | Insufficient Tokens",
-            description=f"{user.mention} doesn't have enough tokens. Your balance: **{tokens_balance:.2f} tokens**",
+            title="<:no:1344252518305234987> | Insufficient Points",
+            description=f"{user.mention} doesn't have enough points. Your balance: **{tokens_balance:.2f} points**",
             color=0xFF0000
         )
         return False, None, error_embed

@@ -20,9 +20,9 @@ class Deposit(commands.Cog):
                 value=(
                     "<:btc:1339343483089063976> BTC (`.dep btc`)\n"
                     "<:ltc:1339343445675868191> LTC (`.dep ltc`)\n"
-                    "<:eth:1340981832799485985> ETH\n"
-                    "<:usdt:1340981835563401217> USDT\n"
-                    "<:sol:1340981839497793556> SOL"
+                    "<:eth:1340981832799485985> ETH (`.dep eth`)\n"
+                    "<:usdt:1340981835563401217> USDT (`.dep usdt`)\n"
+                    "<:sol:1340981839497793556> SOL (`.dep sol`)" # Added command usage
                 ),
                 inline=True
             )
@@ -51,6 +51,19 @@ class Deposit(commands.Cog):
             ltc_cog = self.bot.get_cog("LtcDeposit")
             if ltc_cog:
                 await ltc_cog.deposit_ltc(ctx, currency)
+        elif currency in ["eth", "usdt"]:
+            # Get ETH/USDT deposit command and invoke it
+            eth_usdt_cog = self.bot.get_cog("EthUsdtDeposit")
+            if eth_usdt_cog:
+                if currency == "eth":
+                    await eth_usdt_cog.deposit_eth(ctx, currency)
+                else:
+                    await eth_usdt_cog.deposit_usdt(ctx, currency)
+        elif currency == "sol":
+            # Get SOL deposit command and invoke it
+            sol_cog = self.bot.get_cog("SolDeposit")
+            if sol_cog:
+                await sol_cog.deposit_sol(ctx, currency)
 
 def setup(bot):
     bot.add_cog(Deposit(bot))

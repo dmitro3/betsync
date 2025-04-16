@@ -359,14 +359,20 @@ class BlackjackView(discord.ui.View):
                 child.disabled = True
 
             try:
-                # Create timeout embed
+                # Create timeout embed without image
                 embed = discord.Embed(
                     title="♠️ Blackjack - Timeout",
                     description="Game timed out due to inactivity. Your bet has been lost.",
                     color=discord.Color.red()
                 )
 
-                await self.message.edit(embed=embed, view=self)
+                # Remove any existing attachments
+                files = []
+                if self.message.attachments:
+                    files = [a for a in self.message.attachments]
+                    await self.message.remove_attachments(*files)
+
+                await self.message.edit(embed=embed, view=self, attachments=[])
 
                 # Handle loss in database
                 await self.cog.handle_game_end(
@@ -490,6 +496,10 @@ class Blackjack(commands.Cog):
                     view.game_over = True
                     for child in view.children:
                         child.disabled = True
+                    
+                    # Remove from ongoing games
+                    if ctx.author.id in self.ongoing_games:
+                        del self.ongoing_games[ctx.author.id]
 
                     # Handle push in database
                     await self.handle_game_end(
