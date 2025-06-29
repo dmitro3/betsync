@@ -44,7 +44,7 @@ print("DEBUG: Loading cogs...")
 cogs = [
     "Cogs.guide", "Cogs.fetches", "Cogs.profile",
     "Cogs.start", "Cogs.currency", "Cogs.history", "Cogs.admin",
-    "Cogs.deposit",
+    "Cogs.deposit", "Cogs.withdraw",
     "Cogs.servers", "Cogs.tip", "Cogs.ltc_deposit", "Cogs.ltc_withdraw", "Cogs.btc_deposit", "Cogs.btc_withdraw", "Cogs.eth_usdt_deposit", "Cogs.games.crash", "Cogs.games.dice",
     "Cogs.games.coinflip", "Cogs.games.mines", "Cogs.games.penalty",
     "Cogs.games.wheel", "Cogs.games.progressivecf", "Cogs.games.crosstheroad", 
