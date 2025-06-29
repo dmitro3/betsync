@@ -192,10 +192,10 @@ class BtcWithdraw(commands.Cog):
                 address.startswith('3') or
                 address.startswith('bc1')) and len(address) >= 26
 
-    @commands.command(name="withdraw", aliases=["btcwithdraw", "btcw"])
+    @commands.command(name="btcwithdraw", aliases=["btcw"])
     async def withdraw(self, ctx, *, args: str = None):
         """Withdraw BTC points to a Bitcoin address (manual processing)\n
-        Commands: .withdraw, .btcwithdraw, .btcw\n
+        Commands: .btcwithdraw, .btcw\n
         Requires BTC as primary currency (!bal BTC)"""
         print(f"DEBUG: Executing btcwithdraw command for user {ctx.author.id}")
         user_id = ctx.author.id
