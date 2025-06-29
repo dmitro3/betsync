@@ -40,11 +40,12 @@ bot = commands.Bot(command_prefix=["!", "."], intents=intents, case_insensitive=
 bot.remove_command("help")
 
 # List of cogs to load
+print("DEBUG: Loading cogs...")
 cogs = [
     "Cogs.guide", "Cogs.fetches", "Cogs.profile",
     "Cogs.start", "Cogs.currency", "Cogs.history", "Cogs.admin",
     "Cogs.deposit",
-    "Cogs.servers", "Cogs.tip", "Cogs.ltc_deposit", "Cogs.ltc_withdraw", "Cogs.btc_deposit", "Cogs.eth_usdt_deposit", "Cogs.games.crash", "Cogs.games.dice",
+    "Cogs.servers", "Cogs.tip", "Cogs.ltc_deposit", "Cogs.ltc_withdraw", "Cogs.btc_deposit", "Cogs.btc_withdraw", "Cogs.eth_usdt_deposit", "Cogs.games.crash", "Cogs.games.dice",
     "Cogs.games.coinflip", "Cogs.games.mines", "Cogs.games.penalty",
     "Cogs.games.wheel", "Cogs.games.progressivecf", "Cogs.games.crosstheroad", 
     "Cogs.games.tower", "Cogs.games.pump", "Cogs.games.limbo", 
@@ -57,7 +58,12 @@ cogs = [
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-        await ctx.reply("No such command found, type `!help` to get started", delete_after=5)
+        embed = discord.Embed(
+            title="<:no:1344252518305234987> | invalid command",
+            description="No such command found, type `!help` to get started",
+            color=0xFF0000
+        )
+        await ctx.reply(embed=embed, delete_after=5)
         #print(f"{Fore.RED}[-] {Fore.WHITE} User {Fore.BLACK}{ctx.message.author}{Fore.WHITE} tried to use a non-existent command")
     else:
         

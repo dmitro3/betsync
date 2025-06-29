@@ -3,6 +3,7 @@ import json
 import asyncio
 from discord.ext import commands
 from Cogs.utils.emojis import emoji
+from Cogs.start import GamePaginator
 
 class Guide(commands.Cog):
     def __init__(self, bot):
@@ -13,34 +14,161 @@ class Guide(commands.Cog):
 
     @commands.command()
     async def help(self, ctx):
-        embed = discord.Embed(
-            title="BetSync Commands",
-            description="Here are the basic commands to get you started:",
-            color=0x00FFAE
-        )
+        """Main help command with categorized commands and pagination"""
+        # Create category dropdown
+        class CategorySelect(discord.ui.Select):
+            def __init__(self, embeds):
+                super().__init__(
+                    placeholder="🎲 Select a command category...",
+                    options=[
+                        discord.SelectOption(label="🎮 All Commands", value="all", description="View all available commands"),
+                        discord.SelectOption(label="🃏 Games", value="games", description="View all casino games"),
+                        discord.SelectOption(label="💰 Banking", value="banking", description="Deposit/withdraw commands"),
+                        discord.SelectOption(label="👤 Profile", value="profile", description="Profile & stats commands"),
+                        discord.SelectOption(label="ℹ️ Information", value="info", description="Help & info commands")
+                    ]
+                )
+                self.embeds = embeds
 
-        embed.add_field(
-            name="General Commands",
-            value="`.commands` - View all available commands.",
-            inline=False
-        )
+            async def callback(self, interaction: discord.Interaction):
+                if self.values[0] == "all":
+                    await interaction.response.edit_message(
+                        embed=self.embeds["all"][0],
+                        view=HelpView(self.embeds, "all")
+                    )
+                else:
+                    await interaction.response.edit_message(
+                        embed=self.embeds[self.values[0]][0],
+                        view=HelpView(self.embeds, self.values[0])
+                    )
 
-        embed.add_field(
-            name="Game Commands",
-            value="`.games` - View all available games.",
-            inline=False
-        )
+        # Get command descriptions from Start cog
+        start_cog = self.bot.get_cog("Start")
+        command_descriptions = start_cog.command_descriptions if start_cog else {}
+        game_descriptions = start_cog.game_descriptions if start_cog else {}
 
-        embed.add_field(
-            name="Banking Commands",
-            value="**Deposit:** `.dep <coin>`\n**Withdraw:** `.withdraw <coin> <address>`",
-            inline=False
-        )
+        # Get all game commands from Cogs/games
+        game_commands = {}
+        for cog in self.bot.cogs.values():
+            if cog.__module__.startswith("Cogs.games."):
+                for cmd in cog.get_commands():
+                    game_commands[cmd.name] = game_descriptions.get(cmd.name, cmd.description or "No description available")
 
-        embed.set_footer(text="BetSync Casino • Use .commands or .games for more details", icon_url=self.bot.user.avatar.url)
+        # Combine with other commands
+        all_commands = {**command_descriptions, **game_commands}
 
-        # Send the embed to the user
-        return await ctx.reply(embed=embed)
+        # Build all command pages
+        embeds = {
+            "all": [],
+            "games": [],
+            "banking": [],
+            "profile": [],
+            "info": []
+        }
+
+        # Categorize commands
+        categorized = {
+            "games": {k:v for k,v in all_commands.items() if k in game_commands},
+            "banking": {k:v for k,v in all_commands.items() if k in ["deposit", "withdraw", "tip"]},
+            "profile": {k:v for k,v in all_commands.items() if k in ["profile", "leaderboard", "rakeback"]},
+            "info": {k:v for k,v in all_commands.items() if k in ["help", "commands", "tnc"]},
+            "all": all_commands
+        }
+        categorized["all"] = command_descriptions
+
+        # Build embeds for each category
+        items_per_page = 8
+        for category, commands in categorized.items():
+            command_list = list(commands.items())
+            
+            # Ensure every category has at least one page
+            if not command_list:
+                embed = discord.Embed(
+                    title=f":information_source: | {category.capitalize()} Commands",
+                    description="No commands available in this category",
+                    color=0x00FFAE
+                )
+                embeds[category].append(embed)
+                continue
+                
+            for i in range(0, len(command_list), items_per_page):
+                page_commands = command_list[i:i+items_per_page]
+                
+                embed = discord.Embed(
+                    title=f":information_source: | {category.capitalize()} Commands",
+                    description=f"Use the dropdown to switch categories\nTotal: {len(command_list)} commands",
+                    color=0x00FFAE
+                )
+                
+                for cmd, desc in page_commands:
+                    embed.add_field(
+                        name=f"`.{cmd}`",
+                        value=desc,
+                        inline=False
+                    )
+                
+                embed.set_footer(text=f"Page {i//items_per_page + 1}/{(len(command_list)+items_per_page-1)//items_per_page}")
+                embeds[category].append(embed)
+
+        # Create combined view with dropdown and pagination
+        class HelpView(discord.ui.View):
+            def __init__(self, embeds, initial_category="all"):
+                super().__init__()
+                self.embeds = embeds
+                self.current_category = initial_category
+                self.current_page = 0
+                
+                # Add category dropdown
+                self.add_item(CategorySelect(embeds))
+                
+                # Add pagination buttons if needed
+                if len(embeds[initial_category]) > 1:
+                    self.add_pagination_buttons()
+            
+            def add_pagination_buttons(self):
+                # Previous button
+                prev_button = discord.ui.Button(
+                    label="◀",
+                    style=discord.ButtonStyle.gray,
+                    disabled=self.current_page == 0
+                )
+                prev_button.callback = self.prev_page
+                self.add_item(prev_button)
+                
+                # Next button
+                next_button = discord.ui.Button(
+                    label="▶",
+                    style=discord.ButtonStyle.gray,
+                    disabled=self.current_page == len(self.embeds[self.current_category]) - 1
+                )
+                next_button.callback = self.next_page
+                self.add_item(next_button)
+            
+            async def prev_page(self, interaction: discord.Interaction):
+                self.current_page = max(0, self.current_page - 1)
+                await self.update_view(interaction)
+            
+            async def next_page(self, interaction: discord.Interaction):
+                self.current_page = min(len(self.embeds[self.current_category]) - 1, self.current_page + 1)
+                await self.update_view(interaction)
+            
+            async def update_view(self, interaction):
+                # Update buttons state
+                for item in self.children:
+                    if isinstance(item, discord.ui.Button):
+                        if item.label == "◀":
+                            item.disabled = self.current_page == 0
+                        elif item.label == "▶":
+                            item.disabled = self.current_page == len(self.embeds[self.current_category]) - 1
+                
+                await interaction.response.edit_message(
+                    embed=self.embeds[self.current_category][self.current_page],
+                    view=self
+                )
+        
+        # Send initial embed with combined view
+        view = HelpView(embeds)
+        await ctx.reply(embed=embeds["all"][0], view=view)
 
     @commands.command()
     @commands.cooldown(1, 86400, commands.BucketType.user)  # 24-hour cooldown
@@ -146,7 +274,7 @@ class Guide(commands.Cog):
 
         # Removed redundant await ctx.reply(embed=embed) from original modmail
 
-    #@commands.command()
+    @commands.command()
     async def guide(self, ctx):
         # Note: The original guide command still uses '!' prefix and mentions conversions.
         # This might need updating separately if the bot's prefix is globally changed to '.'

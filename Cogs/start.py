@@ -114,61 +114,6 @@ class Start(commands.Cog):
             "wheel": "Spin the wheel for various multipliers"
         }
 
-    @commands.command(name="games")
-    async def games(self, ctx):
-        embeds = []
-        games_per_page = 10
-
-        # Sort games alphabetically
-        sorted_games = sorted(self.game_descriptions.items())
-        total_games = len(sorted_games)
-
-        # Create pages
-        for i in range(0, len(sorted_games), games_per_page):
-            page_games = sorted_games[i:i + games_per_page]
-
-            embed = discord.Embed(
-                title="BetSync Casino Games",
-                description=f"**{total_games} Games Available** • Type any command to see usage\n─────────────────────────",
-                color=0x00FFAE
-            )
-
-            games_list = "\n".join([f"`!{name}` • **{desc}**" for name, desc in page_games])
-            embed.description += f"\n\n{games_list}"
-
-            embed.set_footer(text=f"Page {i//games_per_page + 1}/{(len(sorted_games) + games_per_page - 1)//games_per_page}")
-            embeds.append(embed)
-
-        view = GamePaginator(embeds)
-        await ctx.reply(embed=embeds[0], view=view)
-
-    @commands.command(name="commands")
-    async def show_commands(self, ctx):
-        embeds = []
-        commands_per_page = 10
-
-        # Sort commands alphabetically
-        sorted_commands = sorted(self.command_descriptions.items())
-        total_commands = len(sorted_commands)
-
-        # Create pages
-        for i in range(0, len(sorted_commands), commands_per_page):
-            page_commands = sorted_commands[i:i + commands_per_page]
-
-            embed = discord.Embed(
-                title="BetSync Casino Commands",
-                description=f"**{total_commands} Commands Available** • Type any command to see usage\n─────────────────────────",
-                color=0x00FFAE
-            )
-
-            commands_list = "\n".join([f"`!{name}` • **{desc}**" for name, desc in page_commands])
-            embed.description += f"\n\n{commands_list}"
-
-            embed.set_footer(text=f"Page {i//commands_per_page + 1}/{(len(sorted_commands) + commands_per_page - 1)//commands_per_page}")
-            embeds.append(embed)
-
-        view = GamePaginator(embeds)
-        await ctx.reply(embed=embeds[0], view=view)
 
     @commands.command(name="tnc", aliases=["terms", "tos"])
     async def tnc(self, ctx):
