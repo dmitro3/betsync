@@ -34,7 +34,7 @@ load_dotenv()
 
 PHANTOM_SEED = os.environ.get("PHANTOM_SEED")
 MAINWALLET_SOL = os.environ.get("MAINWALLET_SOL")
-SOLSCAN_API_KEY = os.environ.get("SOLSCAN_API_KEY")
+ALCHEMY_API_KEY = os.environ.get("ALCHEMY_API")
 DEPOSIT_WEBHOOK_URL = os.environ.get("DEPOSIT_WEBHOOK")
 MONGO_URI = os.environ.get("MONGO")
 
@@ -42,8 +42,8 @@ MONGO_URI = os.environ.get("MONGO")
 SOL_CONVERSION_RATE = 0.0001442
 SOL_LAMPORTS = 1_000_000_000
 REQUIRED_COMMITMENT = Finalized
-SOLSCAN_API_URL = "https://api.solscan.io"
-RPC_URL = "https://api.mainnet-beta.solana.com"
+ALCHEMY_API_URL = f"https://solana-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}" if os.environ.get("ALCHEMY_API") else None
+RPC_URL = ALCHEMY_API_URL or "https://api.mainnet-beta.solana.com"
 CHECK_DEPOSIT_COOLDOWN = 15
 EMBED_TIMEOUT = 600
 SOL_DERIVATION_PATH_ACCOUNT_TEMPLATE = "m/44'/501'/{}'/0'"
@@ -324,8 +324,8 @@ class SolDeposit(commands.Cog):
 
         if not PHANTOM_SEED:
             print(f"{Fore.RED}[!] ERROR: PHANTOM_SEED not found in environment variables!{Style.RESET_ALL}")
-        if not SOLSCAN_API_KEY:
-            print(f"{Fore.YELLOW}[!] WARNING: SOLSCAN_API_KEY not found. Using RPC fallback.{Style.RESET_ALL}")
+        if not ALCHEMY_API_KEY:
+            print(f"{Fore.YELLOW}[!] WARNING: ALCHEMY_API not found. Using public RPC.{Style.RESET_ALL}")
         if not DEPOSIT_WEBHOOK_URL:
             print(f"{Fore.YELLOW}[!] WARNING: DEPOSIT_WEBHOOK_URL not found.{Style.RESET_ALL}")
 
@@ -385,33 +385,49 @@ class SolDeposit(commands.Cog):
             traceback.print_exc()
             return None, f"Failed to generate deposit address: {e}"
 
-    async def _check_solscan_transactions(self, address: str) -> list:
-        """Check for transactions using Solscan API."""
-        if not SOLSCAN_API_KEY:
+    async def _check_alchemy_transactions(self, address: str) -> list:
+        """Check for transactions using Alchemy API."""
+        if not ALCHEMY_API_KEY:
             return []
         
         try:
             headers = {
-                'token': SOLSCAN_API_KEY,
+                'Content-Type': 'application/json',
                 'User-Agent': 'BetSync-Bot/1.0'
             }
             
-            url = f"{SOLSCAN_API_URL}/account/transactions"
-            params = {
-                'account': address,
-                'limit': 20
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getSignaturesForAddress",
+                "params": [
+                    address,
+                    {
+                        "limit": 20,
+                        "commitment": "finalized"
+                    }
+                ]
             }
             
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, params=params) as response:
+                async with session.post(ALCHEMY_API_URL, headers=headers, json=payload) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return data.get('data', [])
+                        result = data.get('result', [])
+                        # Convert to format similar to what we expect
+                        transactions = []
+                        for sig_info in result:
+                            if not sig_info.get('err'):  # Only successful transactions
+                                transactions.append({
+                                    'txHash': sig_info.get('signature'),
+                                    'blockTime': sig_info.get('blockTime')
+                                })
+                        return transactions
                     else:
-                        print(f"{Fore.YELLOW}[!] Solscan API returned status {response.status}{Style.RESET_ALL}")
+                        print(f"{Fore.YELLOW}[!] Alchemy API returned status {response.status}{Style.RESET_ALL}")
                         return []
         except Exception as e:
-            print(f"{Fore.RED}[!] Error checking Solscan API: {e}{Style.RESET_ALL}")
+            print(f"{Fore.RED}[!] Error checking Alchemy API: {e}{Style.RESET_ALL}")
             return []
 
     async def _check_for_deposits(self, user_id: int, address: str) -> tuple[str, dict]:
@@ -424,10 +440,10 @@ class SolDeposit(commands.Cog):
             processed_txids = set(user_data.get('processed_sol_txids', []))
             processed_deposits = []
 
-            # First try Solscan API
-            transactions = await self._check_solscan_transactions(address)
+            # First try Alchemy API
+            transactions = await self._check_alchemy_transactions(address)
             
-            # If Solscan fails, fallback to RPC
+            # If Alchemy fails, fallback to direct RPC
             if not transactions:
                 try:
                     pubkey_address = Pubkey.from_string(address)
@@ -438,7 +454,7 @@ class SolDeposit(commands.Cog):
                     )
                     
                     if signatures_response and signatures_response.value:
-                        # Convert RPC format to similar structure as Solscan
+                        # Convert RPC format to similar structure
                         transactions = []
                         for sig_info in signatures_response.value:
                             if not sig_info.err:  # Only successful transactions
@@ -459,9 +475,11 @@ class SolDeposit(commands.Cog):
                     continue
 
                 try:
-                    # Get transaction details
+                    # Get transaction details - fix signature conversion
+                    from solders.signature import Signature
+                    signature_obj = Signature.from_string(tx_hash)
                     tx_detail_response = await self.solana_client.get_transaction(
-                        tx_hash,
+                        signature_obj,
                         encoding="jsonParsed",
                         max_supported_transaction_version=0,
                         commitment=Finalized
