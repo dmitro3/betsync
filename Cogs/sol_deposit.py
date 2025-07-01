@@ -447,12 +447,12 @@ class SolDeposit(commands.Cog):
                     if not tx_detail_response or not tx_detail_response.value:
                         continue
 
-                    tx_data = tx_detail_response.value.transaction
-                    if not tx_data or not tx_data.meta:
+                    tx_data = tx_detail_response.value
+                    if not tx_data or not tx_data.transaction or not tx_data.transaction.meta:
                         continue
 
                     # Check for errors
-                    if tx_data.meta.err:
+                    if tx_data.transaction.meta.err:
                         # Mark as processed to skip in future
                         self.users_db.collection.update_one(
                             {"discord_id": user_id},
@@ -462,12 +462,12 @@ class SolDeposit(commands.Cog):
 
                     # Calculate SOL received
                     lamports_received = 0
-                    account_keys = tx_data.message.account_keys
+                    account_keys = tx_data.transaction.message.account_keys
                     target_pubkey_str = address
 
-                    if tx_data.meta:
-                        pre_balances = tx_data.meta.pre_balances
-                        post_balances = tx_data.meta.post_balances
+                    if tx_data.transaction.meta:
+                        pre_balances = tx_data.transaction.meta.pre_balances
+                        post_balances = tx_data.transaction.meta.post_balances
                         
                         for i, key in enumerate(account_keys):
                             if i < len(pre_balances) and i < len(post_balances):
@@ -504,6 +504,12 @@ class SolDeposit(commands.Cog):
                         {"$addToSet": {"processed_sol_txids": tx_hash}}
                     )
 
+                    # Transfer funds to main wallet (account 0) if this address is not account 0
+                    try:
+                        await self._transfer_to_main_wallet(address, amount_sol)
+                    except Exception as transfer_error:
+                        print(f"{Fore.YELLOW}[!] Warning: Could not transfer funds to main wallet: {transfer_error}{Style.RESET_ALL}")
+
                     processed_deposits.append({
                         "amount_crypto": amount_sol,
                         "txid": tx_hash
@@ -524,6 +530,93 @@ class SolDeposit(commands.Cog):
             print(f"{Fore.RED}[!] Error in _check_for_deposits: {e}{Style.RESET_ALL}")
             traceback.print_exc()
             return "error", {"error": f"An unexpected error occurred: {e}"}
+
+    async def _transfer_to_main_wallet(self, from_address: str, amount_sol: float):
+        """Transfer funds from deposit address to main wallet (account 0)."""
+        try:
+            from solana.transaction import Transaction
+            from solders.system_program import TransferParams, transfer
+            from solders.pubkey import Pubkey
+            
+            # Skip if this is already the main wallet address
+            if not MAINWALLET_SOL:
+                print(f"{Fore.YELLOW}[!] MAINWALLET_SOL not configured, skipping transfer{Style.RESET_ALL}")
+                return
+                
+            main_wallet_pubkey = Pubkey.from_string(MAINWALLET_SOL)
+            from_pubkey = Pubkey.from_string(from_address)
+            
+            # Don't transfer if it's already the main wallet
+            if str(from_pubkey) == str(main_wallet_pubkey):
+                return
+            
+            # Get the private key for the from_address
+            seed_bytes = Bip39SeedGenerator(PHANTOM_SEED).Generate()
+            bip44_mst_ctx = Bip44.FromSeed(seed_bytes, Bip44Coins.SOLANA)
+            
+            # Find the address index for this address
+            user_data = self.users_db.collection.find_one({"sol_address": from_address})
+            if not user_data or 'sol_address_index' not in user_data:
+                print(f"{Fore.YELLOW}[!] Could not find address index for {from_address}{Style.RESET_ALL}")
+                return
+                
+            address_index = user_data['sol_address_index']
+            from_keypair = bip44_mst_ctx.Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(address_index).PrivateKey().Raw().ToBytes()
+            from_keypair_obj = Keypair.from_bytes(from_keypair)
+            
+            # Get account balance
+            balance_response = await self.solana_client.get_balance(from_pubkey, commitment=Finalized)
+            if not balance_response or not balance_response.value:
+                return
+                
+            current_balance = balance_response.value
+            
+            # Calculate transfer amount (leave some for transaction fees)
+            transfer_amount = current_balance - 5000  # Leave 0.000005 SOL for fees
+            
+            if transfer_amount <= 0:
+                print(f"{Fore.YELLOW}[!] Insufficient balance for transfer from {from_address}{Style.RESET_ALL}")
+                return
+            
+            # Create transfer instruction
+            transfer_instruction = transfer(
+                TransferParams(
+                    from_pubkey=from_pubkey,
+                    to_pubkey=main_wallet_pubkey,
+                    lamports=transfer_amount
+                )
+            )
+            
+            # Create and send transaction
+            transaction = Transaction()
+            transaction.add(transfer_instruction)
+            
+            # Get recent blockhash
+            blockhash_response = await self.solana_client.get_latest_blockhash(commitment=Finalized)
+            if not blockhash_response or not blockhash_response.value:
+                print(f"{Fore.RED}[!] Could not get recent blockhash{Style.RESET_ALL}")
+                return
+                
+            transaction.recent_blockhash = blockhash_response.value.blockhash
+            transaction.fee_payer = from_pubkey
+            
+            # Sign and send transaction
+            transaction.sign(from_keypair_obj)
+            
+            send_response = await self.solana_client.send_transaction(
+                transaction,
+                from_keypair_obj,
+                opts={"skip_confirmation": False, "preflight_commitment": Finalized}
+            )
+            
+            if send_response and send_response.value:
+                print(f"{Fore.GREEN}[+] Successfully transferred {transfer_amount/SOL_LAMPORTS:.6f} SOL to main wallet. TX: {send_response.value}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}[!] Failed to send transfer transaction{Style.RESET_ALL}")
+                
+        except Exception as e:
+            print(f"{Fore.RED}[!] Error in fund transfer: {e}{Style.RESET_ALL}")
+            traceback.print_exc()
 
     async def _show_deposit_history(self, user_id: int) -> discord.Embed:
         """Show user's SOL deposit history."""
