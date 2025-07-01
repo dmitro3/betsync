@@ -1,7 +1,7 @@
 
 import discord
 from discord.ext import commands
-from Cogs.utils.mongo import Users
+from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
 import datetime
 
@@ -45,21 +45,36 @@ class HistoryView(discord.ui.View):
         self.add_item(discord.ui.Button(emoji="➡️", style=discord.ButtonStyle.secondary, custom_id="next", disabled=self.page >= self.max_pages - 1))
 
     def _get_filtered_history(self, full=False):
-        """Get filtered history based on the selected category
-
-        Args:
-            full: If True, return all items in category, otherwise return just current page items
-        """
+        """Get filtered history based on the selected category"""
         if self.category == "all":
             filtered = self.history_data
         else:
             filtered = [item for item in self.history_data if item.get("type") == self.category]
 
         # Sort by timestamp (most recent first)
-        # Make sure we have a valid timestamp and it's a number
-        filtered.sort(key=lambda x: int(x.get("timestamp", 0)) if isinstance(x.get("timestamp"), (int, float, str)) and str(x.get("timestamp", "0")).isdigit() else 0, reverse=True)
+        def get_timestamp(item):
+            timestamp = item.get("timestamp", 0)
+            if isinstance(timestamp, str):
+                try:
+                    # Try to parse ISO format timestamps
+                    if 'T' in timestamp or 'Z' in timestamp:
+                        if timestamp.endswith('Z'):
+                            timestamp = timestamp[:-1] + '+00:00'
+                        dt = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        return int(dt.timestamp())
+                    elif timestamp.isdigit():
+                        return int(timestamp)
+                    else:
+                        return 0
+                except:
+                    return 0
+            elif isinstance(timestamp, (int, float)):
+                return int(timestamp)
+            else:
+                return 0
 
-        # Limit to 20 items if not requesting full list
+        filtered.sort(key=get_timestamp, reverse=True)
+
         if not full:
             # Get items for current page
             start_idx = self.page * self.per_page
@@ -74,8 +89,8 @@ class HistoryView(discord.ui.View):
 
         # Prepare embed
         embed = discord.Embed(
-            title=f":scroll: Transaction History | {self.category.capitalize()}",
-            description=f"Showing {self.user.name}'s transaction history.",
+            title=f"📜 Transaction History | {self.category.capitalize()}",
+            description=f"Showing **{self.user.display_name}**'s transaction history.",
             color=0x00FFAE
         )
 
@@ -84,37 +99,69 @@ class HistoryView(discord.ui.View):
         else:
             for item in filtered_data:
                 timestamp = item.get("timestamp", "Unknown")
-                if isinstance(timestamp, (int, float)) or (isinstance(timestamp, str) and timestamp.isdigit()):
-                    # Convert timestamp to readable date
+                
+                # Format timestamp
+                if isinstance(timestamp, (int, float)):
                     date_str = f"<t:{int(timestamp)}:R>"
+                elif isinstance(timestamp, str):
+                    try:
+                        if 'T' in timestamp or 'Z' in timestamp:
+                            if timestamp.endswith('Z'):
+                                timestamp = timestamp[:-1] + '+00:00'
+                            dt = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                            date_str = f"<t:{int(dt.timestamp())}:R>"
+                        elif timestamp.isdigit():
+                            date_str = f"<t:{int(timestamp)}:R>"
+                        else:
+                            date_str = timestamp
+                    except:
+                        date_str = "Unknown"
                 else:
-                    date_str = timestamp
+                    date_str = "Unknown"
+
+                # Get amount and format it properly
+                amount = item.get("amount", 0)
+                try:
+                    amount = float(amount)
+                except:
+                    amount = 0
 
                 # Format field name and value based on transaction type
-                if item.get("type") == "deposit":
-                    field_name = f"🔼 Deposit • {date_str}"
-                    field_value = f"Received **{item.get('amount', 0):,.2f} tokens**"
-                elif item.get("type") == "withdraw":
-                    field_name = f"🔽 Withdrawal • {date_str}"
-                    field_value = f"Sent **{item.get('amount', 0):,.2f} credits**"
-                elif item.get("type") == "win":
-                    field_name = f"🏆 Win • {item.get('game', 'Game')} • {date_str}"
-                    field_value = f"Won **{item.get('amount', 0):,.2f} credits**"
-                elif item.get("type") == "loss":
-                    field_name = f"❌ Loss • {item.get('game', 'Game')} • {date_str}"
-                    field_value = f"Lost **{item.get('amount', 0):,.2f} tokens**"
-                elif item.get("type") == "draw":
-                    field_name = f"🔄 Draw • {item.get('game', 'Game')} • {date_str}"
-                    field_value = f"Bet returned: **{item.get('bet', 0):,.2f}**"
+                transaction_type = item.get("type", "unknown")
+                
+                if transaction_type == "deposit":
+                    field_name = f"💰 Deposit • {date_str}"
+                    field_value = f"Received **{amount:,.2f} tokens**"
+                elif transaction_type == "withdraw":
+                    field_name = f"💸 Withdrawal • {date_str}"
+                    field_value = f"Withdrew **{amount:,.2f} tokens**"
+                elif transaction_type == "win":
+                    game_name = item.get("game", "Game")
+                    field_name = f"🏆 Win • {game_name} • {date_str}"
+                    field_value = f"Won **{amount:,.2f} tokens**"
+                elif transaction_type == "loss":
+                    game_name = item.get("game", "Game")
+                    field_name = f"❌ Loss • {game_name} • {date_str}"
+                    field_value = f"Lost **{amount:,.2f} tokens**"
+                elif transaction_type == "draw":
+                    game_name = item.get("game", "Game")
+                    bet_amount = item.get("bet", amount)
+                    field_name = f"🔄 Draw • {game_name} • {date_str}"
+                    field_value = f"Bet returned: **{bet_amount:,.2f} tokens**"
                 else:
-                    field_name = f"🔄 Bet • {date_str}"
-                    field_value = f"Amount: **{item.get('amount', 0):,.2f}**"
+                    field_name = f"🔄 Transaction • {date_str}"
+                    field_value = f"Amount: **{amount:,.2f} tokens**"
 
                 embed.add_field(name=field_name, value=field_value, inline=False)
 
         # Add page info
-        embed.set_footer(text=f"Page {self.page + 1}/{self.max_pages} • BetSync Casino", icon_url=self.bot.user.avatar.url)
-        embed.set_thumbnail(url=self.user.avatar.url if self.user.avatar else None)
+        embed.set_footer(text=f"Page {self.page + 1}/{self.max_pages} • BetSync Casino", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
+        
+        # Set thumbnail to user's avatar
+        if self.user.avatar:
+            embed.set_thumbnail(url=self.user.avatar.url)
+        elif self.user.default_avatar:
+            embed.set_thumbnail(url=self.user.default_avatar.url)
 
         return embed
 
@@ -167,10 +214,10 @@ class HistoryView(discord.ui.View):
 
         # Try to update the message with disabled buttons
         try:
-            await self.message.edit(view=self)
+            if self.message:
+                await self.message.edit(view=self)
         except Exception as e:
             print(f"Error updating message on timeout: {e}")
-            pass
 
 
 class History(commands.Cog):
@@ -198,7 +245,7 @@ class History(commands.Cog):
 
             if user_data == False:
                 embed = discord.Embed(
-                    title="<:no:1344252518305234987> | User Not Found",
+                    title="❌ | User Not Found",
                     description="This user doesn't have an account. Please wait for auto-registration or use `!signup`.",
                     color=0xFF0000
                 )
@@ -231,7 +278,7 @@ class History(commands.Cog):
             # Handle any errors and provide feedback to the user
             print(f"Error in history command: {e}")
             error_embed = discord.Embed(
-                title="<:no:1344252518305234987> | Error Fetching History",
+                title="❌ | Error Fetching History",
                 description="There was an error fetching your transaction history. Please try again later.",
                 color=0xFF0000
             )
