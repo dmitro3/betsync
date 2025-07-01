@@ -5,6 +5,62 @@ class Deposit(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command(name="dep", aliases=["deposit"])
+    async def deposit(self, ctx, currency: str = None):
+        """Main deposit command that routes to specific currency deposit commands."""
+        if not currency:
+            embed = discord.Embed(
+                title="💰 Deposit Commands",
+                description="Choose a currency to deposit:",
+                color=0x00FF00
+            )
+            embed.add_field(name="Bitcoin", value="`!dep btc`", inline=True)
+            embed.add_field(name="Litecoin", value="`!dep ltc`", inline=True)
+            embed.add_field(name="Ethereum", value="`!dep eth`", inline=True)
+            embed.add_field(name="USDT", value="`!dep usdt`", inline=True)
+            embed.add_field(name="Solana", value="`!dep sol`", inline=True)
+            embed.set_footer(text="BetSync Casino")
+            await ctx.reply(embed=embed)
+            return
+
+        currency = currency.upper()
+        
+        if currency == "BTC":
+            btc_cog = self.bot.get_cog("BtcDeposit")
+            if btc_cog:
+                await btc_cog.deposit_btc(ctx)
+            else:
+                await ctx.reply("BTC deposit is currently unavailable.")
+                
+        elif currency == "LTC":
+            ltc_cog = self.bot.get_cog("LtcDeposit")
+            if ltc_cog:
+                await ltc_cog.deposit_ltc(ctx)
+            else:
+                await ctx.reply("LTC deposit is currently unavailable.")
+                
+        elif currency in ["ETH", "USDT"]:
+            eth_cog = self.bot.get_cog("EthUsdtDeposit")
+            if eth_cog:
+                await eth_cog.deposit_eth_usdt(ctx, currency)
+            else:
+                await ctx.reply(f"{currency} deposit is currently unavailable.")
+                
+        elif currency == "SOL":
+            sol_cog = self.bot.get_cog("SolDeposit")
+            if sol_cog:
+                await sol_cog.deposit_sol(ctx)
+            else:
+                await ctx.reply("SOL deposit is currently unavailable.")
+                
+        else:
+            embed = discord.Embed(
+                title="❌ Invalid Currency",
+                description="Supported currencies: BTC, LTC, ETH, USDT, SOL",
+                color=0xFF0000
+            )
+            await ctx.reply(embed=embed)
+
     @commands.command(name="deposit", aliases=["dep", "depo"])
     async def deposit(self, ctx, currency: str = None):
         """Route to the appropriate deposit command based on currency"""
