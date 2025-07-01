@@ -21,7 +21,7 @@ class WheelCog(commands.Cog):
         # Calculate total chance to verify it sums to 100
         self.total_chance = sum(color["chance"] for color in self.colors.values())
 
-    @commands.command(aliases=["w"])
+    @commands.command(aliases=["wh"])
     async def wheel(self, ctx, bet_amount: str = None, spins: int = 1):
         """Play the wheel game - bet on colors with different multipliers!"""
         # Limit the number of spins to 15
