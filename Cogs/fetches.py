@@ -31,10 +31,10 @@ class Fetches(commands.Cog):
         if not prices:
             print(f"{Fore.RED}[-] {Fore.WHITE}Failed to get crypto prices for USD calculation{Style.RESET_ALL}")
             return 0.0
-            
+
         wallet = user_data.get("wallet", {})
         total_usd = 0.0
-        
+
         # Supported cryptos and their API ids
         crypto_map = {
             "BTC": "bitcoin",
@@ -44,14 +44,14 @@ class Fetches(commands.Cog):
             "USDT": "tether",
             "DOGE": "dogecoin"
         }
-        
+
         for coin, amount in wallet.items():
             if coin in crypto_map:
                 api_id = crypto_map[coin]
                 if api_id in prices:
                     rate = 1.0 if coin == "USDT" else prices[api_id].get("usd", 0)
                     total_usd += amount * rate
-        
+
         return float(f"{total_usd:.2f}")
 
     #@commands.command(name="rate")
@@ -203,13 +203,19 @@ class Fetches(commands.Cog):
             except ValueError:
                 # Not a user ID or mention, treat as currency
                 pass
-        
+
         # Fetch user info
         info = db.fetch_user(user.id)
         if not info:
-            await ctx.reply(f"**{user.name} Does Not Have An Account.**")
+            # Create embed
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Account Required",
+                description="You need an account to check your balance.",
+                color=0xFF0000
+            )
+            await ctx.reply(embed=embed)
             return
-            
+
         # Currency chart from main.py
         crypto_values = {
             "BTC": 0.00000024,  # 1 point = 0.00000024 btc
@@ -218,7 +224,7 @@ class Fetches(commands.Cog):
             "USDT": 0.0212,     # 1 point = 0.0212 usdt
             "SOL": 0.0001442    # 1 point = 0.0001442 sol
         }
-        
+
         # Get current primary coin and points
         current_primary_coin = info.get("primary_coin", "BTC")
         points = info.get("points", 0)
@@ -229,7 +235,7 @@ class Fetches(commands.Cog):
             "LTC": 0,
             "USDT": 0
         })
-        
+
         # If it's not a user mention and param is specified, treat as currency
         currency = None
         if param and not mentioned_user:
@@ -237,33 +243,33 @@ class Fetches(commands.Cog):
             if currency not in crypto_values:
                 await ctx.reply(f"**Invalid currency. Supported currencies: {', '.join(crypto_values.keys())}**")
                 return
-                
-            # Calculate how much of the current primary coin the user has based on points
-            current_coin_amount = points * crypto_values[current_primary_coin]
             
-            # Update wallet with current coin value
-            wallet[current_primary_coin] = current_coin_amount
+            #Calculate how much of the specified currency the user has based on points
+            currency_rate = crypto_values.get(currency, 0)
+            currency_value = points * currency_rate
             
-            # Set points based on new currency from wallet
-            new_coin_amount = wallet.get(currency, 0)
-            new_points = new_coin_amount / crypto_values[currency] if crypto_values[currency] > 0 else 0
+            #Prepare currency emojis
+            emoji_map = {
+                "BTC": "<:btc:1339343483089063976>",
+                "LTC": "<:ltc:1339343445675868191>", 
+                "ETH": "<:eth:1340981832799485985>",
+                "USDT": "<:usdt:1340981835563401217>",
+                "SOL": "<:sol:1340981839497793556>"
+            }
             
-            # Update database with new primary coin and points
-            db.collection.update_one(
-                {"discord_id": user.id},
-                {
-                    "$set": {
-                        "primary_coin": currency,
-                        "points": new_points,
-                        f"wallet.{current_primary_coin}": current_coin_amount
-                    }
-                }
+            #Create embed to display the balance in the specified currency
+            money = emoji()["money"]
+            embed = discord.Embed(title=f"{money} | {user.name}'s Balance in {currency}", color=discord.Color.blue())
+            embed.add_field(
+                name=f"{currency} Balance",
+                value=f"`{currency_value:.8f} {currency}`",
+                inline=False
             )
+            embed.set_footer(text="Use !setbal to change your primary currency", icon_url=self.bot.user.avatar.url)
+            await ctx.reply(embed=embed)
+            return
             
-            # Update local variables for display
-            current_primary_coin = currency
-            points = new_points
-            
+
         # Get live prices using crypto utility
         try:
             from Cogs.utils.crypto_utils import get_crypto_prices
@@ -271,11 +277,11 @@ class Fetches(commands.Cog):
         except ImportError:
             # Fallback if crypto_utils doesn't exist
             live_prices = {}
-            
+
         # Calculate USD value of points based on primary coin
         coin_value = crypto_values.get(current_primary_coin, 0)
         primary_coin_amount = points * coin_value
-        
+
         # Get USD value of primary coin amount
         coin_usd_price = 0
         # Special case for USDT as it's a stablecoin pegged to $1
@@ -283,13 +289,13 @@ class Fetches(commands.Cog):
             coin_usd_price = 1.0  # 1 USDT = $1 USD
         elif live_prices and current_primary_coin.lower() in live_prices:
             coin_usd_price = live_prices[current_primary_coin.lower()].get("usd", 0)
-        
+
         usd_value = primary_coin_amount * coin_usd_price if coin_usd_price else 0
-        
+
         # Create embed
         money = emoji()["money"]
         embed = discord.Embed(title=f"{money} | {user.name}'s Balance", color=discord.Color.blue())
-        
+
         # Prepare currency emojis
         emoji_map = {
             "BTC": "<:btc:1339343483089063976>",
@@ -298,7 +304,7 @@ class Fetches(commands.Cog):
             "USDT": "<:usdt:1340981835563401217>",
             "SOL": "<:sol:1340981839497793556>"
         }
-        
+
         # Conversion rates
         crypto_values = {
             "BTC": 0.00000024,
@@ -307,36 +313,36 @@ class Fetches(commands.Cog):
             "USDT": 0.0212,
             "SOL": 0.0001442
         }
-        
+
         # Get the user data and points
         #tokens = info.get("points", 0)
-        
+
         # Current primary coin balance and conversion
         primary_rate = crypto_values.get(current_primary_coin, 0)
         primary_value = points * primary_rate
         primary_emoji = emoji_map.get(current_primary_coin, "")
-        
+
         # Main balance display - clean and minimalistic
         embed.add_field(
             name="Points",
             value=f"`{points:.2f}` `({usd_value:.2f}$)`",
             inline=False
         )
-        
+
         # Add USD value if available
-        
-        
+
+
         # Currency info field - simplified
         embed.add_field(
             name="Primary Currency", 
             value=f"`{current_primary_coin} (1 Point => {primary_rate:.8f} {current_primary_coin})`",
             inline=False
         )
-        
+
         # The information is already displayed in the main balance field,
         # so we don't need these redundant fields anymore.
-        
-        embed.set_footer(text="Use !bal <currency> to change your primary currency and to check other currency points.", icon_url=self.bot.user.avatar.url)
+
+        embed.set_footer(text="Use !setbal to change your primary currency", icon_url=self.bot.user.avatar.url)
         db.save(ctx.author.id)
         await ctx.reply(embed=embed)
 
@@ -345,7 +351,7 @@ class Fetches(commands.Cog):
         """Shows the user's full cryptocurrency wallet balances and total USD value."""
         target_user = user or ctx.author # Default to command author if no user is mentioned
         db = Users()
-        
+
         info = db.fetch_user(target_user.id)
         if not info:
             # Use a more informative embed for non-registered users
@@ -381,7 +387,7 @@ class Fetches(commands.Cog):
             "SOL": "<:sol:1340981839497793556>",
             "DOGE": "<:doge:1344252518305234987>" # Placeholder emoji, replace if available
         }
-        
+
         # Create enhanced embed
         embed = discord.Embed(
             title=f"{target_user.display_name}'s Wallet",
@@ -396,7 +402,7 @@ class Fetches(commands.Cog):
             value=f"**${total_usd:,.2f}**",
             inline=False
         )
-        
+
         # Add a separator for clarity
         embed.add_field(name="\u200b", value="**Individual Balances**", inline=False) # Invisible separator field
 
@@ -408,7 +414,7 @@ class Fetches(commands.Cog):
                 # Format balance to appropriate decimal places (e.g., 8 for crypto, 2 for USDT)
                 decimal_places = 2 if coin == "USDT" else 8
                 balance_lines.append(f"{coin_emoji} **{coin}**: `{balance:,.{decimal_places}f}`")
-            
+
         if not balance_lines:
             embed.add_field(name="Empty Wallet", value="No cryptocurrency balances found.", inline=False)
         else:
@@ -417,7 +423,7 @@ class Fetches(commands.Cog):
 
         # Updated footer
         embed.set_footer(text="BetSync Wallet | All values are approximate.", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url)
-        
+
         await ctx.reply(embed=embed)
 
     # Leaderboard Pagination View
@@ -552,7 +558,7 @@ class Fetches(commands.Cog):
         """Show global leaderboard sorted by USD wallet value"""
         db = Users()
         all_users = list(db.collection.find())
-        
+
         if not all_users:
             return await ctx.reply("No users found in the leaderboard.")
 
@@ -621,10 +627,10 @@ class Fetches(commands.Cog):
         """View your current rank, progress, and benefits"""
         if not user:
             user = ctx.author
-            
+
         db = Users()
         user_data = db.fetch_user(user.id)
-        
+
         if not user_data:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | User Not Registered",
@@ -632,49 +638,49 @@ class Fetches(commands.Cog):
                 color=0xFF0000
             )
             return await ctx.reply(embed=embed)
-        
+
         # Load rank data from JSON
         with open('static_data/ranks.json', 'r') as f:
             rank_data = json.load(f)
-            
+
         # Get current user level and XP
         current_level = user_data.get('level', 1)
         current_xp = user_data.get('xp', 0)
         current_rank_requirement = user_data.get('rank', 0)
-        
+
         # Calculate XP needed for next level
         xp_limit = 10 * (1 + (current_level - 1) * 0.1)
         xp_limit = round(xp_limit)
-        
+
         # Find current rank name and emoji
         current_rank_name = "None"
         current_emoji = ""
         current_rakeback = 0
-        
+
         # Find next rank
         next_rank_name = None
         next_rank_level = float('inf')
         next_rank_emoji = None
-        
+
         # Sort ranks by level requirement
         sorted_ranks = sorted(rank_data.items(), key=lambda x: x[1]['level_requirement'])
-        
+
         # Find current rank and next rank
         for rank_name, rank_info in sorted_ranks:
             level_req = rank_info['level_requirement']
-            
+
             # Check if this is the current rank
             if level_req == current_rank_requirement:
                 current_rank_name = rank_name
                 current_emoji = rank_info['emoji']
                 current_rakeback = rank_info['rakeback_percentage']
-            
+
             # Check if this is the next rank
             if level_req > current_level and level_req < next_rank_level:
                 next_rank_name = rank_name
                 next_rank_level = level_req
                 next_rank_emoji = rank_info['emoji']
-        
+
         # If we couldn't find a next rank, user is at max rank
         if next_rank_name is None:
             next_rank_name = "Max Rank"
@@ -683,14 +689,14 @@ class Fetches(commands.Cog):
             levels_needed = 0
         else:
             levels_needed = next_rank_level - current_level
-        
+
         # Create embed
         embed = discord.Embed(
             title=f"{current_emoji} Rank Information for {user.name}",
             color=0x00FFAE,
             description=f"Your progress through the BetSync rank system"
         )
-        
+
         # Current rank section
         embed.add_field(
             name="Current Rank",
@@ -700,7 +706,7 @@ class Fetches(commands.Cog):
                   f"Rakeback: **{current_rakeback}%**",
             inline=True
         )
-        
+
         # Next rank section
         embed.add_field(
             name="Next Rank",
@@ -709,49 +715,49 @@ class Fetches(commands.Cog):
                   f"Levels Needed: **{levels_needed}**",
             inline=True
         )
-        
+
         # Progress bar
         progress = min(1.0, current_xp / xp_limit)
         bar_length = 12
         filled_bars = round(progress * bar_length)
         empty_bars = bar_length - filled_bars
-        
+
         progress_bar = "**Level Progress:**\n"
         progress_bar += "```\n"
         progress_bar += f"[{'■' * filled_bars}{' ' * empty_bars}] {int(progress * 100)}%\n"
         progress_bar += "```"
-        
+
         embed.add_field(
             name="Level Progress",
             value=progress_bar,
             inline=False
         )
-        
+
         # All ranks section
         all_ranks = ""
         for rank_name, rank_info in sorted_ranks:
             emoji = rank_info['emoji']
             level_req = rank_info['level_requirement']
             rakeback = rank_info['rakeback_percentage']
-            
+
             # Highlight current rank
             if rank_name == current_rank_name:
                 all_ranks += f"➤ {emoji} **{rank_name}** (Lv. {level_req}) - {rakeback}% rakeback\n"
             else:
                 all_ranks += f"{emoji} {rank_name} (Lv. {level_req}) - {rakeback}% rakeback\n"
-        
+
         embed.add_field(
             name="All Ranks",
             value=all_ranks,
             inline=False
         )
-        
+
         # Set thumbnail to user avatar
         if user.avatar:
             embed.set_thumbnail(url=user.avatar.url)
-            
+
         embed.set_footer(text="BetSync Casino • Rank up by playing games", icon_url=self.bot.user.avatar.url)
-        
+
         await ctx.reply(embed=embed)
 
     class RakebackButton(discord.ui.View):
@@ -760,64 +766,64 @@ class Fetches(commands.Cog):
             self.cog = cog
             self.user_id = user_id
             self.rakeback_amount = rakeback_amount
-            
+
         @discord.ui.button(label="Claim Rakeback", style=discord.ButtonStyle.green, emoji="💰")
         async def claim_button(self, button, interaction):
             # Only the user who initiated can claim
             if interaction.user.id != self.user_id:
                 return await interaction.response.send_message("You cannot claim someone else's rakeback!", ephemeral=True)
-            
+
             # Process the claim
             db = Users()
             user_data = db.fetch_user(self.user_id)
-            
+
             if not user_data:
                 print(f"{Back.RED}  {Style.DIM}{self.user_id}{Style.RESET_ALL}{Back.RESET}{Fore.RED}    ERROR    {Fore.WHITE}User data not found when claiming rakeback{Style.RESET_ALL}")
                 return await interaction.response.send_message("Error: User data not found.", ephemeral=True)
-                
+
             rakeback_tokens = user_data.get("rakeback_tokens", 0)
-            
+
             if rakeback_tokens <= 0:
                 print(f"{Back.YELLOW}  {Style.DIM}{self.user_id}{Style.RESET_ALL}{Back.RESET}{Fore.YELLOW}    WARNING    {Fore.WHITE}Attempted to claim zero rakeback tokens{Style.RESET_ALL}")
                 return await interaction.response.send_message("You don't have any rakeback tokens to claim!", ephemeral=True)
-            
+
             # Log before claiming
             rn = datetime.datetime.now().strftime("%X")
             print(f"{Back.CYAN}  {Style.DIM}{self.user_id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}Claiming {rakeback_tokens:.2f} rakeback tokens{Style.RESET_ALL}  {Fore.MAGENTA}rakeback_claim{Fore.WHITE}")
-            
+
             # Update rakeback tokens to 0
             update_result = db.collection.update_one(
                 {"discord_id": self.user_id},
                 {"$set": {"rakeback_tokens": 0}}
             )
-            
+
             # Add the rakeback tokens to user's tokens
             balance_result = db.update_balance(self.user_id, rakeback_tokens)
-            
+
             # Log after claiming
             print(f"{Back.GREEN}  {Style.DIM}{self.user_id}{Style.RESET_ALL}{Back.RESET}{Fore.GREEN}    SUCCESS    {Fore.WHITE}Rakeback claimed: {rakeback_tokens:.2f} points | DB updates: {update_result.modified_count}, {balance_result}{Style.RESET_ALL}")
-            
+
             # Disable the button
             for child in self.children:
                 child.disabled = True
             await interaction.response.defer()
             message = await interaction.original_response()
             await message.edit(view=self)
-            
+
             # Send success message with enhanced styling
             claim_embed = discord.Embed(
                 title="💰 Rakeback Claimed Successfully",
                 description=f"You have successfully claimed your rakeback rewards!",
                 color=0x00FFAE
             )
-            
+
             # Add field for claimed amount with styled box
             claim_embed.add_field(
                 name="🎉 Claimed Amount",
                 value=f"```ini\n[{rakeback_tokens:,.2f} points added to your balance]\n```",
                 inline=False
             )
-            
+
             # Add a field showing new balance
             new_balance = db.fetch_user(self.user_id).get('points', 0)
             claim_embed.add_field(
@@ -825,9 +831,9 @@ class Fetches(commands.Cog):
                 value=f"**{new_balance:,.2f} tokens**",
                 inline=True
             )
-            
+
             claim_embed.set_footer(text="BetSync Casino • Rakeback Rewards", icon_url=self.cog.bot.user.avatar.url)
-            
+
             await interaction.followup.send(embed=claim_embed)
 
     @commands.command(name="rakeback", aliases=["rb"])
@@ -835,10 +841,10 @@ class Fetches(commands.Cog):
         """View and claim your rakeback rewards"""
         if not user:
             user = ctx.author
-            
+
         db = Users()
         user_data = db.fetch_user(user.id)
-        
+
         if not user_data:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | User Not Registered",
@@ -846,16 +852,16 @@ class Fetches(commands.Cog):
                 color=0xFF0000
             )
             return await ctx.reply(embed=embed)
-        
+
         # Get rakeback percentage from rank data
         with open('static_data/ranks.json', 'r') as f:
             rank_data = json.load(f)
-            
+
         current_rank_requirement = user_data.get('rank', 0)
         rakeback_percentage = 0
         rank_name = "None"
         rank_emoji = ""
-        
+
         # Find current rank and its rakeback percentage
         for name, info in rank_data.items():
             if info['level_requirement'] == current_rank_requirement:
@@ -863,49 +869,49 @@ class Fetches(commands.Cog):
                 rank_name = name
                 rank_emoji = info['emoji']
                 break
-        
+
         # Get accumulated rakeback tokens
         rakeback_tokens = user_data.get('rakeback_tokens', 0)
-        
+
         # Format tokens with commas for better readability
         formatted_rakeback = f"{rakeback_tokens:,.2f}"
-        
+
         # Create embed
         if user == ctx.author:
             title = f"💰 Rakeback Rewards"
         else:
             title = f"💰 {user.name}'s Rakeback Rewards"
-            
+
         embed = discord.Embed(
             title=title,
             color=0x00FFAE,
             description=f"**Earn cashback rewards based on your betting activity**\nㅤㅤㅤ"
         )
-        
+
         # Add a rank section with emoji and styled text
         embed.add_field(
             name="🏆 Current Rank",
             value=f"{rank_emoji} **{rank_name}**\nRakeback Rate: **{rakeback_percentage}%**",
             inline=True
         )
-        
+
         # Add tokens section with styled text
         embed.add_field(
             name="💵 Available Rakeback",
             value=f"```ini\n[{formatted_rakeback} points]\n```",
             inline=True
         )
-        
+
         # Add a spacer field to create 2 columns
         embed.add_field(name="\u200b", value="\u200b", inline=False)
-        
+
         # Create a progress-style display for claim eligibility
         if rakeback_tokens < 1:
             progress = min(rakeback_tokens, 1.0)
             bar_length = 10
             filled_bars = round(progress * bar_length)
             empty_bars = bar_length - filled_bars
-            
+
             claim_status = (
                 "🔒 **Claim Status: Locked**\n"
                 f"Progress to claim: `{rakeback_tokens:.2f}/1.00`\n"
@@ -918,13 +924,13 @@ class Fetches(commands.Cog):
                 "Your rakeback points are ready to claim!\n"
                 "Click the button below to add these tokens to your balance."
             )
-        
+
         embed.add_field(
             name="📊 Claim Eligibility",
             value=claim_status,
             inline=False
         )
-        
+
         # Add information on how rakeback works with improved formatting
         embed.add_field(
             name="ℹ️ About Rakeback",
@@ -936,29 +942,263 @@ class Fetches(commands.Cog):
             ),
             inline=False
         )
-        
+
         if user.avatar:
             embed.set_thumbnail(url=user.avatar.url)
-            
+
         embed.set_footer(text="BetSync Casino • Rakeback Rewards", icon_url=self.bot.user.avatar.url)
-        
+
         # If viewing someone else's rakeback, don't show any button
         if user.id != ctx.author.id:
             return await ctx.reply(embed=embed)
-        
+
         # Create view with claim button
         view = self.RakebackButton(self, ctx.author.id, rakeback_tokens)
-        
+
         # If rakeback tokens are less than 1, disable the button
         if rakeback_tokens < 1:
             for child in view.children:
                 child.disabled = True
                 child.label = "Insufficient Rakeback"
-        
+
         # Send the message with the view and save the returned message object
         # This allows the view to properly reference the message for updates
         view.message = await ctx.reply(embed=embed, view=view)
 
+    @commands.command(aliases=["setbal", "setbalance"])
+    async def set_balance(self, ctx, currency: str = None):
+        """
+        Set your primary currency
+        Usage: !setbal [currency] - Set primary currency or show dropdown menu
+        """
+        db = Users()
+        user_data = db.fetch_user(ctx.author.id)
+
+        if not user_data:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Account Required",
+                description="You need an account to set your primary currency.",
+                color=0xFF0000
+            )
+            await ctx.reply(embed=embed)
+            return
+
+        # Currency mapping
+        currency_names = {
+            "BITCOIN": "BTC", "BTC": "BTC",
+            "LITECOIN": "LTC", "LTC": "LTC", 
+            "ETHEREUM": "ETH", "ETH": "ETH",
+            "USDT": "USDT", "TETHER": "USDT",
+            "SOLANA": "SOL", "SOL": "SOL"
+        }
+
+        # Currency emojis
+        emoji_map = {
+            "BTC": "<:btc:1339343483089063976>",
+            "LTC": "<:ltc:1339343445675868191>", 
+            "ETH": "<:eth:1340981832799485985>",
+            "USDT": "<:usdt:1340981835563401217>",
+            "SOL": "<:sol:1340981839497793556>"
+        }
+
+        # If currency is specified, set it directly
+        if currency:
+            currency_upper = currency.upper()
+            if currency_upper in currency_names:
+                new_currency = currency_names[currency_upper]
+
+                # Update primary currency
+                await self.update_primary_currency(ctx, db, new_currency, emoji_map)
+                return
+            else:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Invalid Currency",
+                    description=f"Invalid currency `{currency}`. Supported currencies: BTC, LTC, ETH, USDT, SOL",
+                    color=0xFF0000
+                )
+                await ctx.reply(embed=embed)
+                return
+
+        # Show dropdown menu
+        embed = discord.Embed(
+            title="💱 Set Primary Currency",
+            description="Choose your primary currency from the dropdown below:",
+            color=0x00FFAE
+        )
+        embed.add_field(
+            name="Available Currencies",
+            value=(
+                f"{emoji_map['BTC']} **Bitcoin (BTC)**\n"
+                f"{emoji_map['LTC']} **Litecoin (LTC)**\n"
+                f"{emoji_map['ETH']} **Ethereum (ETH)**\n"
+                f"{emoji_map['USDT']} **Tether (USDT)**\n"
+                f"{emoji_map['SOL']} **Solana (SOL)**"
+            ),
+            inline=False
+        )
+
+        view = CurrencyDropdownView(ctx.author.id, db, emoji_map)
+        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+        await ctx.reply(embed=embed, view=view)
+
+    async def update_primary_currency(self, ctx, db, new_currency, emoji_map):
+        """Helper method to update primary currency"""
+        crypto_values = {
+            "BTC": 0.00000024,
+            "LTC": 0.00023,
+            "ETH": 0.000010,
+            "USDT": 0.0212,
+            "SOL": 0.0001442
+        }
+
+        user_data = db.fetch_user(ctx.author.id)
+        current_primary = user_data.get("primary_coin", "BTC")
+        current_points = user_data.get("points", 0)
+        wallet = user_data.get("wallet", {})
+
+        # Convert current points to current currency amount
+        current_rate = crypto_values.get(current_primary, 0)
+        current_amount = current_points * current_rate
+
+        # Update wallet with current currency
+        wallet[current_primary] = current_amount
+
+        # Calculate new points based on new currency
+        new_rate = crypto_values.get(new_currency, 0)
+        new_amount = wallet.get(new_currency, 0)
+        new_points = new_amount / new_rate if new_rate > 0 else 0
+
+        # Update database
+        db.collection.update_one(
+            {"discord_id": ctx.author.id},
+            {
+                "$set": {
+                    "primary_coin": new_currency,
+                    "points": new_points,
+                    "wallet": wallet
+                }
+            }
+        )
+
+        embed = discord.Embed(
+            title="✅ Primary Currency Updated",
+            description=f"Your primary currency has been set to {emoji_map.get(new_currency, '')} **{new_currency}**",
+            color=0x00FF00
+        )
+        embed.add_field(
+            name="New Balance",
+            value=f"`{new_points:.2f} points`",
+            inline=False
+        )
+        embed.set_footer(text="BetSync Casino", icon_url=ctx.bot.user.avatar.url)
+        await ctx.reply(embed=embed)
+
+class CurrencyDropdownView(discord.ui.View):
+    def __init__(self, user_id, db, emoji_map):
+        super().__init__(timeout=60)
+        self.user_id = user_id
+        self.db = db
+        self.emoji_map = emoji_map
+
+    async def interaction_check(self, interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your currency selection!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.select(
+        placeholder="Choose your primary currency...",
+        options=[
+            discord.SelectOption(
+                label="Bitcoin (BTC)",
+                description="1 point = 0.00000024 BTC",
+                value="BTC",
+                emoji="<:btc:1339343483089063976>"
+            ),
+            discord.SelectOption(
+                label="Litecoin (LTC)",
+                description="1 point = 0.00023 LTC",
+                value="LTC",
+                emoji="<:ltc:1339343445675868191>"
+            ),
+            discord.SelectOption(
+                label="Ethereum (ETH)",
+                description="1 point = 0.000010 ETH",
+                value="ETH",
+                emoji="<:eth:1340981832799485985>"
+            ),
+            discord.SelectOption(
+                label="Tether (USDT)",
+                description="1 point = 0.0212 USDT",
+                value="USDT",
+                emoji="<:usdt:1340981835563401217>"
+            ),
+            discord.SelectOption(
+                label="Solana (SOL)",
+                description="1 point = 0.0001442 SOL",
+                value="SOL",
+                emoji="<:sol:1340981839497793556>"
+            )
+        ]
+    )
+    async def currency_select(self, select, interaction):
+        selected_currency = select.values[0]
+
+        # Update primary currency
+        crypto_values = {
+            "BTC": 0.00000024,
+            "LTC": 0.00023,
+            "ETH": 0.000010,
+            "USDT": 0.0212,
+            "SOL": 0.0001442
+        }
+
+        user_data = self.db.fetch_user(self.user_id)
+        current_primary = user_data.get("primary_coin", "BTC")
+        current_points = user_data.get("points", 0)
+        wallet = user_data.get("wallet", {})
+
+        # Convert current points to current currency amount
+        current_rate = crypto_values.get(current_primary, 0)
+        current_amount = current_points * current_rate
+
+        # Update wallet with current currency
+        wallet[current_primary] = current_amount
+
+        # Calculate new points based on new currency
+        new_rate = crypto_values.get(selected_currency, 0)
+        new_amount = wallet.get(selected_currency, 0)
+        new_points = new_amount / new_rate if new_rate > 0 else 0
+
+        # Update database
+        self.db.collection.update_one(
+            {"discord_id": self.user_id},
+            {
+                "$set": {
+                    "primary_coin": selected_currency,
+                    "points": new_points,
+                    "wallet": wallet
+                }
+            }
+        )
+
+        embed = discord.Embed(
+            title="✅ Primary Currency Updated",
+            description=f"Your primary currency has been set to {self.emoji_map.get(selected_currency, '')} **{selected_currency}**",
+            color=0x00FF00
+        )
+        embed.add_field(
+            name="New Balance",
+            value=f"`{new_points:.2f} points`",
+            inline=False
+        )
+        embed.set_footer(text="BetSync Casino", icon_url=interaction.client.user.avatar.url)
+
+        # Disable the dropdown
+        for item in self.children:
+            item.disabled = True
+
+        await interaction.response.edit_message(embed=embed, view=self)
 
 def setup(bot):
     bot.add_cog(Fetches(bot))

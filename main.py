@@ -146,7 +146,12 @@ async def on_command(ctx):
                 embed = discord.Embed(
                 title=":wave: Welcome to BetSync Casino!", 
                 color=0x00FFAE, 
-                description="**Type** `!help` **to get started**"
+                description="**Get started by setting your primary currency!**\n\n**Type** `!setbal` **to choose your preferred cryptocurrency**\n**Type** `!help` **for all commands**"
+                )
+                embed.add_field(
+                    name="💱 Set Your Currency",
+                    value="Use `!setbal` to choose from BTC, LTC, ETH, USDT, or SOL",
+                    inline=False
                 )
                 embed.set_footer(text="BetSync Casino", icon_url=bot.user.avatar.url)
                 await ctx.reply("By using BetSync, you agree to our TOS. Type `!tos` to know more.", embed=embed)
