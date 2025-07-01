@@ -225,8 +225,29 @@ class CoinflipCog(commands.Cog):
                 
 
             
+            # Add to user history
+            timestamp = int(time.time())
+            if user_won:
+                history_entry = {
+                    "type": "win",
+                    "game": "coinflip",
+                    "amount": win_amount,
+                    "bet": bet_amount_value,
+                    "multiplier": multiplier,
+                    "timestamp": timestamp
+                }
+            else:
+                history_entry = {
+                    "type": "loss",
+                    "game": "coinflip",
+                    "amount": bet_amount_value,
+                    "bet": bet_amount_value,
+                    "multiplier": 0,
+                    "timestamp": timestamp
+                }
+
             db = Users()  # Reinstantiate db
-            #db.update_history(ctx.author.id, history_entry)
+            db.update_history(ctx.author.id, history_entry)
 
             # Get user balance after the game
             db = Users()  # Reinstantiate db

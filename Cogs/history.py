@@ -39,6 +39,7 @@ class HistoryView(discord.ui.View):
         self.add_item(discord.ui.Button(label="Withdrawals", style=discord.ButtonStyle.primary if self.category == "withdraw" else discord.ButtonStyle.secondary, custom_id="withdraw"))
         self.add_item(discord.ui.Button(label="Wins", style=discord.ButtonStyle.primary if self.category == "win" else discord.ButtonStyle.secondary, custom_id="win"))
         self.add_item(discord.ui.Button(label="Losses", style=discord.ButtonStyle.primary if self.category == "loss" else discord.ButtonStyle.secondary, custom_id="loss"))
+        self.add_item(discord.ui.Button(label="Pushes", style=discord.ButtonStyle.primary if self.category == "push" else discord.ButtonStyle.secondary, custom_id="push"))
 
         # Add pagination buttons
         self.add_item(discord.ui.Button(emoji="⬅️", style=discord.ButtonStyle.secondary, custom_id="prev", disabled=self.page == 0))
@@ -48,6 +49,9 @@ class HistoryView(discord.ui.View):
         """Get filtered history based on the selected category"""
         if self.category == "all":
             filtered = self.history_data
+        elif self.category == "push":
+            # Handle both "push" and "draw" types for pushes
+            filtered = [item for item in self.history_data if item.get("type") in ["push", "draw"]]
         else:
             filtered = [item for item in self.history_data if item.get("type") == self.category]
 
@@ -131,26 +135,29 @@ class HistoryView(discord.ui.View):
                 
                 if transaction_type == "deposit":
                     field_name = f"💰 Deposit • {date_str}"
-                    field_value = f"Received **{amount:,.2f} tokens**"
+                    field_value = f"Received **{amount:,.2f} points**"
                 elif transaction_type == "withdraw":
                     field_name = f"💸 Withdrawal • {date_str}"
-                    field_value = f"Withdrew **{amount:,.2f} tokens**"
+                    field_value = f"Withdrew **{amount:,.2f} points**"
                 elif transaction_type == "win":
-                    game_name = item.get("game", "Game")
+                    game_name = item.get("game", "Game").title()
+                    bet_amount = item.get("bet", 0)
+                    multiplier = item.get("multiplier", 0)
                     field_name = f"🏆 Win • {game_name} • {date_str}"
-                    field_value = f"Won **{amount:,.2f} tokens**"
+                    field_value = f"Bet **{bet_amount:,.2f} points** • Won **{amount:,.2f} points** • {multiplier}x"
                 elif transaction_type == "loss":
-                    game_name = item.get("game", "Game")
-                    field_name = f"❌ Loss • {game_name} • {date_str}"
-                    field_value = f"Lost **{amount:,.2f} tokens**"
-                elif transaction_type == "draw":
-                    game_name = item.get("game", "Game")
+                    game_name = item.get("game", "Game").title()
                     bet_amount = item.get("bet", amount)
-                    field_name = f"🔄 Draw • {game_name} • {date_str}"
-                    field_value = f"Bet returned: **{bet_amount:,.2f} tokens**"
+                    field_name = f"❌ Loss • {game_name} • {date_str}"
+                    field_value = f"Lost **{bet_amount:,.2f} points**"
+                elif transaction_type == "push" or transaction_type == "draw":
+                    game_name = item.get("game", "Game").title()
+                    bet_amount = item.get("bet", amount)
+                    field_name = f"🔄 Push • {game_name} • {date_str}"
+                    field_value = f"Bet returned: **{bet_amount:,.2f} points**"
                 else:
                     field_name = f"🔄 Transaction • {date_str}"
-                    field_value = f"Amount: **{amount:,.2f} tokens**"
+                    field_value = f"Amount: **{amount:,.2f} points**"
 
                 embed.add_field(name=field_name, value=field_value, inline=False)
 
@@ -189,6 +196,9 @@ class HistoryView(discord.ui.View):
             self.page = 0
         elif custom_id == "loss":
             self.category = "loss"
+            self.page = 0
+        elif custom_id == "push":
+            self.category = "push"
             self.page = 0
         elif custom_id == "prev":
             if self.page > 0:
