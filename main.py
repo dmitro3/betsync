@@ -144,7 +144,7 @@ async def on_command(ctx):
                 #print(f"{Fore.GREEN}[+] {Fore.WHITE}New User Registered: {Fore.GREEN}{ctx.author.name} ({ctx.author.id}){Fore.WHITE}")
 
                 embed = discord.Embed(
-                title=":wave: Welcome to BetSync Casino!", 
+                title=":information_source: | Welcome to BetSync Casino!", 
                 color=0x00FFAE, 
                 description="**Get started by setting your primary currency!**\n\n**Type** `!setbal` **to choose your preferred cryptocurrency**\n**Type** `!help` **for all commands**"
                 )
