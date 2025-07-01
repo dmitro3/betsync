@@ -1021,7 +1021,7 @@ class Fetches(commands.Cog):
 
         # Show dropdown menu
         embed = discord.Embed(
-            title=":i: | Set Primary Currency",
+            title=":information_source: | Set Primary Currency",
             description="Choose your primary currency from the dropdown below:",
             color=0x00FFAE
         )
