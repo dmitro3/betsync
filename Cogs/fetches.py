@@ -1021,7 +1021,7 @@ class Fetches(commands.Cog):
 
         # Show dropdown menu
         embed = discord.Embed(
-            title="💱 Set Primary Currency",
+            title=":i: | Set Primary Currency",
             description="Choose your primary currency from the dropdown below:",
             color=0x00FFAE
         )
@@ -1081,7 +1081,7 @@ class Fetches(commands.Cog):
         )
 
         embed = discord.Embed(
-            title="✅ Primary Currency Updated",
+            title="<:yes:1355501647538815106> | Primary Currency Updated",
             description=f"Your primary currency has been set to {emoji_map.get(new_currency, '')} **{new_currency}**",
             color=0x00FF00
         )
@@ -1183,7 +1183,7 @@ class CurrencyDropdownView(discord.ui.View):
         )
 
         embed = discord.Embed(
-            title="✅ Primary Currency Updated",
+            title="<:yes:1355501647538815106> | Primary Currency Updated",
             description=f"Your primary currency has been set to {self.emoji_map.get(selected_currency, '')} **{selected_currency}**",
             color=0x00FF00
         )
