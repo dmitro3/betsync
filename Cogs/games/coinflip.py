@@ -251,7 +251,7 @@ class CoinflipCog(commands.Cog):
                 )
             else:
                 result_embed = discord.Embed(
-                    title=f"<:yes:1355501647538815106> | You lost",
+                    title=f"<:no:1344252518305234987> | You lost",
                     description=(
                         f"**You chose:** {heads_emoji if side == 'heads' else tails_emoji} **{side.capitalize()}**\n"
                         f"**Result:** {result_emoji} **{result.capitalize()}**\n\n"
