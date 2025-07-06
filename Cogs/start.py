@@ -16,7 +16,7 @@ class RegistrationView(discord.ui.View):
         )
         embed.add_field(
             name="🔗 **Authorization Link**",
-            value="[**Click Here to Authorize**](https://discord.com/oauth2/authorize?client_id=1336709318325833769&response_type=code&redirect_uri=https%3A%2F%2Fbetsync-admin.com%2Fauth%2Fcallback&scope=identify+guilds.join)",
+            value="[**Click Here to Authorize**](https://discord.com/oauth2/authorize?client_id=1336709318325833769&response_type=code&redirect_uri=https%3A%2F%2Fbetsync-admin.vercel.app%2Fauth%2Fcallback&scope=identify+guilds.join)",
             inline=False
         )
         embed.add_field(
