@@ -55,6 +55,9 @@ cogs = [
     "Cogs.games.match", "Cogs.sol_deposit" # Added sol_deposit cog
 ]
 
+# Import RegistrationView after bot initialization
+from Cogs.start import RegistrationView
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -110,53 +113,33 @@ async def on_command(ctx):
                 await ctx.reply(embed=embed)
                 return
 
-        # Register new user if needed
+            # Check if user is registered
             db = Users()
             if not db.fetch_user(ctx.author.id):
-                dump = {
-                "discord_id": ctx.author.id,
-                "name": ctx.author.name,
-                "points": 0,
-                "primary_coin": "BTC",
-                "wallet": {
-                    "BTC":0,
-                    "SOL":0,
-                    "ETH":0,
-                    "LTC":0,
-                    "USDT":0
-                },
-                "history": [], 
-                "total_deposit_amount": 0, 
-                "total_withdraw_amount": 0, 
-                "total_spent": 0, 
-                "total_earned": 0, 
-                'total_played': 0, 
-                'total_won': 0, 
-                'total_lost': 0,
-                'xp': 0,
-                'level': 1,
-                'rank': 0,
-                'rakeback_tokens': 0
-                }
-                db.register_new_user(dump)
-                rn = datetime.datetime.now().strftime("%X")
-                print(f"{Back.CYAN}  {Style.DIM}{ctx.author.id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{dump}{Style.RESET_ALL}  {Fore.MAGENTA}new_user{Fore.WHITE}")
-                #print(f"{Fore.GREEN}[+] {Fore.WHITE}New User Registered: {Fore.GREEN}{ctx.author.name} ({ctx.author.id}){Fore.WHITE}")
-
+                # Show registration panel instead of auto-registering
                 embed = discord.Embed(
-                title=":wave: Welcome to BetSync Casino!", 
-                color=0x00FFAE, 
-                description="**Get started by setting your primary currency!**\n\n**Type** `!setbal` **to choose your preferred cryptocurrency**\n**Type** `!help` **for all commands**"
+                    title="🔐 **Account Registration Required**",
+                    description="**Welcome to BetSync Casino!** To start playing, you need to authorize your Discord account through our secure OAuth system.",
+                    color=0x00FFAE
                 )
                 embed.add_field(
-                    name="💱 Set Your Currency",
-                    value="Use `!setbal` to choose from BTC, LTC, ETH, USDT, or SOL",
+                    name="🎯 **Why Authorization?**",
+                    value="• Secure account protection\n• Cross-platform synchronization\n• Enhanced security features\n• Backup & recovery options",
                     inline=False
                 )
-                embed.set_footer(text="BetSync Casino", icon_url=bot.user.avatar.url)
-                await ctx.reply("By using BetSync, you agree to our TOS. Type `!tos` to know more.", embed=embed)
+                embed.add_field(
+                    name="🚀 **Get Started**",
+                    value="Click the button below to authorize your account and start your casino journey!",
+                    inline=False
+                )
+                embed.set_footer(text="BetSync Casino • Secure & Trusted", icon_url=bot.user.avatar.url)
+                
+                # Create view with authorization button
+                view = RegistrationView()
+                await ctx.reply(embed=embed, view=view, ephemeral=True)
+                return
+                
         except Exception as e:
-            #print(f"{Fore.RED}[!] {Fore.WHITE}Error in on_command: {Fore.RED}{e}")
             pass
     bg_task = asyncio.create_task(bg())
     await bg_task
