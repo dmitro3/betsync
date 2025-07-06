@@ -3,76 +3,33 @@ from discord.ext import commands
 from Cogs.utils.emojis import emoji
 from Cogs.utils.mongo import Users
 
-class RegistrationView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=300)
-
-    @discord.ui.button(label="🔐 Authorize Account", style=discord.ButtonStyle.green, emoji="🚀")
-    async def authorize(self, button: discord.ui.Button, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="🔐 **Account Authorization**",
-            description="**Click the link below to securely authorize your Discord account:**",
-            color=0x00FFAE
-        )
-        embed.add_field(
-            name="🔗 **Authorization Link**",
-            value="[**Click Here to Authorize**](https://discord.com/oauth2/authorize?client_id=1336709318325833769&response_type=code&redirect_uri=https%3A%2F%2Fbetsync-admin.vercel.app%2Fauth%2Fcallback&scope=identify+guilds.join)",
-            inline=False
-        )
-        embed.add_field(
-            name="⚡ **After Authorization**",
-            value="• Your account will be automatically registered\n• You'll have access to all casino features\n• You can start playing immediately",
-            inline=False
-        )
-        embed.add_field(
-            name="🛡️ **Privacy & Security**",
-            value="We only request basic Discord profile information. Your data is secure and never shared with third parties.",
-            inline=False
-        )
-        embed.set_footer(text="BetSync Casino • Secure OAuth Authorization")
-        
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
 class MainView(discord.ui.View):
     def __init__(self, bot, user):
         super().__init__()
         self.bot = bot
         self.user = user
 
-    @discord.ui.button(label="🔐 Authorize Account", style=discord.ButtonStyle.green)
-    async def signup(self, button: discord.ui.Button, interaction: discord.Interaction):
-        # Check if user is already registered
-        response = Users().fetch_user(self.user.id)
+    @discord.ui.button(label="Sign Up", style=discord.ButtonStyle.green)
+    async def signup(self,button, interaction: discord.Interaction):
+        dump = {"discord_id": self.user.id, "tokens": 0, "credits": 0, "history": []}
+        money = emoji()["money"]
+        response = Users().register_new_user(dump)
 
-        if response:
+        if response is False:
             embed = discord.Embed(
-                title="✅ **Account Already Authorized**",
-                color=0x00FFAE,
-                description="**You are already registered and ready to play!**"
-            )
-            embed.add_field(
-                name="🎰 Get Started",
-                value="Type `!help` or `!guide` to start your casino journey!",
-                inline=False
+                title="<:no:1344252518305234987> | **User Already Has An Account.**",
+                color=0xFF0000,
+                description="- **You Are Already Registered In Our Database.**"
             )
         else:
             embed = discord.Embed(
-                title="🔐 **Account Authorization Required**",
-                description="**Click the link below to securely authorize your Discord account:**",
+                title="**Registered New User**",
+                description="**Your discord account has been successfully registered in our database with the following details:**\n```Tokens: 0\nCredits: 0```",
                 color=0x00FFAE
             )
-            embed.add_field(
-                name="🔗 **Authorization Link**",
-                value="[**Click Here to Authorize**](https://discord.com/oauth2/authorize?client_id=1336709318325833769&response_type=code&redirect_uri=https%3A%2F%2Fbetsync-admin.com%2Fauth%2Fcallback&scope=identify+guilds.join)",
-                inline=False
-            )
-            embed.add_field(
-                name="⚡ **After Authorization**",
-                value="• Your account will be automatically registered\n• You'll have access to all casino features\n• You can start playing immediately",
-                inline=False
-            )
+            embed.add_field(name=f"{money} Get Started", value="- **Type !help or !guide to start betting!**", inline=False)
 
-        embed.set_footer(text="BetSync Casino • Secure OAuth Authorization", icon_url=self.user.avatar.url)
+        embed.set_footer(text="BetSync Casino • Best Casino", icon_url=self.user.avatar.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class GamePaginator(discord.ui.View):
@@ -195,44 +152,14 @@ class Start(commands.Cog):
         view = GamePaginator(embeds)
         await ctx.reply(embed=embeds[0], view=view)
 
-    @commands.command(name="signup")
+    #@commands.command(name="signup")
     async def signup(self, ctx):
-        # Check if user is already registered
-        db = Users()
-        user_data = db.fetch_user(ctx.author.id)
-        
-        if user_data:
-            embed = discord.Embed(
-                title="✅ **Account Already Authorized**",
-                description="**You are already registered and ready to play!**",
-                color=0x00FFAE
-            )
-            embed.add_field(
-                name="🎰 Get Started",
-                value="Type `!help` or `!guide` to start your casino journey!",
-                inline=False
-            )
-            await ctx.reply(embed=embed)
-        else:
-            embed = discord.Embed(
-                title="🔐 **Account Registration Required**",
-                description="**Welcome to BetSync Casino!** To start playing, you need to authorize your Discord account through our secure OAuth system.",
-                color=0x00FFAE
-            )
-            embed.add_field(
-                name="🎯 **Why Authorization?**",
-                value="• Secure account protection\n• Cross-platform synchronization\n• Enhanced security features\n• Backup & recovery options",
-                inline=False
-            )
-            embed.add_field(
-                name="🚀 **Get Started**",
-                value="Click the button below to authorize your account and start your casino journey!",
-                inline=False
-            )
-            embed.set_footer(text="BetSync Casino • Secure & Trusted", icon_url=self.bot.user.avatar.url)
-            
-            view = RegistrationView()
-            await ctx.reply(embed=embed, view=view)
+        embed = discord.Embed(
+            title=":wave: **Welcome to BetSync Casino**",
+            description="Press The Button Below To Sign Up If You're A New User!",
+            color=0x00FFAE
+        )
+        await ctx.reply(embed=embed, view=MainView(self.bot, ctx.author))
 
 def setup(bot):
     bot.add_cog(Start(bot))
