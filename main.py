@@ -54,7 +54,6 @@ cogs = [
     "Cogs.games.keno", "Cogs.games.blackjack", "Cogs.games.baccarat",
     "Cogs.games.match", "Cogs.sol_deposit" # Added sol_deposit cog
 ]
-
 # Import RegistrationView after bot initialization
 from Cogs.start import RegistrationView
 
@@ -70,7 +69,7 @@ async def on_command_error(ctx, error):
         #print(f"{Fore.RED}[-] {Fore.WHITE} User {Fore.BLACK}{ctx.message.author}{Fore.WHITE} tried to use a non-existent command")
     else:
         
-        pass #print(f"{Fore.RED}[!] {Fore.WHITE}Command error: {Fore.RED}{error}")
+        print(f"{Fore.RED}[!] {Fore.WHITE}Command error: {Fore.RED}{error}")
 
 @bot.event
 async def on_guild_join(guild):
@@ -132,15 +131,15 @@ async def on_command(ctx):
                     value="Click the button below to authorize your account and start your casino journey!",
                     inline=False
                 )
-                embed.set_footer(text="BetSync Casino • Secure & Trusted", icon_url=bot.user.avatar.url)
+                embed.set_footer(text="BetSync Casino • Secure & Trusted")
                 
                 # Create view with authorization button
                 view = RegistrationView()
-                await ctx.reply(embed=embed, view=view, ephemeral=True)
+                await ctx.reply(embed=embed, view=view)
                 return
                 
         except Exception as e:
-            pass
+            print(e)
     bg_task = asyncio.create_task(bg())
     await bg_task
 

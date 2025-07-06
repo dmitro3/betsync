@@ -17,4 +17,3 @@ eth-hash[pycryptodome]
 solana
 solders
 bip-utils
-discord-py

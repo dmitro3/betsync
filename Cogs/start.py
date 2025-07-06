@@ -29,7 +29,7 @@ class RegistrationView(discord.ui.View):
             value="We only request basic Discord profile information. Your data is secure and never shared with third parties.",
             inline=False
         )
-        embed.set_footer(text="BetSync Casino • Secure OAuth Authorization", icon_url=interaction.user.avatar.url if interaction.user.avatar else None)
+        embed.set_footer(text="BetSync Casino • Secure OAuth Authorization")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
