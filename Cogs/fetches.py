@@ -1056,6 +1056,10 @@ class Fetches(commands.Cog):
         current_points = user_data.get("points", 0)
         wallet = user_data.get("wallet", {})
 
+        # Ensure current_primary is not None
+        if current_primary is None:
+            current_primary = "BTC"
+
         # Convert current points to current currency amount
         current_rate = crypto_values.get(current_primary, 0)
         current_amount = current_points * current_rate
@@ -1157,6 +1161,10 @@ class CurrencyDropdownView(discord.ui.View):
         current_primary = user_data.get("primary_coin", "BTC")
         current_points = user_data.get("points", 0)
         wallet = user_data.get("wallet", {})
+
+        # Ensure current_primary is not None
+        if current_primary is None:
+            current_primary = "BTC"
 
         # Convert current points to current currency amount
         current_rate = crypto_values.get(current_primary, 0)
