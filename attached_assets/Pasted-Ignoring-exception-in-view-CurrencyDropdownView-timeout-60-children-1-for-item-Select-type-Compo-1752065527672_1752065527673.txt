@@ -1,0 +1,49 @@
+Ignoring exception in view <CurrencyDropdownView timeout=60 children=1> for item <Select type=<ComponentType.string_select: 3> placeholder='Choose your primary currency...' min_values=1 max_values=1 options=[<SelectOption label='Bitcoin (BTC)' value='BTC' description='1 point = 0.00000024 BTC' emoji=<PartialEmoji animated=False name='btc' id=1339343483089063976> default=False>, <SelectOption label='Litecoin (LTC)' value='LTC' description='1 point = 0.00023 LTC' emoji=<PartialEmoji animated=False name='ltc' id=1339343445675868191> default=False>, <SelectOption label='Ethereum (ETH)' value='ETH' description='1 point = 0.000010 ETH' emoji=<PartialEmoji animated=False name='eth' id=1340981832799485985> default=False>, <SelectOption label='Tether (USDT)' value='USDT' description='1 point = 0.0212 USDT' emoji=<PartialEmoji animated=False name='usdt' id=1340981835563401217> default=False>, <SelectOption label='Solana (SOL)' value='SOL' description='1 point = 0.0001442 SOL' emoji=<PartialEmoji animated=False name='sol' id=1340981839497793556> default=False>] channel_types=[] disabled=False>:
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/discord/ui/view.py", line 426, in _scheduled_task
+    await item.callback(interaction)
+  File "/home/runner/workspace/Cogs/fetches.py", line 1174, in currency_select
+    self.db.collection.update_one(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/collection.py", line 1336, in update_one
+    self._update_retryable(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/collection.py", line 1118, in _update_retryable
+    return self._database.client._retryable_write(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2061, in _retryable_write
+    return self._retry_with_session(retryable, func, s, bulk, operation, operation_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 1947, in _retry_with_session
+    return self._retry_internal(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/_csot.py", line 125, in csot_wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 1993, in _retry_internal
+    ).run()
+      ^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2730, in run
+    return self._read() if self._is_read else self._write()
+                                              ^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/mongo_client.py", line 2862, in _write
+    return self._func(self._session, conn, self._retryable)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/collection.py", line 1098, in _update
+    return self._update(
+           ^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/collection.py", line 1049, in _update
+    conn.command(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/helpers.py", line 47, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 442, in command
+    self._raise_connection_failure(error)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/pool.py", line 414, in command
+    return command(
+           ^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/synchronous/network.py", line 148, in command
+    request_id, msg, size, max_doc_size = message._op_msg(
+                                          ^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pymongo/message.py", line 419, in _op_msg
+    return _op_msg_uncompressed(flags, command, identifier, docs, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bson.errors.InvalidDocument: Invalid document {'q': {'discord_id': 994451933383368744}, 'u': {'$set': {'primary_coin': 'LTC', 'points': 0.0, 'wallet': {'BTC': 0, 'SOL': 0, 'ETH': 0, 'LTC': 0, 'USDT': 0, None: 0}}}, 'multi': False, 'upsert': False} | documents must have only string keys, key was None
