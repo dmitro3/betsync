@@ -25,33 +25,32 @@ class WheelCog(commands.Cog):
         self.total_chance = sum(color["chance"] for color in self.colors.values())
 
     async def generate_wheel_image(self, result_color, bet_amount, winnings, spins=1):
-        """Generate a visual wheel image with modern circular design"""
-        # Create image with dark blue background like the reference
-        width, height = 800, 700
-        bg_color = (52, 73, 94)  # Dark blue-gray background
-        image = Image.new("RGB", (width, height), bg_color)
+        """Generate a visual wheel image with the result"""
+        # Create image
+        width, height = 800, 600
+        image = Image.new("RGB", (width, height), (20, 20, 30))  # Dark background
         draw = ImageDraw.Draw(image)
 
         # Try to load fonts
         try:
-            title_font = ImageFont.truetype("arial.ttf", 32)
-            large_font = ImageFont.truetype("arial.ttf", 24)
-            medium_font = ImageFont.truetype("arial.ttf", 18)
-            small_font = ImageFont.truetype("arial.ttf", 14)
-            stats_font = ImageFont.truetype("arial.ttf", 16)
+            title_font = ImageFont.truetype("arial.ttf", 36)
+            large_font = ImageFont.truetype("arial.ttf", 28)
+            medium_font = ImageFont.truetype("arial.ttf", 20)
+            small_font = ImageFont.truetype("arial.ttf", 16)
         except:
             title_font = ImageFont.load_default()
             large_font = ImageFont.load_default()
             medium_font = ImageFont.load_default()
             small_font = ImageFont.load_default()
-            stats_font = ImageFont.load_default()
 
-        # Wheel parameters - centered higher up
-        center_x, center_y = width//2, height//2 - 80
-        outer_radius = 180
-        inner_radius = 140
+        # Draw title
+        draw.text((width//2, 40), "BetSync Wheel", font=title_font, fill=(255, 255, 255), anchor="mm")
+
+        # Wheel parameters
+        center_x, center_y = width//2, height//2 - 20
+        wheel_radius = 180
         
-        # Define segments with proper colors and angles
+        # Define wheel segments with colors
         segments = [
             {"color": "gray", "rgb": (128, 128, 128), "start": 0, "size": 180},      # 50% - 180 degrees
             {"color": "yellow", "rgb": (255, 215, 0), "start": 180, "size": 90},    # 25% - 90 degrees  
@@ -60,121 +59,70 @@ class WheelCog(commands.Cog):
             {"color": "green", "rgb": (50, 205, 50), "start": 349.2, "size": 10.8}  # 3% - 10.8 degrees
         ]
 
-        # Draw outer circle (rim)
-        draw.ellipse([center_x - outer_radius, center_y - outer_radius,
-                     center_x + outer_radius, center_y + outer_radius], 
-                    fill=(70, 70, 70), outline=(100, 100, 100), width=3)
-
-        # Draw segments as arcs on the rim
+        # Draw wheel segments
         for segment in segments:
             start_angle = segment["start"]
             end_angle = start_angle + segment["size"]
             
-            # Draw the colored segment on the rim
-            for r in range(inner_radius, outer_radius, 2):
-                draw.arc([center_x - r, center_y - r, center_x + r, center_y + r],
-                        start_angle, end_angle, fill=segment["rgb"], width=2)
-
-        # Draw inner circle (darker)
-        draw.ellipse([center_x - inner_radius, center_y - inner_radius,
-                     center_x + inner_radius, center_y + inner_radius], 
-                    fill=(40, 40, 40), outline=(80, 80, 80), width=2)
+            # Draw the segment
+            draw.pieslice(
+                [center_x - wheel_radius, center_y - wheel_radius, 
+                 center_x + wheel_radius, center_y + wheel_radius],
+                start_angle, end_angle, fill=segment["rgb"], outline=(255, 255, 255), width=2
+            )
+            
+            # Add multiplier text in each segment
+            mid_angle = math.radians(start_angle + segment["size"]/2)
+            text_radius = wheel_radius * 0.7
+            text_x = center_x + text_radius * math.cos(mid_angle)
+            text_y = center_y + text_radius * math.sin(mid_angle)
+            
+            multiplier = self.colors[segment["color"]]["multiplier"]
+            mult_text = f"{multiplier}x" if multiplier > 0 else "0x"
+            draw.text((text_x, text_y), mult_text, font=medium_font, fill=(255, 255, 255), anchor="mm")
 
         # Draw center circle
-        center_radius = 15
+        center_radius = 20
         draw.ellipse([center_x - center_radius, center_y - center_radius,
                      center_x + center_radius, center_y + center_radius], 
-                    fill=(200, 200, 200), outline=(255, 255, 255), width=2)
+                    fill=(255, 255, 255), outline=(200, 200, 200), width=2)
 
-        # Draw pointer at top (like the reference image)
-        pointer_x = center_x
-        pointer_y = center_y - outer_radius - 20
-        
-        # Draw pointer triangle (pointing down)
-        triangle_size = 12
-        draw.polygon([
-            (pointer_x, pointer_y + triangle_size),
-            (pointer_x - triangle_size//2, pointer_y - triangle_size//2),
-            (pointer_x + triangle_size//2, pointer_y - triangle_size//2)
-        ], fill=(0, 255, 0))  # Green pointer
-
-        # Calculate which segment the pointer is pointing to
-        pointer_angle = 270  # Top position (270 degrees)
-        result_segment = None
+        # Draw pointer (triangle pointing to result)
+        result_angle = None
         for segment in segments:
-            start = segment["start"]
-            end = start + segment["size"]
-            # Normalize angles
-            if start <= pointer_angle <= end or (start > end and (pointer_angle >= start or pointer_angle <= end)):
-                result_segment = segment
+            if segment["color"] == result_color:
+                result_angle = math.radians(segment["start"] + segment["size"]/2)
                 break
-
-        # Draw stats boxes at bottom (like the reference)
-        stats_y = height - 150
-        box_width = 110
-        box_height = 60
-        box_spacing = 15
         
-        # Calculate total width needed for all boxes
-        total_boxes = len(self.colors)
-        total_width = total_boxes * box_width + (total_boxes - 1) * box_spacing
-        start_x = (width - total_width) // 2
-        
-        # Draw stats boxes for each color
-        for i, (color_name, color_data) in enumerate(self.colors.items()):
-            box_x = start_x + i * (box_width + box_spacing)
+        if result_angle:
+            # Calculate pointer position
+            pointer_length = wheel_radius + 30
+            pointer_x = center_x + pointer_length * math.cos(result_angle)
+            pointer_y = center_y + pointer_length * math.sin(result_angle)
             
-            # Box background - highlight the result color
-            if color_name == result_color:
-                box_color = (80, 200, 120)  # Bright green for result
-                border_color = (0, 255, 0)
-            else:
-                box_color = (60, 60, 60)  # Dark gray for others
-                border_color = (100, 100, 100)
+            # Draw pointer line
+            draw.line([center_x, center_y, pointer_x, pointer_y], fill=(255, 255, 255), width=4)
             
-            # Draw rounded rectangle for box
-            self.draw_rounded_rectangle(draw, 
-                [box_x, stats_y, box_x + box_width, stats_y + box_height],
-                radius=8, fill=box_color, outline=border_color, width=2)
+            # Draw pointer triangle
+            triangle_size = 15
+            angle1 = result_angle + math.pi/6
+            angle2 = result_angle - math.pi/6
             
-            # Add color indicator circle
-            circle_radius = 8
-            circle_x = box_x + 20
-            circle_y = stats_y + 15
+            point1_x = pointer_x + triangle_size * math.cos(angle1)
+            point1_y = pointer_y + triangle_size * math.sin(angle1)
+            point2_x = pointer_x + triangle_size * math.cos(angle2)
+            point2_y = pointer_y + triangle_size * math.sin(angle2)
             
-            # Get segment color
-            segment_color = None
-            for segment in segments:
-                if segment["color"] == color_name:
-                    segment_color = segment["rgb"]
-                    break
-            
-            if segment_color:
-                draw.ellipse([circle_x - circle_radius, circle_y - circle_radius,
-                             circle_x + circle_radius, circle_y + circle_radius],
-                            fill=segment_color, outline=(255, 255, 255), width=1)
-            
-            # Add multiplier text
-            multiplier = color_data["multiplier"]
-            mult_text = f"{multiplier}x" if multiplier > 0 else "0x"
-            draw.text((box_x + box_width//2, stats_y + 35), mult_text, 
-                     font=stats_font, fill=(255, 255, 255), anchor="mm")
-            
-            # Add percentage text
-            percentage = color_data["chance"]
-            perc_text = f"{percentage}%"
-            draw.text((box_x + box_width//2, stats_y + 50), perc_text, 
-                     font=small_font, fill=(200, 200, 200), anchor="mm")
+            draw.polygon([pointer_x, pointer_y, point1_x, point1_y, point2_x, point2_y], 
+                        fill=(255, 255, 255))
 
-        # Draw result information above the boxes
-        result_y = stats_y - 80
+        # Draw result box at bottom
+        box_y = height - 120
+        box_height = 80
+        box_width = 600
+        box_x = (width - box_width) // 2
         
         # Result background
-        result_width = 400
-        result_height = 50
-        result_x = (width - result_width) // 2
-        
-        # Get result color
         result_rgb = None
         for segment in segments:
             if segment["color"] == result_color:
@@ -182,18 +130,17 @@ class WheelCog(commands.Cog):
                 break
         
         if result_rgb:
-            self.draw_rounded_rectangle(draw, 
-                [result_x, result_y, result_x + result_width, result_y + result_height],
-                radius=10, fill=result_rgb, outline=(255, 255, 255), width=2)
+            self.draw_rounded_rectangle(draw, [box_x, box_y, box_x + box_width, box_y + box_height], 
+                                      radius=10, fill=result_rgb, outline=(255, 255, 255), width=2)
         
         # Result text
         result_emoji = self.colors[result_color]["emoji"]
         result_multiplier = self.colors[result_color]["multiplier"]
         
         result_text = f"{result_emoji} {result_color.upper()} - {result_multiplier}x"
-        draw.text((width//2, result_y + 25), result_text, font=large_font, fill=(255, 255, 255), anchor="mm")
+        draw.text((width//2, box_y + 25), result_text, font=large_font, fill=(255, 255, 255), anchor="mm")
         
-        # Winnings text below result
+        # Winnings text
         if winnings > 0:
             win_text = f"Won: {winnings:.2f} credits"
             win_color = (0, 255, 0)
@@ -201,10 +148,10 @@ class WheelCog(commands.Cog):
             win_text = f"Lost: {bet_amount:.2f} tokens"
             win_color = (255, 100, 100)
             
-        draw.text((width//2, result_y + 60), win_text, font=medium_font, fill=win_color, anchor="mm")
+        draw.text((width//2, box_y + 55), win_text, font=medium_font, fill=win_color, anchor="mm")
 
-        # Add BetSync branding at top
-        draw.text((width//2, 30), "BetSync Wheel", font=title_font, fill=(255, 255, 255), anchor="mm")
+        # Add BetSync branding
+        draw.text((width//2, height - 25), "BetSync Casino", font=small_font, fill=(150, 150, 150), anchor="mm")
 
         # Save to buffer
         buffer = io.BytesIO()
