@@ -186,8 +186,8 @@ class Fetches(commands.Cog):
         """
         user = ctx.author
         db = Users()
-        #db.save(ctx.author.id)
-        # Check if a user was mentioned or ID provided
+        db.save(ctx.author.id)
+        #Check if a user was mentioned or ID provided
         mentioned_user = None
         if param:
             # Try to convert mention to a user
