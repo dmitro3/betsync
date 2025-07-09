@@ -2,6 +2,9 @@ import discord
 import asyncio
 import random
 import time
+import io
+import math
+from PIL import Image, ImageDraw, ImageFont
 from discord.ext import commands
 from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
@@ -20,6 +23,162 @@ class WheelCog(commands.Cog):
         }
         # Calculate total chance to verify it sums to 100
         self.total_chance = sum(color["chance"] for color in self.colors.values())
+
+    async def generate_wheel_image(self, result_color, bet_amount, winnings, spins=1):
+        """Generate a visual wheel image with the result"""
+        # Create image
+        width, height = 800, 600
+        image = Image.new("RGB", (width, height), (20, 20, 30))  # Dark background
+        draw = ImageDraw.Draw(image)
+
+        # Try to load fonts
+        try:
+            title_font = ImageFont.truetype("arial.ttf", 36)
+            large_font = ImageFont.truetype("arial.ttf", 28)
+            medium_font = ImageFont.truetype("arial.ttf", 20)
+            small_font = ImageFont.truetype("arial.ttf", 16)
+        except:
+            title_font = ImageFont.load_default()
+            large_font = ImageFont.load_default()
+            medium_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+
+        # Draw title
+        draw.text((width//2, 40), "BetSync Wheel", font=title_font, fill=(255, 255, 255), anchor="mm")
+
+        # Wheel parameters
+        center_x, center_y = width//2, height//2 - 20
+        wheel_radius = 180
+        
+        # Define wheel segments with colors
+        segments = [
+            {"color": "gray", "rgb": (128, 128, 128), "start": 0, "size": 180},      # 50% - 180 degrees
+            {"color": "yellow", "rgb": (255, 215, 0), "start": 180, "size": 90},    # 25% - 90 degrees  
+            {"color": "red", "rgb": (220, 20, 60), "start": 270, "size": 54},       # 15% - 54 degrees
+            {"color": "blue", "rgb": (30, 144, 255), "start": 324, "size": 25.2},   # 7% - 25.2 degrees
+            {"color": "green", "rgb": (50, 205, 50), "start": 349.2, "size": 10.8}  # 3% - 10.8 degrees
+        ]
+
+        # Draw wheel segments
+        for segment in segments:
+            start_angle = segment["start"]
+            end_angle = start_angle + segment["size"]
+            
+            # Draw the segment
+            draw.pieslice(
+                [center_x - wheel_radius, center_y - wheel_radius, 
+                 center_x + wheel_radius, center_y + wheel_radius],
+                start_angle, end_angle, fill=segment["rgb"], outline=(255, 255, 255), width=2
+            )
+            
+            # Add multiplier text in each segment
+            mid_angle = math.radians(start_angle + segment["size"]/2)
+            text_radius = wheel_radius * 0.7
+            text_x = center_x + text_radius * math.cos(mid_angle)
+            text_y = center_y + text_radius * math.sin(mid_angle)
+            
+            multiplier = self.colors[segment["color"]]["multiplier"]
+            mult_text = f"{multiplier}x" if multiplier > 0 else "0x"
+            draw.text((text_x, text_y), mult_text, font=medium_font, fill=(255, 255, 255), anchor="mm")
+
+        # Draw center circle
+        center_radius = 20
+        draw.ellipse([center_x - center_radius, center_y - center_radius,
+                     center_x + center_radius, center_y + center_radius], 
+                    fill=(255, 255, 255), outline=(200, 200, 200), width=2)
+
+        # Draw pointer (triangle pointing to result)
+        result_angle = None
+        for segment in segments:
+            if segment["color"] == result_color:
+                result_angle = math.radians(segment["start"] + segment["size"]/2)
+                break
+        
+        if result_angle:
+            # Calculate pointer position
+            pointer_length = wheel_radius + 30
+            pointer_x = center_x + pointer_length * math.cos(result_angle)
+            pointer_y = center_y + pointer_length * math.sin(result_angle)
+            
+            # Draw pointer line
+            draw.line([center_x, center_y, pointer_x, pointer_y], fill=(255, 255, 255), width=4)
+            
+            # Draw pointer triangle
+            triangle_size = 15
+            angle1 = result_angle + math.pi/6
+            angle2 = result_angle - math.pi/6
+            
+            point1_x = pointer_x + triangle_size * math.cos(angle1)
+            point1_y = pointer_y + triangle_size * math.sin(angle1)
+            point2_x = pointer_x + triangle_size * math.cos(angle2)
+            point2_y = pointer_y + triangle_size * math.sin(angle2)
+            
+            draw.polygon([pointer_x, pointer_y, point1_x, point1_y, point2_x, point2_y], 
+                        fill=(255, 255, 255))
+
+        # Draw result box at bottom
+        box_y = height - 120
+        box_height = 80
+        box_width = 600
+        box_x = (width - box_width) // 2
+        
+        # Result background
+        result_rgb = None
+        for segment in segments:
+            if segment["color"] == result_color:
+                result_rgb = segment["rgb"]
+                break
+        
+        if result_rgb:
+            self.draw_rounded_rectangle(draw, [box_x, box_y, box_x + box_width, box_y + box_height], 
+                                      radius=10, fill=result_rgb, outline=(255, 255, 255), width=2)
+        
+        # Result text
+        result_emoji = self.colors[result_color]["emoji"]
+        result_multiplier = self.colors[result_color]["multiplier"]
+        
+        result_text = f"{result_emoji} {result_color.upper()} - {result_multiplier}x"
+        draw.text((width//2, box_y + 25), result_text, font=large_font, fill=(255, 255, 255), anchor="mm")
+        
+        # Winnings text
+        if winnings > 0:
+            win_text = f"Won: {winnings:.2f} credits"
+            win_color = (0, 255, 0)
+        else:
+            win_text = f"Lost: {bet_amount:.2f} tokens"
+            win_color = (255, 100, 100)
+            
+        draw.text((width//2, box_y + 55), win_text, font=medium_font, fill=win_color, anchor="mm")
+
+        # Add BetSync branding
+        draw.text((width//2, height - 25), "BetSync Casino", font=small_font, fill=(150, 150, 150), anchor="mm")
+
+        # Save to buffer
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+        return buffer
+
+    def draw_rounded_rectangle(self, draw, xy, radius, fill=None, outline=None, width=1):
+        """Draw a rounded rectangle"""
+        x1, y1, x2, y2 = xy
+        
+        # Draw four corners
+        draw.ellipse((x1, y1, x1 + radius * 2, y1 + radius * 2), fill=fill, outline=outline, width=width)
+        draw.ellipse((x2 - radius * 2, y1, x2, y1 + radius * 2), fill=fill, outline=outline, width=width)
+        draw.ellipse((x1, y2 - radius * 2, x1 + radius * 2, y2), fill=fill, outline=outline, width=width)
+        draw.ellipse((x2 - radius * 2, y2 - radius * 2, x2, y2), fill=fill, outline=outline, width=width)
+        
+        # Draw four sides
+        draw.rectangle((x1 + radius, y1, x2 - radius, y2), fill=fill, outline=None)
+        draw.rectangle((x1, y1 + radius, x2, y2 - radius), fill=fill, outline=None)
+        
+        # Draw outline if specified
+        if outline:
+            draw.line((x1 + radius, y1, x2 - radius, y1), fill=outline, width=width)  # Top
+            draw.line((x1 + radius, y2, x2 - radius, y2), fill=outline, width=width)  # Bottom
+            draw.line((x1, y1 + radius, x1, y2 - radius), fill=outline, width=width)  # Left
+            draw.line((x2, y1 + radius, x2, y2 - radius), fill=outline, width=width)  # Right
 
     @commands.command(aliases=["wh"])
     async def wheel(self, ctx, bet_amount: str = None, spins: int = 1):
@@ -119,72 +278,6 @@ class WheelCog(commands.Cog):
         # Delete loading message
         await loading_message.delete()
 
-        # Create initial wheel embed
-        wheel_embed = discord.Embed(
-            title="<a:hersheyparkSpin:1345317103158431805> Wheel of Fortune",
-            description=(
-                f"The wheel is spinning for {spins} spin{'s' if spins > 1 else ''}...\n\n"
-                "**Your Bet:** "
-            ),
-            color=0x00FFAE
-        )
-
-        # Format bet description
-        per_spin_text = ""
-        wheel_embed.description += f"{total_tokens_used:.2f} points"
-
-        if spins > 1:
-            wheel_embed.description += f" ({per_spin_text} per spin)"
-
-        wheel_embed.add_field(
-            name="Possible Outcomes",
-            value=(
-                "⚪ **Gray** - 0x (Loss)\n"
-                "🟡 **Yellow** - 1.5x\n"
-                "🔴 **Red** - 2x\n"
-                "🔵 **Blue** - 3x\n"
-                "🟢 **Green** - 5x"
-            ),
-            inline=False
-        )
-
-        wheel_embed.add_field(
-            name="Wheel Spinning",
-            value="⚙️ " + "⬛" * 10 + " ⚙️",
-            inline=False
-        )
-
-        wheel_embed.set_footer(text="BetSync Casino • Good luck!", icon_url=self.bot.user.avatar.url)
-
-        # Send the initial wheel embed
-        wheel_message = await ctx.reply(embed=wheel_embed)
-
-        # Create spinning animation - reduced to exactly 2 seconds total
-        spinning_frames = [
-            "⚙️ " + "⬛" * 4 + "🟡" + "⬛" * 5 + " ⚙️",
-            "⚙️ " + "⬛" * 5 + "🔴" + "⬛" * 4 + " ⚙️",
-            "⚙️ " + "⬛" * 6 + "🔵" + "⬛" * 3 + " ⚙️",
-            "⚙️ " + "⬛" * 7 + "🟢" + "⬛" * 2 + " ⚙️",
-            "⚙️ " + "⬛" * 8 + "⚪" + "⬛" * 1 + " ⚙️",
-            "⚙️ " + "⬛" * 9 + "🟡" + " ⚙️",
-            "⚙️ " + "🔴" + "⬛" * 9 + " ⚙️",
-            "⚙️ " + "⬛" * 1 + "🔵" + "⬛" * 8 + " ⚙️",
-            "⚙️ " + "⬛" * 2 + "🟢" + "⬛" * 7 + " ⚙️",
-            "⚙️ " + "⬛" * 3 + "⚪" + "⬛" * 6 + " ⚙️"
-        ]
-
-        # Animate the wheel spinning - 20 frames × 0.1s = 2 seconds total
-        for _ in range(1):  # Reduced to 2 cycles
-            for frame in spinning_frames:
-                wheel_embed.set_field_at(
-                    1,  # Index 1 is the "Wheel Spinning" field
-                    name="Wheel Spinning",
-                    value=frame,
-                    inline=False
-                )
-                await wheel_message.edit(embed=wheel_embed)
-                await asyncio.sleep(0.1)  # Reduced speed for animation
-
         # Calculate results for all spins with house edge (3-5%)
         house_edge = 0.04  # 4% house edge
 
@@ -228,30 +321,50 @@ class WheelCog(commands.Cog):
                 "winnings": winnings
             })
 
-        # Update the wheel embed with a single animated result
-        random_result = random.choice(spin_results)
-        result_frame = "⚙️ " + "⬛" * 5 + random_result["emoji"] + "⬛" * 4 + " ⚙️"
-        wheel_embed.set_field_at(
-            1,
-            name="Wheel Animation",
-            value=result_frame,
-            inline=False
+        # Generate wheel image with result
+        # Use the first spin result for the main wheel display
+        main_result = spin_results[0]
+        wheel_image = await self.generate_wheel_image(
+            main_result["color"], 
+            bet_total, 
+            main_result["winnings"], 
+            spins
         )
 
-        # Create a summary of all results
-        results_summary = ""
-        wins_count = 0
-        for i, result in enumerate(spin_results):
-            if result["multiplier"] > 0:
-                wins_count += 1
-            results_summary += f"Spin {i+1}: {result['emoji']} ({result['color'].capitalize()}) - {result['multiplier']}x - {result['winnings']:.2f} points\n"
-
-        # Add overall results summary
-        wheel_embed.add_field(
-            name=f"Spin Results ({wins_count}/{spins} wins)",
-            value=results_summary,
-            inline=False
+        # Create result embed
+        wheel_embed = discord.Embed(
+            title="🎰 Wheel of Fortune Results",
+            color=0x00FFAE
         )
+
+        # Format bet description
+        wheel_embed.description = f"**Bet:** {total_tokens_used:.2f} points"
+        if spins > 1:
+            wheel_embed.description += f" ({bet_total:.2f} per spin)"
+
+        # Create a summary of all results for multiple spins
+        if spins > 1:
+            results_summary = ""
+            wins_count = 0
+            for i, result in enumerate(spin_results):
+                if result["multiplier"] > 0:
+                    wins_count += 1
+                results_summary += f"Spin {i+1}: {result['emoji']} ({result['color'].capitalize()}) - {result['multiplier']}x - {result['winnings']:.2f} points\n"
+
+            # Add overall results summary
+            wheel_embed.add_field(
+                name=f"Spin Results ({wins_count}/{spins} wins)",
+                value=results_summary,
+                inline=False
+            )
+        else:
+            # Single spin - show main result
+            main_result = spin_results[0]
+            wheel_embed.add_field(
+                name="Result",
+                value=f"{main_result['emoji']} **{main_result['color'].capitalize()}** - {main_result['multiplier']}x multiplier",
+                inline=False
+            )
 
         # Add overall result field
         if total_winnings > 0:
@@ -374,8 +487,12 @@ class WheelCog(commands.Cog):
                 inline=False
             )
 
-        # Update the embed with play again button
-        await wheel_message.edit(embed=wheel_embed)
+        # Create Discord file from image
+        wheel_file = discord.File(wheel_image, filename="wheel_result.png")
+        wheel_embed.set_image(url="attachment://wheel_result.png")
+
+        # Send the result with image
+        wheel_message = await ctx.reply(embed=wheel_embed, file=wheel_file)
 
         # Create play again view
         view = PlayAgainView(self, ctx, bet_total, spins=spins)
