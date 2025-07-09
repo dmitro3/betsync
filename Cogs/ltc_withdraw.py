@@ -135,21 +135,11 @@ class WithdrawView(discord.ui.View):
         embed.color = discord.Color.red()
         embed.description = f"Denied by {interaction.user.mention}. Points refunded."
         
-        # Log denial
-        log_embed = discord.Embed(
-            title="<:no:1344252518305234987> | Withdrawal Denied",
-            description=f"**User:** <@{self.user_id}>\n"
-                      f"**Amount:** {self.amount:,.2f} points\n"
-                      f"**Reason:** Denied by {interaction.user.name}",
-            color=discord.Color.red()
-        )
-        
         # Disable buttons
         for item in self.children:
             item.disabled = True
             
         await self.message.edit(embed=embed, view=self)
-        await self.cog.bot.get_channel(int(os.environ.get("LOGS"))).send(embed=log_embed)
         
         # Notify user with embed
         user = self.cog.bot.get_user(self.user_id)
