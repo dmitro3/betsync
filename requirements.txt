@@ -18,3 +18,4 @@ solana
 solders
 bip-utils
 discord-py
+base58
