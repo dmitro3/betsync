@@ -517,6 +517,15 @@ class Blackjack(commands.Cog):
                 # Player has blackjack - check if dealer also has blackjack
                 dealer_value = view.calculate_hand_value(view.dealer_cards)
 
+                # Set game as over and disable buttons
+                view.game_over = True
+                for child in view.children:
+                    child.disabled = True
+
+                # Remove from ongoing games immediately
+                if ctx.author.id in self.ongoing_games:
+                    del self.ongoing_games[ctx.author.id]
+
                 if dealer_value == 21 and len(view.dealer_cards) == 2:
                     # Both have blackjack - push
                     embed = discord.Embed(
@@ -524,15 +533,6 @@ class Blackjack(commands.Cog):
                         description="Both you and the dealer have Blackjack! Push!",
                         color=discord.Color.yellow()
                     )
-
-                    # Set game as over
-                    view.game_over = True
-                    for child in view.children:
-                        child.disabled = True
-
-                    # Remove from ongoing games
-                    if ctx.author.id in self.ongoing_games:
-                        del self.ongoing_games[ctx.author.id]
 
                     # Handle push in database
                     await self.handle_game_end(
@@ -552,11 +552,6 @@ class Blackjack(commands.Cog):
                         description=f"**You win** `{win_amount:.2f} {currency_used}`",
                         color=discord.Color.green()
                     )
-
-                    # Set game as over
-                    view.game_over = True
-                    for child in view.children:
-                        child.disabled = True
 
                     # Handle blackjack win in database
                     await self.handle_game_end(
