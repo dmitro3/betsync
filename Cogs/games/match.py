@@ -205,7 +205,7 @@ class MatchGameView(discord.ui.View):
 class Match(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.ongoing_games = {},
+        self.ongoing_games = {}
         self.ctx = None
 
     @commands.command(aliases=["mat", "matchgame"])
