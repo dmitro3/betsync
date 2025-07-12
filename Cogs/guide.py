@@ -12,7 +12,7 @@ class Guide(commands.Cog):
         self.required = [self.emojis["money"]]
         self.bot = bot
 
-    @commands.command()
+    @commands.command(aliases=['cmds'])
     async def help(self, ctx):
         """Main help command with categorized commands and pagination"""
         # Create category dropdown
@@ -292,6 +292,49 @@ class Guide(commands.Cog):
         embed.set_author(name="BetSync Official Guide", icon_url=self.bot.user.avatar.url)
 
         await ctx.message.reply(embed=embed)
+
+    @commands.command(aliases=['game'])
+    async def games(self, ctx):
+        """Display all available casino games with descriptions"""
+        # Get game descriptions from Start cog
+        start_cog = self.bot.get_cog("Start")
+        game_descriptions = start_cog.game_descriptions if start_cog else {}
+        
+        # Build games embed with pagination
+        embeds = []
+        games_per_page = 8
+        game_list = list(game_descriptions.items())
+        
+        for i in range(0, len(game_list), games_per_page):
+            page_games = game_list[i:i+games_per_page]
+            
+            embed = discord.Embed(
+                title="🎮 BetSync Casino Games",
+                description=f"Here are all {len(game_list)} available games! Use `.{game_name}` to play any game.",
+                color=0x00FFAE
+            )
+            
+            for game_name, description in page_games:
+                embed.add_field(
+                    name=f"🎲 `.{game_name}`",
+                    value=description,
+                    inline=False
+                )
+            
+            embed.set_footer(text=f"Page {i//games_per_page + 1}/{(len(game_list)+games_per_page-1)//games_per_page} • BetSync Casino")
+            embed.set_thumbnail(url=self.bot.user.avatar.url)
+            embeds.append(embed)
+        
+        # Use pagination if more than one page
+        if len(embeds) > 1:
+            view = GamePaginator(embeds)
+            await ctx.reply(embed=embeds[0], view=view)
+        else:
+            await ctx.reply(embed=embeds[0] if embeds else discord.Embed(
+                title="🎮 BetSync Casino Games", 
+                description="No games available at the moment.", 
+                color=0x00FFAE
+            ))
 
 def setup(bot):
     bot.add_cog(Guide(bot))
