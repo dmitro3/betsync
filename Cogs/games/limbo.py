@@ -196,8 +196,8 @@ class LimboGame:
 
         # Now display the final result with the last roll
         embed = self.create_embed()
-        #file = await self.generate_multiplier_image(last_roll_multiplier, last_roll_won)
-        #embed.set_image(url="attachment://limbo_result.png")
+        file = await self.generate_multiplier_image(last_roll_multiplier, last_roll_won)
+        embed.set_image(url="attachment://limbo_result.png")
 
         # Create results summary embed field
         embed.add_field(
@@ -206,7 +206,7 @@ class LimboGame:
             inline=False
         )
 
-        await self.message.edit(embed=embed, view=LimboControlView(self, show_cashout=False))
+        await self.message.edit(embed=embed, file=file, view=LimboControlView(self, show_cashout=False))
         self.running = False
 
         # Clean up the game from ongoing_games
@@ -318,10 +318,10 @@ class LimboGame:
 
                 # Update display
                 embed = self.create_embed()
-                #file = await self.generate_multiplier_image(rounded_multiplier, won)
-                #embed.set_image(url="attachment://limbo_result.png")
+                file = await self.generate_multiplier_image(rounded_multiplier, won)
+                embed.set_image(url="attachment://limbo_result.png")
 
-                await self.message.edit(embed=embed, view=LimboControlView(self))
+                await self.message.edit(embed=embed, file=file, view=LimboControlView(self))
 
                 # Wait before next roll
                 await asyncio.sleep(1.0)  # Normal speed for auto mode
@@ -384,39 +384,92 @@ class LimboGame:
         return embed
 
     async def generate_multiplier_image(self, multiplier, won):
-        """Generate an image showing the multiplier"""
+        """Generate an image showing the multiplier in BetRush style"""
         # Create a new image with dark background
-        width, height = 500, 300
-        background_color = (17, 24, 39)  # Dark blue-black
+        width, height = 600, 300
+        background_color = (45, 60, 75)  # Dark blue-grey background
 
         img = Image.new('RGB', (width, height), background_color)
         draw = ImageDraw.Draw(img)
 
-        # Determine text color based on win/loss
-        text_color = (0, 255, 0) if won else (255, 0, 0)  # Green for win, red for loss
-
-        # Prepare the text
-        multiplier_text = f"{multiplier:.2f}x"
-
-        # Choose font size based on text length
-        font_size = 120
-        if len(multiplier_text) > 5:
-            font_size = int(font_size * 7 / len(multiplier_text))
-
-        # Load font
+        # Load fonts
         try:
-            font = ImageFont.truetype("roboto.ttf", font_size)
+            title_font = ImageFont.truetype("roboto.ttf", 24)
+            multiplier_font = ImageFont.truetype("roboto.ttf", 80)
+            small_font = ImageFont.truetype("roboto.ttf", 18)
         except:
-            # Fallback to default font
-            font = ImageFont.load_default()
+            title_font = ImageFont.load_default()
+            multiplier_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
 
-        # Center the text
-        text_width = draw.textlength(multiplier_text, font=font)
-        text_height = font_size
-        position = ((width - text_width) / 2, (height - text_height) / 2)
+        # Colors
+        white_color = (255, 255, 255)
+        grey_color = (150, 150, 150)
+        
+        # Determine multiplier color based on value and win/loss
+        if multiplier >= 10.0:
+            multiplier_color = (79, 172, 254)  # Blue for high multipliers
+        elif multiplier >= 2.0:
+            multiplier_color = (79, 172, 254)  # Blue for medium multipliers
+        else:
+            multiplier_color = (255, 165, 0)  # Orange for low multipliers
 
-        # Draw the text
-        draw.text(position, multiplier_text, font=font, fill=text_color)
+        # Draw "BetSync" watermark in top left
+        draw.text((20, 20), "BetSync", font=title_font, fill=grey_color)
+
+        # Draw "Target: X.XXx" in top right
+        target_text = f"Target: {self.target_multiplier:.2f}x"
+        target_bbox = draw.textbbox((0, 0), target_text, font=title_font)
+        target_width = target_bbox[2] - target_bbox[0]
+        draw.text((width - target_width - 20, 20), target_text, font=title_font, fill=grey_color)
+
+        # Draw "CRASHED AT" text
+        crashed_text = "CRASHED AT"
+        crashed_bbox = draw.textbbox((0, 0), crashed_text, font=small_font)
+        crashed_width = crashed_bbox[2] - crashed_bbox[0]
+        draw.text(((width - crashed_width) // 2, 70), crashed_text, font=small_font, fill=grey_color)
+
+        # Draw the main multiplier
+        multiplier_text = f"{multiplier:.2f}x"
+        multiplier_bbox = draw.textbbox((0, 0), multiplier_text, font=multiplier_font)
+        multiplier_width = multiplier_bbox[2] - multiplier_bbox[0]
+        multiplier_height = multiplier_bbox[3] - multiplier_bbox[1]
+        
+        # Center the multiplier text
+        multiplier_x = (width - multiplier_width) // 2
+        multiplier_y = (height - multiplier_height) // 2 - 10
+        draw.text((multiplier_x, multiplier_y), multiplier_text, font=multiplier_font, fill=multiplier_color)
+
+        # Draw progress bar
+        bar_width = 400
+        bar_height = 8
+        bar_x = (width - bar_width) // 2
+        bar_y = height - 60
+
+        # Background bar (dark)
+        draw.rectangle([bar_x, bar_y, bar_x + bar_width, bar_y + bar_height], 
+                      fill=(30, 40, 50))
+
+        # Calculate progress based on multiplier vs target
+        if self.target_multiplier > 0:
+            progress = min(multiplier / self.target_multiplier, 1.0)
+        else:
+            progress = 0.5
+        
+        progress_width = int(bar_width * progress)
+        
+        # Progress bar (colored)
+        if progress_width > 0:
+            draw.rectangle([bar_x, bar_y, bar_x + progress_width, bar_y + bar_height], 
+                          fill=multiplier_color)
+
+        # Draw circle indicator on progress bar
+        circle_x = bar_x + progress_width
+        circle_y = bar_y + bar_height // 2
+        circle_radius = 8
+        draw.ellipse([circle_x - circle_radius, circle_y - circle_radius,
+                     circle_x + circle_radius, circle_y + circle_radius], 
+                    fill=white_color)
 
         # Save to bytes
         img_bytes = io.BytesIO()
@@ -484,16 +537,16 @@ class LimboCog(commands.Cog):
         self.bot = bot
         self.ongoing_games = {}
 
-    @commands.command(aliases=["l"])
+    @commands.command(aliases=["l", "crash", "cr"])
     async def limbo(self, ctx, bet_amount: str = None, target_multiplier: str = None, rolls_or_currency: str = None):
-        """Play Limbo - choose a target multiplier and win if the roll is higher!"""
+        """Play Limbo/Crash - choose a target multiplier and win if the roll is higher!"""
         if not bet_amount or not target_multiplier:
             embed = discord.Embed(
-                title="🎮 How to Play Limbo",
+                title="🎮 How to Play Limbo/Crash",
                 description=(
-                    "**Limbo** is a game where you set a target multiplier. If the rolled number is higher than or equal to your target, you win!\n\n"
-                    "**Usage:** `!limbo <bet_amount> <target_multiplier> [rolls]`\n"
-                    "**Example:** `!limbo 100 1.5` or `!limbo 50 2.75 10` or `!limbo 100 2 auto`\n\n"
+                    "**Limbo/Crash** is a game where you set a target multiplier. If the rolled number is higher than or equal to your target, you win!\n\n"
+                    "**Usage:** `!limbo <bet_amount> <target_multiplier> [rolls]` or `!crash <bet_amount> <target_multiplier> [rolls]`\n"
+                    "**Example:** `!limbo 100 1.5` or `!crash 50 2.75 10` or `!limbo 100 2 auto`\n\n"
                     "- **Lower target multipliers are easier to win but pay less**\n"
                     "- **Higher target multipliers are harder to win but pay more**\n"
                     "- **Minimum target multiplier is 1.01x**\n"
