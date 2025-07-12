@@ -207,10 +207,15 @@ class Fetches(commands.Cog):
         # Fetch user info
         info = db.fetch_user(user.id)
         if not info:
-            # Create embed
+            # Create embed with appropriate message based on whether it's the author or mentioned user
+            if user == ctx.author:
+                description = "You need an account to check your balance."
+            else:
+                description = f"{user.mention} hasn't registered yet."
+            
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Account Required",
-                description="You need an account to check your balance.",
+                description=description,
                 color=0xFF0000
             )
             await ctx.reply(embed=embed)
