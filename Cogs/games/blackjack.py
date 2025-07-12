@@ -147,7 +147,8 @@ class BlackjackView(discord.ui.View):
                 color=0x00FFAE
             )
             embed.add_field(name="Your Hand", value=f"{player_value}", inline=True)
-            embed.add_field(name="Dealer's Hand", value=f"?", inline=True)  # Hide dealer's full hand
+            dealer_visible_value = CARD_VALUES[self.dealer_cards[0][0]]
+            embed.add_field(name="Dealer's Hand", value=f"{dealer_visible_value} + ?", inline=True)  # Show dealer's first card value
             embed.set_image(url="attachment://blackjack_game.png")
 
             await interaction.message.edit(embed=embed, view=self)
@@ -562,7 +563,8 @@ class Blackjack(commands.Cog):
                     color=0x00FFAE
                 )
                 embed.add_field(name="Your Hand", value=f"{player_value}", inline=True)
-                embed.add_field(name="Dealer's Hand", value="?", inline=True)  # Hide dealer's full hand
+                dealer_visible_value = CARD_VALUES[view.dealer_cards[0][0]]
+                embed.add_field(name="Dealer's Hand", value=f"{dealer_visible_value} + ?", inline=True)  # Show dealer's first card value
                 embed.set_image(url="attachment://blackjack_game.png")
 
                 # Delete loading message
@@ -596,8 +598,17 @@ class Blackjack(commands.Cog):
         """Generate game image showing card hands, styled like the provided image"""
         # Image dimensions and settings
         width, height = 1000, 600
-        bg_color = (8, 28, 40)  # Darker navy blue background to match reference image
-        image = Image.new('RGB', (width, height), bg_color)
+        
+        # Load background image
+        try:
+            bg_image = Image.open("bjbackground.jpg")
+            bg_image = bg_image.resize((width, height))
+            image = bg_image
+        except:
+            # Fallback to solid color if background image fails to load
+            bg_color = (8, 28, 40)
+            image = Image.new('RGB', (width, height), bg_color)
+        
         draw = ImageDraw.Draw(image)
 
         try:
@@ -662,7 +673,13 @@ class Blackjack(commands.Cog):
         # Function to draw a card hand with value bubble
         def draw_hand(cards, y_position, is_dealer=False):
             # Calculate total displayed width for centering
-            num_cards = len(cards if show_dealer or not is_dealer else [cards[0]])
+            if is_dealer and not show_dealer:
+                displayed_cards = [cards[0]]
+                num_cards = 1
+            else:
+                displayed_cards = cards
+                num_cards = len(cards)
+            
             total_width = card_width + ((num_cards - 1) * card_offset)
             start_x = (width - total_width) // 2
 
@@ -670,10 +687,8 @@ class Blackjack(commands.Cog):
             if is_dealer and not show_dealer:
                 # Only show value of first card if dealer's hand is hidden
                 value = CARD_VALUES[cards[0][0]]
-                displayed_cards = [cards[0]]
             else:
-                displayed_cards = cards
-                # Calculate hand value
+                # Calculate full hand value
                 value = 0
                 aces = 0
 
@@ -719,27 +734,25 @@ class Blackjack(commands.Cog):
                 idx = len(displayed_cards) - 1 - i
                 x = start_x + (idx * card_offset)
 
-                # Determine which card image to use
+                # Check if this should be a hidden card
                 if is_dealer and idx > 0 and not show_dealer:
-                    # Use back card for dealer's hidden card
-                    card_path = "assests/back_card.png"
+                    # Draw back of card for dealer's hidden card
+                    draw.rounded_rectangle(
+                        (x, y_position, x + card_width, y_position + card_height),
+                        radius=10,
+                        fill=(0, 0, 139),  # Dark blue
+                        outline=(220, 220, 220)
+                    )
+                    
+                    # Draw card back pattern
+                    draw.text(
+                        (x + (card_width // 2), y_position + (card_height // 2)),
+                        "🂠",
+                        font=title_font,
+                        fill=(255, 255, 255),
+                        anchor="mm"
+                    )
                 else:
-                    card_path = f"assests/{card[1]}_{card[0]}.png"
-
-                try:
-                    # Load and resize card image
-                    card_img = Image.open(card_path).convert('RGBA')
-                    card_img = card_img.resize((card_width, card_height))
-
-                    # Create white background for card with subtle shadow effect
-                    card_bg = Image.new('RGB', (card_width, card_height), (255, 255, 255))
-                    card_bg.paste(card_img, (0, 0), card_img)
-
-                    # Add card to main image
-                    image.paste(card_bg, (x, y_position))
-
-                except Exception as e:
-                    # Fallback to drawing basic card if image loading fails
                     # Draw card with rounded corners
                     draw.rounded_rectangle(
                         (x, y_position, x + card_width, y_position + card_height),
@@ -748,7 +761,7 @@ class Blackjack(commands.Cog):
                         outline=(220, 220, 220)
                     )
 
-                    # Draw rank and suit
+                    # Get rank and suit
                     rank = card[0]
                     suit = card[1]
 
@@ -766,10 +779,13 @@ class Blackjack(commands.Cog):
                     elif suit == 'clubs':
                         suit_symbol = "♣"
 
-                    # Draw large symbol in center
+                    # Create the card text (e.g., "9♠", "2♥")
+                    card_text = f"{rank}{suit_symbol}"
+                    
+                    # Draw large card text in center
                     draw.text(
                         (x + (card_width // 2), y_position + (card_height // 2)),
-                        suit_symbol,
+                        card_text,
                         font=title_font,
                         fill=text_color,
                         anchor="mm"
@@ -779,13 +795,13 @@ class Blackjack(commands.Cog):
                     draw.text(
                         (x + 10, y_position + 10),
                         rank,
-                        font=title_font,
+                        font=subtitle_font,
                         fill=text_color
                     )
 
                     # Draw small suit under rank
                     draw.text(
-                        (x + 10, y_position + 40),
+                        (x + 10, y_position + 35),
                         suit_symbol,
                         font=subtitle_font,
                         fill=text_color
@@ -793,13 +809,13 @@ class Blackjack(commands.Cog):
 
                     # Draw inverted rank and suit at bottom-right
                     draw.text(
-                        (x + card_width - 25, y_position + card_height - 40),
+                        (x + card_width - 25, y_position + card_height - 35),
                         rank,
-                        font=title_font,
+                        font=subtitle_font,
                         fill=text_color
                     )
                     draw.text(
-                        (x + card_width - 25, y_position + card_height - 70),
+                        (x + card_width - 25, y_position + card_height - 60),
                         suit_symbol,
                         font=subtitle_font,
                         fill=text_color
