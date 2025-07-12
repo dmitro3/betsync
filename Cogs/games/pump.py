@@ -492,6 +492,19 @@ class PumpCog(commands.Cog):
             )
             return await ctx.reply(embed=embed)
 
+        # Validate and set default difficulty
+        if not difficulty:
+            difficulty = "easy"
+        else:
+            difficulty = difficulty.lower()
+            if difficulty not in ["easy", "medium", "hard", "extreme"]:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Invalid Difficulty",
+                    description="Please choose from: **easy**, **medium**, **hard**, or **extreme**",
+                    color=0xFF0000
+                )
+                return await ctx.reply(embed=embed)
+
         #loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
             title=f"Preparing Pump Game...",
