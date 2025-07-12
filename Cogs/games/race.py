@@ -370,6 +370,12 @@ class RaceCog(commands.Cog):
         if author.id in self.ongoing_games:
             del self.ongoing_games[author.id]
 
+        # Delete the race in progress message
+        try:
+            await message.delete()
+        except Exception as e:
+            print(f"Error deleting race progress message: {e}")
+
         # Add play again button
         play_again_view = RacePlayAgainView(self, ctx, bet_amount, timeout=60)
         play_again_message = await ctx.reply(embed=result_embed, view=play_again_view)
