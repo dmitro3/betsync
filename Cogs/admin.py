@@ -1311,6 +1311,7 @@ class AdminCommands(commands.Cog):
                 ("sp", "Display server profit data with rankings", "!sp [YYYY-MM-DD]"),
                 ("tp", "Display total profit graph", "!tp [daily/monthly/all_time]"),
                 ("game_np", "Check game performance statistics", "!game_np [game_name]"),
+                ("cleardb", "Clear database collections selectively", "!cleardb [all]"),
                 ("adminpanel", "Show this admin panel", "!adminpanel [page]")
             ]
             
@@ -1617,6 +1618,267 @@ class AdminCommands(commands.Cog):
             )
             await loading_message.edit(embed=error_embed)
     
+    @commands.command(name="cleardb")
+    async def cleardb(self, ctx, target: str = None):
+        """Clear database collections (Bot Admin only)
+        
+        Usage: !cleardb - Shows dropdown menu to select what to clear
+               !cleardb all - Clears everything immediately
+        """
+        # Check if command user is an admin
+        if not self.is_admin(ctx.author.id):
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Access Denied",
+                description="This command is restricted to administrators only.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
+        
+        # If 'all' is specified, clear everything immediately
+        if target and target.lower() == "all":
+            # Create confirmation embed
+            confirm_embed = discord.Embed(
+                title="⚠️ | FINAL WARNING - CLEAR ALL DATA",
+                description="**YOU ARE ABOUT TO DELETE ALL DATABASE DATA**\n\nThis action will permanently remove:\n• All user accounts and balances\n• All server configurations\n• All profit tracking data\n• All game statistics\n• Everything in the database\n\n**THIS CANNOT BE UNDONE!**",
+                color=0xFF0000
+            )
+            confirm_embed.add_field(
+                name="🔒 Confirmation Required",
+                value="Type `CONFIRM DELETE ALL` within 30 seconds to proceed.\nType anything else to cancel.",
+                inline=False
+            )
+            
+            await ctx.reply(embed=confirm_embed)
+            
+            # Wait for confirmation
+            try:
+                def check(message):
+                    return message.author == ctx.author and message.channel == ctx.channel
+                    
+                response = await self.bot.wait_for('message', check=check, timeout=30.0)
+                
+                if response.content.strip() == "CONFIRM DELETE ALL":
+                    await self.execute_cleardb_all(ctx)
+                else:
+                    cancel_embed = discord.Embed(
+                        title="❌ | Operation Cancelled",
+                        description="Database clear operation was cancelled.",
+                        color=0x00FFAE
+                    )
+                    await ctx.reply(embed=cancel_embed)
+                    
+            except asyncio.TimeoutError:
+                timeout_embed = discord.Embed(
+                    title="⏰ | Operation Timed Out",
+                    description="Database clear operation was cancelled due to timeout.",
+                    color=0xFF0000
+                )
+                await ctx.reply(embed=timeout_embed)
+        
+        else:
+            # Show dropdown menu for selective clearing
+            embed = discord.Embed(
+                title="🗂️ | Database Clear Options",
+                description="Select what data you want to clear from the database.\n\n**⚠️ Warning: These operations are irreversible!**",
+                color=0xFFA500
+            )
+            embed.add_field(
+                name="Available Options",
+                value="• **Users Data** - All user accounts and balances\n• **Servers Data** - All server configurations\n• **Profit Data** - Daily profit tracking\n• **Server Profit** - Server-specific profits\n• **Net Profit** - Game statistics\n• **Everything** - Complete database wipe",
+                inline=False
+            )
+            embed.set_footer(text="Use the dropdown below to select what to clear")
+            
+            # Create view with dropdown
+            view = ClearDBView(self, ctx.author.id)
+            message = await ctx.reply(embed=embed, view=view)
+            view.message = message
+    
+    async def execute_cleardb(self, interaction, target):
+        """Execute the database clearing operation"""
+        from pymongo import MongoClient
+        import os
+        
+        # Connect to MongoDB
+        mongodb = MongoClient(os.environ["MONGO"])
+        db = mongodb["BetSync"]
+        
+        try:
+            if target == "users":
+                result = db["users"].delete_many({})
+                embed = discord.Embed(
+                    title="✅ | Users Data Cleared",
+                    description=f"Successfully deleted {result.deleted_count} user records.",
+                    color=0x00FFAE
+                )
+                
+            elif target == "servers":
+                result = db["servers"].delete_many({})
+                embed = discord.Embed(
+                    title="✅ | Servers Data Cleared",
+                    description=f"Successfully deleted {result.deleted_count} server records.",
+                    color=0x00FFAE
+                )
+                
+            elif target == "profit_data":
+                result = db["profit_data"].delete_many({})
+                embed = discord.Embed(
+                    title="✅ | Profit Data Cleared",
+                    description=f"Successfully deleted {result.deleted_count} profit records.",
+                    color=0x00FFAE
+                )
+                
+            elif target == "server_profit":
+                result = db["server_profit"].delete_many({})
+                embed = discord.Embed(
+                    title="✅ | Server Profit Data Cleared",
+                    description=f"Successfully deleted {result.deleted_count} server profit records.",
+                    color=0x00FFAE
+                )
+                
+            elif target == "net_profit":
+                result = db["net_profit"].delete_many({})
+                embed = discord.Embed(
+                    title="✅ | Net Profit Data Cleared",
+                    description=f"Successfully deleted {result.deleted_count} net profit records.",
+                    color=0x00FFAE
+                )
+                
+            elif target == "everything":
+                # Create final confirmation for everything
+                confirm_embed = discord.Embed(
+                    title="⚠️ | FINAL CONFIRMATION - DELETE ALL",
+                    description="**YOU ARE ABOUT TO DELETE EVERYTHING IN THE DATABASE**\n\nThis will permanently remove ALL data across ALL collections.\n\n**THIS CANNOT BE UNDONE!**",
+                    color=0xFF0000
+                )
+                confirm_embed.add_field(
+                    name="🔒 Final Confirmation",
+                    value="Click the 'CONFIRM DELETE ALL' button below to proceed.\nThis interaction will expire in 30 seconds.",
+                    inline=False
+                )
+                
+                # Create confirmation button
+                view = FinalConfirmationView(self, interaction.user.id)
+                await interaction.response.edit_message(embed=confirm_embed, view=view)
+                return
+                
+            embed.set_footer(text=f"Operation performed by {interaction.user.name}", icon_url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
+            await interaction.response.edit_message(embed=embed, view=None)
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="<:no:1344252518305234987> | Database Error",
+                description=f"An error occurred while clearing the database:\n```{str(e)}```",
+                color=0xFF0000
+            )
+            await interaction.response.edit_message(embed=error_embed, view=None)
+    
+    async def execute_cleardb_all(self, ctx):
+        """Execute complete database wipe"""
+        from pymongo import MongoClient
+        import os
+        
+        # Connect to MongoDB
+        mongodb = MongoClient(os.environ["MONGO"])
+        db = mongodb["BetSync"]
+        
+        try:
+            # Get all collections
+            collections = db.list_collection_names()
+            total_deleted = 0
+            
+            # Delete from each collection
+            for collection_name in collections:
+                result = db[collection_name].delete_many({})
+                total_deleted += result.deleted_count
+            
+            embed = discord.Embed(
+                title="💥 | DATABASE COMPLETELY WIPED",
+                description=f"**All data has been permanently deleted**\n\nCollections cleared: {len(collections)}\nTotal records deleted: {total_deleted}",
+                color=0xFF0000
+            )
+            embed.add_field(
+                name="Collections Cleared",
+                value=", ".join(collections) if collections else "None",
+                inline=False
+            )
+            embed.set_footer(text=f"Operation performed by {ctx.author.name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
+            
+            await ctx.reply(embed=embed)
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="<:no:1344252518305234987> | Database Error",
+                description=f"An error occurred while wiping the database:\n```{str(e)}```",
+                color=0xFF0000
+            )
+            await ctx.reply(embed=error_embed)
+
+class FinalConfirmationView(discord.ui.View):
+    def __init__(self, cog, author_id):
+        super().__init__(timeout=30)
+        self.cog = cog
+        self.author_id = author_id
+        
+    @discord.ui.button(label="CONFIRM DELETE ALL", style=discord.ButtonStyle.danger, emoji="💥")
+    async def confirm_delete_all(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("You cannot use this button.", ephemeral=True)
+            return
+        
+        # Execute complete database wipe
+        from pymongo import MongoClient
+        import os
+        
+        # Connect to MongoDB
+        mongodb = MongoClient(os.environ["MONGO"])
+        db = mongodb["BetSync"]
+        
+        try:
+            # Get all collections
+            collections = db.list_collection_names()
+            total_deleted = 0
+            
+            # Delete from each collection
+            for collection_name in collections:
+                result = db[collection_name].delete_many({})
+                total_deleted += result.deleted_count
+            
+            embed = discord.Embed(
+                title="💥 | DATABASE COMPLETELY WIPED",
+                description=f"**All data has been permanently deleted**\n\nCollections cleared: {len(collections)}\nTotal records deleted: {total_deleted}",
+                color=0xFF0000
+            )
+            embed.add_field(
+                name="Collections Cleared",
+                value=", ".join(collections) if collections else "None",
+                inline=False
+            )
+            embed.set_footer(text=f"Operation performed by {interaction.user.name}", icon_url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
+            
+            await interaction.response.edit_message(embed=embed, view=None)
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="<:no:1344252518305234987> | Database Error",
+                description=f"An error occurred while wiping the database:\n```{str(e)}```",
+                color=0xFF0000
+            )
+            await interaction.response.edit_message(embed=error_embed, view=None)
+    
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
+    async def cancel_operation(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("You cannot use this button.", ephemeral=True)
+            return
+        
+        cancel_embed = discord.Embed(
+            title="❌ | Operation Cancelled",
+            description="Database clear operation was cancelled.",
+            color=0x00FFAE
+        )
+        await interaction.response.edit_message(embed=cancel_embed, view=None)
+
     @commands.command(name="game_np", aliases=["gnp"])
     async def game_np(self, ctx, game: str = None):
         """Check how much all games or a specific game is performing
@@ -1759,6 +2021,87 @@ class AdminCommands(commands.Cog):
             )
             await loading_message.edit(embed=error_embed)
 
+class ClearDBDropdown(discord.ui.Select):
+    def __init__(self, cog, author_id):
+        self.cog = cog
+        self.author_id = author_id
+        
+        options = [
+            discord.SelectOption(
+                label="Clear All Users Data",
+                description="Remove all user accounts and their data",
+                value="users",
+                emoji="👥"
+            ),
+            discord.SelectOption(
+                label="Clear All Servers Data", 
+                description="Remove all server configurations and data",
+                value="servers",
+                emoji="🏢"
+            ),
+            discord.SelectOption(
+                label="Clear Profit Data",
+                description="Remove all profit tracking data",
+                value="profit_data",
+                emoji="💰"
+            ),
+            discord.SelectOption(
+                label="Clear Server Profit Data",
+                description="Remove server-specific profit records",
+                value="server_profit",
+                emoji="📊"
+            ),
+            discord.SelectOption(
+                label="Clear Net Profit Data",
+                description="Remove game net profit statistics",
+                value="net_profit",
+                emoji="🎮"
+            ),
+            discord.SelectOption(
+                label="⚠️ CLEAR EVERYTHING ⚠️",
+                description="DELETE ALL DATABASE COLLECTIONS - IRREVERSIBLE",
+                value="everything",
+                emoji="💥"
+            )
+        ]
+        
+        super().__init__(
+            placeholder="Select what data to clear...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+    
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("You cannot use this dropdown.", ephemeral=True)
+            return
+        
+        await self.cog.execute_cleardb(interaction, self.values[0])
+
+class ClearDBView(discord.ui.View):
+    def __init__(self, cog, author_id):
+        super().__init__(timeout=60)
+        self.cog = cog
+        self.author_id = author_id
+        self.add_item(ClearDBDropdown(cog, author_id))
+    
+    async def on_timeout(self):
+        # Disable all items when timeout occurs
+        for item in self.children:
+            item.disabled = True
+        
+        # Try to edit the message to show it's expired
+        try:
+            embed = discord.Embed(
+                title="⏰ | Command Expired",
+                description="The cleardb command has expired. Please run the command again if needed.",
+                color=0xFF0000
+            )
+            await self.message.edit(embed=embed, view=self)
+        except:
+            pass
+
 class AdminPanelPaginator(discord.ui.View):
     def __init__(self, cog, author_id, current_page, total_pages, commands_per_page):
         super().__init__(timeout=60)
@@ -1820,6 +2163,7 @@ class AdminPanelPaginator(discord.ui.View):
             ("sp", "Display server profit data with rankings", "!sp [YYYY-MM-DD]"),
             ("tp", "Display total profit graph", "!tp [daily/monthly/all_time]"),
             ("game_np", "Check game performance statistics", "!game_np [game_name]"),
+            ("cleardb", "Clear database collections selectively", "!cleardb [all]"),
             ("adminpanel", "Show this admin panel", "!adminpanel [page]")
         ]
         
