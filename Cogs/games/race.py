@@ -209,7 +209,7 @@ class RaceCog(commands.Cog):
             )
 
         race_embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-        message = await ctx.send(embed=race_embed)
+        message = await ctx.reply(embed=race_embed)
 
         # Run the race
         winner = None
@@ -218,8 +218,8 @@ class RaceCog(commands.Cog):
             # Add random progress to each car
             winners = []
             for i in range(4):
-                # Faster racing with more varied speeds
-                move = random.randint(1, 3)
+                # Slower racing with less varied speeds
+                move = random.randint(1, 2)
                 car_positions[i] = min(car_positions[i] + move, self.track_length)
 
                 # Track cars that reach the finish line
@@ -261,8 +261,8 @@ class RaceCog(commands.Cog):
             if winner is not None:
                 break
 
-            # Shorter delay between updates (reduced to make race faster)
-            await asyncio.sleep(0.3)
+            # Slower delay between updates
+            await asyncio.sleep(0.8)
 
         # Determine race result
         user_won = selected_car == winner
@@ -342,26 +342,15 @@ class RaceCog(commands.Cog):
                 color=0xFF0000
             )
 
-        # Final race visualization
-        for i in range(4):
-            car_num = i + 1
-            position = car_positions[i]
-
-            # Create final track display
-            track = "⬜" * position + f"{car_colors[i]}" + "⬜" * (self.track_length - position - 1) + "🏁"
-
-            # Highlight winner and player's car
-            car_label = f"{car_emojis[i]} Car {car_num}"
-            if car_num == winner:
-                car_label += " 🏆"
-            if car_num == selected_car:
-                car_label += " (Your Pick)"
-
-            result_embed.add_field(
-                name=car_label,
-                value=track,
-                inline=False
-            )
+        # Show only the winner car in final results
+        winner_position = car_positions[winner - 1]
+        winner_track = "⬜" * winner_position + f"{car_colors[winner - 1]}" + "⬜" * (self.track_length - winner_position - 1) + "🏁"
+        
+        result_embed.add_field(
+            name=f"🏆 Winner: {car_emojis[winner - 1]} Car {winner}",
+            value=winner_track,
+            inline=False
+        )
 
         # Show selected car and result
         result_embed.add_field(
@@ -383,7 +372,7 @@ class RaceCog(commands.Cog):
 
         # Add play again button
         play_again_view = RacePlayAgainView(self, ctx, bet_amount, timeout=60)
-        play_again_message = await message.edit(embed=result_embed, view=play_again_view)
+        play_again_message = await ctx.reply(embed=result_embed, view=play_again_view)
         play_again_view.message = play_again_message
 
 def setup(bot):
