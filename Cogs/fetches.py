@@ -54,7 +54,7 @@ class Fetches(commands.Cog):
 
         return float(f"{total_usd:.2f}")
 
-    @commands.command(name="rate")
+    #@commands.command(name="rate")
     async def rate(self, ctx, amount: float = None, currency: str = None):
         bot_icon = self.bot.user.avatar.url
 
@@ -131,7 +131,7 @@ class Fetches(commands.Cog):
 
         await ctx.message.reply(embed=embed)
 
-    @commands.command()
+    #@commands.command()
     async def stats(self, ctx, user: discord.Member = None):
         user = ctx.author
         user_id = user.id
