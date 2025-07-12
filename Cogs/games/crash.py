@@ -196,7 +196,7 @@ class CrashCog(commands.Cog):
 
         # Create initial graph
         try:
-            initial_embed, initial_file = self.generate_crash_graph(1.0, False)
+            initial_embed, initial_file = self.generate_crash_graph(1.0, False, target_multiplier=crash_point)
             initial_embed.title = "🚀 | Crash Game Started"
             initial_embed.description = (
                 f"{bet_description}\n"
@@ -324,7 +324,7 @@ class CrashCog(commands.Cog):
 
                 try:
                     # Generate updated graph and embed
-                    embed, file = self.generate_crash_graph(multiplier, False)
+                    embed, file = self.generate_crash_graph(multiplier, False, target_multiplier=crash_point)
                     embed.title = "🚀 | Crash Game In Progress"
                     embed.description = (
                         f"{bet_description}\n"
@@ -372,7 +372,7 @@ class CrashCog(commands.Cog):
             if not crash_game.cashed_out:
                 try:
                     # Generate crash graph
-                    embed, file = self.generate_crash_graph(multiplier, True)
+                    embed, file = self.generate_crash_graph(multiplier, True, target_multiplier=crash_point)
                     embed.title = "<:no:1344252518305234987> | CRASHED!"
                     embed.description = (
                         f"{bet_description}\n"
@@ -464,7 +464,7 @@ class CrashCog(commands.Cog):
 
                     # Generate success graph
                     embed, file = self.generate_crash_graph(
-                        cash_out_multiplier, False, cash_out=True)
+                        cash_out_multiplier, False, cash_out=True, target_multiplier=crash_point)
                     embed.title = "<:yes:1355501647538815106> | CASHED OUT!"
                     embed.description = (
                         f"{bet_description}\n"
@@ -592,364 +592,177 @@ class CrashCog(commands.Cog):
     def generate_crash_graph(self,
                              current_multiplier,
                              crashed=False,
-                             cash_out=False):
-        """Generate a crash game graph with improved visuals"""
+                             cash_out=False,
+                             target_multiplier=2.0):
+        """Generate a modern crash game UI using Pillow"""
         try:
-            # Clear and close previous plots to prevent memory issues
-            plt.close('all')
-            fig = plt.figure(figsize=(10, 6), dpi=100)
-
-            # Set background color with a darker theme
-            bg_color = '#1E1F22'
-            plt.gca().set_facecolor(bg_color)
-            plt.gcf().set_facecolor(bg_color)
-
-            # Generate x and y coordinates with more points for smoother curve
-            x = np.linspace(0, current_multiplier,
-                            300)  # Increased for smoother curve
-
-            # Create a more dynamic curve that starts slower and grows faster
-            if current_multiplier <= 1.5:
-                # For small multipliers, use simple exponential
-                y = np.exp(x) - 1
+            # Image dimensions
+            width, height = 800, 400
+            
+            # Color scheme based on multiplier and state
+            bg_color = (52, 73, 94)  # Dark blue-gray #34495e
+            
+            # Progress bar colors based on multiplier ranges
+            if current_multiplier < 2.0:
+                bar_color = (255, 165, 0)  # Orange #ffa500
+                text_color = (255, 165, 0)  # Orange text
+            elif current_multiplier < 10.0:
+                bar_color = (52, 152, 219)  # Blue #3498db
+                text_color = (52, 152, 219)  # Blue text
             else:
-                # For larger multipliers, use a combination for more dramatic curve
-                y = np.power(1.5, x) - 0.5
-
-            # Scale y values to match the current multiplier
-            y = y * (current_multiplier / y[-1])
-
-            # Use the existing figure and set its properties
-            fig.set_facecolor(bg_color)
-            ax = plt.gca()
-            ax.set_facecolor(bg_color)
-
-            # Create a custom gradient that changes based on multiplier and state
+                bar_color = (155, 89, 182)  # Purple #9b59b6
+                text_color = (155, 89, 182)  # Purple text
+            
+            # Override colors for special states
             if crashed:
-                gradient_colors = plt.cm.hot(np.linspace(0, 1, 100))
-                gradient_alpha = 0.15
+                text_color = (231, 76, 60)  # Red #e74c3c
             elif cash_out:
-                gradient_colors = plt.cm.viridis(np.linspace(0, 1, 100))
-                gradient_alpha = 0.15
+                text_color = (46, 204, 113)  # Green #2ecc71
+                
+            # Create image
+            img = Image.new('RGB', (width, height), bg_color)
+            draw = ImageDraw.Draw(img)
+            
+            # Try to load fonts, fallback to default if not available
+            try:
+                # Try to load custom fonts
+                title_font = ImageFont.truetype("arial.ttf", 32)
+                multiplier_font = ImageFont.truetype("arial.ttf", 80)
+                watermark_font = ImageFont.truetype("arial.ttf", 20)
+                target_font = ImageFont.truetype("arial.ttf", 20)
+            except:
+                try:
+                    # Fallback to other font files
+                    title_font = ImageFont.truetype("Helvetica.ttf", 32)
+                    multiplier_font = ImageFont.truetype("Helvetica-Bold.ttf", 80)
+                    watermark_font = ImageFont.truetype("Helvetica.ttf", 20)
+                    target_font = ImageFont.truetype("Helvetica.ttf", 20)
+                except:
+                    # Use default font
+                    title_font = ImageFont.load_default()
+                    multiplier_font = ImageFont.load_default()
+                    watermark_font = ImageFont.load_default()
+                    target_font = ImageFont.load_default()
+            
+            # Draw BetSync watermark (top left)
+            watermark_text = "BetSync"
+            watermark_color = (255, 255, 255, 100)  # Semi-transparent white
+            draw.text((30, 30), watermark_text, fill=watermark_color, font=watermark_font)
+            
+            # Draw target multiplier (top right)
+            target_text = f"Target: {target_multiplier:.2f}x"
+            target_bbox = draw.textbbox((0, 0), target_text, font=target_font)
+            target_width = target_bbox[2] - target_bbox[0]
+            draw.text((width - target_width - 30, 30), target_text, fill=(255, 255, 255, 120), font=target_font)
+            
+            # Draw title text
+            if crashed:
+                title_text = "CRASHED AT"
+            elif cash_out:
+                title_text = "CASHED OUT AT"
             else:
-                if current_multiplier < 2:
-                    gradient_colors = plt.cm.viridis(np.linspace(0, 1, 100))
-                elif current_multiplier < 5:
-                    gradient_colors = plt.cm.plasma(np.linspace(0, 1, 100))
-                else:
-                    gradient_colors = plt.cm.inferno(np.linspace(0, 1, 100))
-                gradient_alpha = 0.12 + min(0.03, current_multiplier *
-                                            0.005)  # Increases with multiplier
-
-            # Apply gradient background
-            gradient = np.linspace(0, 1, 100).reshape(-1, 1)
-            plt.imshow(gradient,
-                       extent=[
-                           0,
-                           max(2, current_multiplier * 1.1), 0,
-                           max(2, current_multiplier * 1.1)
-                       ],
-                       aspect='auto',
-                       cmap='viridis',
-                       alpha=gradient_alpha)
-
-            # Add subtle glowing effect
-            for i, alpha in zip(range(3), [0.05, 0.03, 0.01]):
-                plt.plot(x,
-                         y,
-                         color='white',
-                         linewidth=6 + i * 2,
-                         alpha=alpha,
-                         zorder=1)
-
-            # Determine line color and style based on game state
-            if crashed:
-                line_color = '#FF5555'  # Bright red for crash
-                line_style = '-'
-                line_width = 4
-                glow_color = '#FF0000'
-            elif cash_out:
-                line_color = '#55FF55'  # Bright green for cashout
-                line_style = '-'
-                line_width = 4
-                glow_color = '#00FF00'
+                title_text = "CURRENT MULTIPLIER"
+                
+            title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+            title_width = title_bbox[2] - title_bbox[0]
+            title_x = (width - title_width) // 2
+            title_y = 80
+            draw.text((title_x, title_y), title_text, fill=(255, 255, 255, 180), font=title_font)
+            
+            # Draw main multiplier text
+            multiplier_text = f"{current_multiplier:.2f}x"
+            multiplier_bbox = draw.textbbox((0, 0), multiplier_text, font=multiplier_font)
+            multiplier_width = multiplier_bbox[2] - multiplier_bbox[0]
+            multiplier_x = (width - multiplier_width) // 2
+            multiplier_y = 140
+            
+            # Add glow effect for multiplier text
+            glow_offsets = [(2, 2), (-2, -2), (2, -2), (-2, 2), (0, 2), (0, -2), (2, 0), (-2, 0)]
+            glow_color = tuple(list(text_color) + [80])  # Semi-transparent version
+            for offset in glow_offsets:
+                draw.text((multiplier_x + offset[0], multiplier_y + offset[1]), 
+                         multiplier_text, fill=glow_color, font=multiplier_font)
+            
+            # Main multiplier text
+            draw.text((multiplier_x, multiplier_y), multiplier_text, fill=text_color, font=multiplier_font)
+            
+            # Draw progress bar background
+            bar_y = height - 80
+            bar_height = 12
+            bar_margin = 60
+            bar_bg_color = (44, 62, 80)  # Darker blue-gray
+            
+            # Background bar (full width)
+            draw.rectangle([bar_margin, bar_y, width - bar_margin, bar_y + bar_height], 
+                          fill=bar_bg_color)
+            
+            # Progress bar fill
+            bar_width = width - (2 * bar_margin)
+            
+            # Calculate progress based on target
+            if target_multiplier > 0:
+                progress = min(current_multiplier / target_multiplier, 1.0)
             else:
-                # Create a gradient line color based on multiplier
-                if current_multiplier < 1.5:
-                    line_color = '#00FFAE'  # Teal/cyan color
-                    glow_color = '#00FFAE'
-                elif current_multiplier < 3:
-                    line_color = '#FFDD00'  # Yellow
-                    glow_color = '#FFDD00'
-                elif current_multiplier < 7:
-                    line_color = '#FF8800'  # Orange
-                    glow_color = '#FF8800'
-                else:
-                    line_color = '#FF4400'  # Deep orange/red
-                    glow_color = '#FF4400'
-                line_style = '-'
-                line_width = 3.5
-
-            # Add subtle line glow effect
-            for i, alpha in zip(range(3), [0.2, 0.1, 0.05]):
-                plt.plot(x,
-                         y,
-                         color=glow_color,
-                         linewidth=line_width + i,
-                         alpha=alpha,
-                         zorder=3)
-
-            # Plot the main line
-            plt.plot(x,
-                     y,
-                     color=line_color,
-                     linewidth=line_width,
-                     linestyle=line_style,
-                     zorder=4)
-
-            # Add points along the curve for visual effect
-            if not crashed and not cash_out and current_multiplier > 1.2:
-                # More points for higher multipliers
-                n_points = min(int(current_multiplier * 4), 40)
-                point_indices = np.linspace(0, len(x) - 1, n_points, dtype=int)
-
-                # Add glow to points
-                for i, alpha in zip(range(3), [0.1, 0.05, 0.02]):
-                    plt.scatter(x[point_indices],
-                                y[point_indices],
-                                color='white',
-                                s=20 + i * 10,
-                                alpha=alpha,
-                                zorder=4)
-
-                # Main points with pulsating sizes based on index
-                sizes = 15 + 10 * np.sin(
-                    np.linspace(0, 2 * np.pi, len(point_indices)))
-                plt.scatter(x[point_indices],
-                            y[point_indices],
-                            color='white',
-                            s=sizes,
-                            alpha=0.7,
-                            zorder=5)
-
-            # Add special markers and text for crash or cash out points
+                progress = min(current_multiplier / 10.0, 1.0)  # Fallback
+                
+            fill_width = int(bar_width * progress)
+            
+            if fill_width > 0:
+                draw.rectangle([bar_margin, bar_y, bar_margin + fill_width, bar_y + bar_height], 
+                              fill=bar_color)
+            
+            # Draw progress indicator circle
+            circle_x = bar_margin + fill_width
+            circle_y = bar_y + (bar_height // 2)
+            circle_radius = 8
+            
+            # Circle background (dark)
+            draw.ellipse([circle_x - circle_radius, circle_y - circle_radius,
+                         circle_x + circle_radius, circle_y + circle_radius], 
+                        fill=(255, 255, 255))
+            
+            # Inner circle with bar color
+            inner_radius = 5
+            draw.ellipse([circle_x - inner_radius, circle_y - inner_radius,
+                         circle_x + inner_radius, circle_y + inner_radius], 
+                        fill=bar_color)
+            
+            # Add special effects for crashed state
             if crashed:
-                # Create explosion effect for crash
-                for i, alpha in zip(range(5), [0.05, 0.1, 0.15, 0.2, 0.3]):
-                    plt.scatter([current_multiplier], [current_multiplier],
-                                color='darkred',
-                                s=400 - i * 50,
-                                marker='*',
-                                alpha=alpha,
-                                zorder=5 + i)
-
-                # Main explosion
-                plt.scatter([current_multiplier], [current_multiplier],
-                            color='red',
-                            s=150,
-                            marker='*',
-                            zorder=10)
-
-                # Add "boom" lines radiating from crash point
-                n_lines = 12
-                for i in range(n_lines):
-                    angle = 2 * np.pi * i / n_lines
-                    length = 0.3 + 0.1 * np.random.random()
-                    dx, dy = length * np.cos(angle), length * np.sin(angle)
-                    plt.plot([current_multiplier, current_multiplier + dx],
-                             [current_multiplier, current_multiplier + dy],
-                             color='red',
-                             alpha=0.6,
-                             linewidth=1.5,
-                             zorder=9)
-
-                # Add crash text without shadow effect
-                plt.text(current_multiplier,
-                         current_multiplier + 0.3,
-                         f"CRASHED AT {current_multiplier:.2f}x",
-                         color='white',
-                         fontweight='bold',
-                         fontsize=14,
-                         ha='right',
-                         va='bottom',
-                         bbox=dict(boxstyle="round,pad=0.3",
-                                   facecolor='red',
-                                   alpha=0.8,
-                                   edgecolor='darkred'))
-
+                # Add some red overlay effects
+                overlay = Image.new('RGBA', (width, height), (231, 76, 60, 30))
+                img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
+            
+            # Add special effects for cash out state
             elif cash_out:
-                # Add diamond symbol for cash out with glowing effect
-                for i, alpha in zip(range(5), [0.05, 0.1, 0.15, 0.2, 0.3]):
-                    plt.scatter([current_multiplier], [current_multiplier],
-                                color='darkgreen',
-                                s=300 - i * 30,
-                                marker='D',
-                                alpha=alpha,
-                                zorder=5 + i)
-
-                # Main diamond
-                plt.scatter([current_multiplier], [current_multiplier],
-                            color='lime',
-                            s=130,
-                            marker='D',
-                            zorder=10)
-
-                # Add shine effect on diamond
-                plt.plot([current_multiplier - 0.1, current_multiplier + 0.1],
-                         [current_multiplier + 0.1, current_multiplier - 0.1],
-                         color='white',
-                         alpha=0.8,
-                         linewidth=1.5,
-                         zorder=11)
-
-                # Add cash out text without shadow effect
-                plt.text(current_multiplier,
-                         current_multiplier + 0.3,
-                         f"CASHED OUT AT {current_multiplier:.2f}x",
-                         color='white',
-                         fontweight='bold',
-                         fontsize=14,
-                         ha='right',
-                         va='bottom',
-                         bbox=dict(boxstyle="round,pad=0.3",
-                                   facecolor='green',
-                                   alpha=0.8,
-                                   edgecolor='darkgreen'))
-
-            # Add current multiplier display
-            # Create a more prominent display in top-right corner
-            if not crashed and not cash_out:
-                # Add glowing effect around the multiplier text
-                for i, alpha in zip(range(3), [0.1, 0.07, 0.04]):
-                    plt.text(0.95,
-                             0.95,
-                             f"{current_multiplier:.2f}x",
-                             transform=plt.gca().transAxes,
-                             color='white',
-                             fontsize=22 + i,
-                             fontweight='bold',
-                             ha='right',
-                             va='top',
-                             alpha=alpha)
-
-                # Main multiplier text
-                plt.text(0.95,
-                         0.95,
-                         f"{current_multiplier:.2f}x",
-                         transform=plt.gca().transAxes,
-                         color='white',
-                         fontsize=22,
-                         fontweight='bold',
-                         ha='right',
-                         va='top',
-                         bbox=dict(boxstyle="round,pad=0.3",
-                                   facecolor=line_color,
-                                   alpha=0.8,
-                                   edgecolor='white',
-                                   linewidth=1))
-
-            # Set axes properties with improved grid
-            plt.grid(True, linestyle='--', alpha=0.15, color='white')
-
-            # Add grid highlights at important multiplier levels
-            highlight_multipliers = [2, 5, 10, 15]
-            for m in highlight_multipliers:
-                if m <= current_multiplier * 1.1:
-                    plt.axhline(y=m,
-                                color='white',
-                                alpha=0.2,
-                                linestyle='-',
-                                linewidth=0.8)
-                    plt.text(0.05,
-                             m,
-                             f"{m}x",
-                             color='white',
-                             alpha=0.5,
-                             fontsize=8,
-                             va='bottom')
-
-            # Set limits with more headroom for visual effect
-            plt.xlim(0, max(2, current_multiplier * 1.15))
-            plt.ylim(0, max(2, current_multiplier * 1.15))
-
-            # Remove axis numbers, keep only the graph
-            plt.xticks([])
-            plt.yticks([])
-
-            # Remove spines (borders)
-            for spine in plt.gca().spines.values():
-                spine.set_visible(False)
-
-            # Add subtle BetSync watermark/branding
-            # Add BetSync watermark
-            plt.text(0.5,
-                     0.03,
-                     "BetSync Casino",
-                     transform=plt.gca().transAxes,
-                     color='white',
-                     alpha=0.3,
-                     fontsize=14,
-                     fontweight='bold',
-                     ha='center')
-
-            # Save plot to bytes buffer with higher quality
+                # Add some green overlay effects  
+                overlay = Image.new('RGBA', (width, height), (46, 204, 113, 20))
+                img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
+            
+            # Convert to bytes
             buf = io.BytesIO()
-            plt.savefig(buf,
-                        format='png',
-                        dpi=120,
-                        bbox_inches='tight',
-                        transparent=False)
+            img.save(buf, format='PNG', quality=95)
             buf.seek(0)
-
+            
             # Create discord File object
-            file = discord.File(buf, filename="crash_graph.png")
-
-            # Create embed with the graph
+            file = discord.File(buf, filename="crash_game.png")
+            
+            # Create embed
             embed = discord.Embed(color=0x2B2D31)
-            embed.set_image(url="attachment://crash_graph.png")
-
+            embed.set_image(url="attachment://crash_game.png")
+            
             return embed, file
+            
         except Exception as e:
-            # Error handling for graph generation
-            print(f"Error generating crash graph: {e}")
-
-            # Create a simple fallback embed
+            print(f"Error generating crash image: {e}")
+            
+            # Simple fallback
             embed = discord.Embed(
                 title="Crash Game",
                 description=f"Current Multiplier: {current_multiplier:.2f}x",
                 color=0x2B2D31)
-
-            # Create a simple colored rectangle as fallback
-            try:
-                # Create a simple colored rectangle
-                color = 'red' if crashed else 'green' if cash_out else 'blue'
-                img = Image.new('RGB', (800, 400), color=bg_color)
-                draw = ImageDraw.Draw(img)
-
-                # Draw a simple line representing the curve
-                points = [(i, 400 - int(min(i**1.5, 399)))
-                          for i in range(0, 800, 10)]
-                draw.line(points, fill=color, width=5)
-
-                # Add text
-                if crashed:
-                    text = f"CRASHED: {current_multiplier:.2f}x"
-                elif cash_out:
-                    text = f"CASHED OUT: {current_multiplier:.2f}x"
-                else:
-                    text = f"MULTIPLIER: {current_multiplier:.2f}x"
-
-                # Convert to bytes
-                buf = io.BytesIO()
-                img.save(buf, format='PNG')
-                buf.seek(0)
-                file = discord.File(buf, filename="crash_fallback.png")
-
-                embed.set_image(url="attachment://crash_fallback.png")
-                return embed, file
-            except Exception:
-                # Ultimate fallback with no image
-                return embed, None
+                
+            return embed, None
 
 
 def setup(bot):
