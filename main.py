@@ -58,16 +58,29 @@ cogs = [
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
+        print(f"{Fore.RED}[-] {Fore.WHITE} User {ctx.message.author} tried command: '{ctx.message.content}' - Command not found")
         embed = discord.Embed(
             title="<:no:1344252518305234987> | invalid command",
             description="No such command found, type `!help` to get started",
             color=0xFF0000
         )
         await ctx.reply(embed=embed, delete_after=5)
-        #print(f"{Fore.RED}[-] {Fore.WHITE} User {Fore.BLACK}{ctx.message.author}{Fore.WHITE} tried to use a non-existent command")
     else:
+        print(f"{Fore.RED}[!] {Fore.WHITE}Command error in '{ctx.command}': {Fore.RED}{error}")
+        print(f"{Fore.RED}[!] {Fore.WHITE}Error type: {type(error).__name__}")
         
-        pass #print(f"{Fore.RED}[!] {Fore.WHITE}Command error: {Fore.RED}{error}")
+        # Log specific error details for debugging
+        if hasattr(error, 'original'):
+            print(f"{Fore.RED}[!] {Fore.WHITE}Original error: {error.original}")
+        
+        # Don't send error messages to users for now, just log them
+        # You can enable this later if needed:
+        # embed = discord.Embed(
+        #     title="⚠️ Command Error",
+        #     description=f"An error occurred while processing your command: {str(error)[:100]}...",
+        #     color=0xFF0000
+        # )
+        # await ctx.reply(embed=embed, delete_after=10)
 
 @bot.event
 async def on_guild_join(guild):
@@ -156,7 +169,10 @@ async def on_command(ctx):
                 embed.set_footer(text="BetSync Casino", icon_url=bot.user.avatar.url)
                 await ctx.reply("By using BetSync, you agree to our TOS. Type `!tos` to know more.", embed=embed)
         except Exception as e:
-            #print(f"{Fore.RED}[!] {Fore.WHITE}Error in on_command: {Fore.RED}{e}")
+            print(f"{Fore.RED}[!] {Fore.WHITE}Error in on_command user registration: {Fore.RED}{e}")
+            print(f"{Fore.RED}[!] {Fore.WHITE}User: {ctx.author.name} ({ctx.author.id})")
+            print(f"{Fore.RED}[!] {Fore.WHITE}Command: {ctx.message.content}")
+            # Don't let registration errors stop command execution
             pass
     bg_task = asyncio.create_task(bg())
     await bg_task
@@ -170,6 +186,19 @@ async def on_ready():
 
         # Set bot status
         await bot.change_presence(activity=discord.Game(name="!help | BetSync Casino"))
+        
+        # Add a simple test command
+        @bot.command(name='test')
+        async def test_command(ctx):
+            """Simple test command to verify bot functionality"""
+            embed = discord.Embed(
+                title="✅ Bot Test",
+                description="Bot is working correctly!",
+                color=0x00FF00
+            )
+            embed.add_field(name="User", value=f"{ctx.author.mention}", inline=True)
+            embed.add_field(name="Command", value="!test", inline=True)
+            await ctx.reply(embed=embed)
 
         # Load cogs
         print(f"{Fore.CYAN}[*] {Fore.WHITE}Loading cogs...")
