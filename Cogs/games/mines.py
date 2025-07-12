@@ -72,7 +72,7 @@ class MineButton(discord.ui.Button):
 
             # Update the message
             embed = self.parent_view.create_embed(status="lose")
-            await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self.parent_view)
+            await interaction.response.edit_message(embed=embed, view=self.parent_view)
 
             # Process loss
             await self.parent_view.process_loss(self.parent_view.ctx)
@@ -96,7 +96,6 @@ class MineButton(discord.ui.Button):
 
         else:
             # Safe tile revealed
-            await interaction.response.defer() # Defer interaction here
             if position not in self.parent_view.revealed_tiles:
                 self.parent_view.revealed_tiles.append(position)
 
@@ -110,7 +109,7 @@ class MineButton(discord.ui.Button):
 
                 # Update the message
                 embed = self.parent_view.create_embed(status="playing")
-                await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self.parent_view)
+                await interaction.response.edit_message(embed=embed, view=self.parent_view)
 
                 # Check if all safe tiles revealed (auto cash out)
                 if len(self.parent_view.revealed_tiles) == (self.parent_view.board_size * self.parent_view.board_size) - self.parent_view.mines_count:
@@ -134,14 +133,20 @@ class MineButton(discord.ui.Button):
                     play_again_view.message = self.parent_view.message
 
                     # Edit message with play again button
-                    await self.parent_view.message.edit(embed=embed, view=play_again_view)
+                    try:
+                        await interaction.response.edit_message(embed=embed, view=play_again_view)
+                    except discord.errors.InteractionResponded:
+                        await self.parent_view.message.edit(embed=embed, view=play_again_view)
 
                     # Clear from ongoing games
                     if self.parent_view.ctx.author.id in self.parent_view.cog.ongoing_games:
                         del self.parent_view.cog.ongoing_games[self.parent_view.ctx.author.id]
             else:
                 # Tile already revealed
-                await interaction.response.defer()
+                try:
+                    await interaction.response.defer()
+                except discord.errors.InteractionResponded:
+                    pass
 
 
 class PlayAgainView(discord.ui.View):
