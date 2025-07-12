@@ -166,8 +166,13 @@ class BlackjackView(discord.ui.View):
             # Format player cards with emojis
             player_cards_text = self.format_cards_text(self.player_cards)
 
+            # Show only dealer's first card with its value
+            dealer_first_card = self.dealer_cards[0]
+            dealer_first_card_text = f"{dealer_first_card[0]}{['♥', '♦', '♣', '♠'][['hearts', 'diamonds', 'clubs', 'spades'].index(dealer_first_card[1])]}"
+            dealer_first_value = CARD_VALUES[dealer_first_card[0]]
+            
             embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
-            embed.add_field(name="Dealer's Hand", value=f"?", inline=True)  # Hide dealer's full hand
+            embed.add_field(name="Dealer's Hand", value=f"{dealer_first_card_text} ?\nShowing: {dealer_first_value}", inline=True)
             embed.set_image(url="attachment://blackjack_game.png")
 
             await interaction.message.edit(embed=embed, view=self)
@@ -596,8 +601,13 @@ class Blackjack(commands.Cog):
                 # Format player cards with emojis
                 player_cards_text = view.format_cards_text(view.player_cards)
 
+                # Show only dealer's first card with its value
+                dealer_first_card = view.dealer_cards[0]
+                dealer_first_card_text = f"{dealer_first_card[0]}{['♥', '♦', '♣', '♠'][['hearts', 'diamonds', 'clubs', 'spades'].index(dealer_first_card[1])]}"
+                dealer_first_value = CARD_VALUES[dealer_first_card[0]]
+                
                 embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
-                embed.add_field(name="Dealer's Hand", value="?", inline=True)  # Hide dealer's full hand
+                embed.add_field(name="Dealer's Hand", value=f"{dealer_first_card_text} ?\nShowing: {dealer_first_value}", inline=True)
                 embed.set_image(url="attachment://blackjack_game.png")
 
                 # Delete loading message
