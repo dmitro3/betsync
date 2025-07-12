@@ -1209,5 +1209,4 @@ class CurrencyDropdownView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
 def setup(bot):
-    print(f"Loading Fetches cog with commands: balance, set_balance, wallet, stats, etc.")
     bot.add_cog(Fetches(bot))
