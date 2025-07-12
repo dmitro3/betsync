@@ -84,6 +84,19 @@ class BlackjackView(discord.ui.View):
 
         return value
 
+    def format_cards_text(self, cards):
+        """Format cards into text with suit emojis."""
+        suit_emojis = {
+            'hearts': '♥',
+            'diamonds': '♦',
+            'clubs': '♣',
+            'spades': '♠'
+        }
+        formatted_cards = []
+        for rank, suit in cards:
+            formatted_cards.append(f"{rank}{suit_emojis[suit]}")
+        return ' '.join(formatted_cards)
+
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.primary, custom_id="hit")
     async def hit_button(self, button, interaction):
         if interaction.user.id != self.ctx.author.id:
@@ -115,8 +128,12 @@ class BlackjackView(discord.ui.View):
                 description=f"You busted with {player_value}! Dealer wins.",
                 color=discord.Color.red()
             )
-            embed.add_field(name="Your Hand", value=f"{player_value}", inline=True)
-            embed.add_field(name="Dealer's Hand", value=f"{self.calculate_hand_value(self.dealer_cards)}", inline=True)
+            # Format player cards with emojis
+            player_cards_text = self.format_cards_text(self.player_cards)
+            dealer_cards_text = self.format_cards_text(self.dealer_cards)
+
+            embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
+            embed.add_field(name="Dealer's Hand", value=f"{dealer_cards_text}\nTotal: {self.calculate_hand_value(self.dealer_cards)}", inline=True)
             embed.set_image(url="attachment://blackjack_game.png")
 
             # Handle loss in the database
@@ -146,7 +163,10 @@ class BlackjackView(discord.ui.View):
                 description=f"Your turn! Choose your next move.",
                 color=0x00FFAE
             )
-            embed.add_field(name="Your Hand", value=f"{player_value}", inline=True)
+            # Format player cards with emojis
+            player_cards_text = self.format_cards_text(self.player_cards)
+
+            embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
             embed.add_field(name="Dealer's Hand", value=f"?", inline=True)  # Hide dealer's full hand
             embed.set_image(url="attachment://blackjack_game.png")
 
@@ -212,8 +232,12 @@ class BlackjackView(discord.ui.View):
             description=result_description,
             color=embed_color
         )
-        embed.add_field(name="Your Hand", value=f"{player_value}", inline=True)
-        embed.add_field(name="Dealer's Hand", value=f"{dealer_value}", inline=True)
+        # Format cards with emojis
+        player_cards_text = self.format_cards_text(self.player_cards)
+        dealer_cards_text = self.format_cards_text(self.dealer_cards)
+
+        embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
+        embed.add_field(name="Dealer's Hand", value=f"{dealer_cards_text}\nTotal: {dealer_value}", inline=True)
         embed.set_image(url="attachment://blackjack_game.png")
 
         # Handle game outcome in the database
@@ -321,8 +345,12 @@ class BlackjackView(discord.ui.View):
             description=result_description,
             color=embed_color
         )
-        embed.add_field(name="Your Hand", value=f"{player_value}", inline=True)
-        embed.add_field(name="Dealer's Hand", value=f"{dealer_value}", inline=True)
+        # Format cards with emojis
+        player_cards_text = self.format_cards_text(self.player_cards)
+        dealer_cards_text = self.format_cards_text(self.dealer_cards)
+
+        embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
+        embed.add_field(name="Dealer's Hand", value=f"{dealer_cards_text}\nTotal: {dealer_value}", inline=True)
         embed.set_image(url="attachment://blackjack_game.png")
 
         # Handle game outcome in the database, with doubled bet
@@ -449,7 +477,7 @@ class Blackjack(commands.Cog):
 
             # Import the currency helper
             from Cogs.utils.currency_helper import process_bet_amount
-            
+
 
             # Process the bet amount using the currency helper
             success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
@@ -496,7 +524,7 @@ class Blackjack(commands.Cog):
                     view.game_over = True
                     for child in view.children:
                         child.disabled = True
-                    
+
                     # Remove from ongoing games
                     if ctx.author.id in self.ongoing_games:
                         del self.ongoing_games[ctx.author.id]
@@ -536,8 +564,12 @@ class Blackjack(commands.Cog):
                     )
 
                 # Show both hands
-                embed.add_field(name="Your Hand", value=f"{player_value} (Blackjack!)", inline=True)
-                embed.add_field(name="Dealer's Hand", value=f"{dealer_value}", inline=True)
+                # Format player cards with emojis
+                player_cards_text = view.format_cards_text(view.player_cards)
+                dealer_cards_text = view.format_cards_text(view.dealer_cards)
+
+                embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value} (Blackjack!)", inline=True)
+                embed.add_field(name="Dealer's Hand", value=f"{dealer_cards_text}\nTotal: {dealer_value}", inline=True)
                 embed.set_image(url="attachment://blackjack_game.png")
 
                 # Generate final image showing both hands
@@ -561,7 +593,10 @@ class Blackjack(commands.Cog):
                     description="Your turn! Choose your next move.",
                     color=0x00FFAE
                 )
-                embed.add_field(name="Your Hand", value=f"{player_value}", inline=True)
+                # Format player cards with emojis
+                player_cards_text = view.format_cards_text(view.player_cards)
+
+                embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
                 embed.add_field(name="Dealer's Hand", value="?", inline=True)  # Hide dealer's full hand
                 embed.set_image(url="attachment://blackjack_game.png")
 
@@ -810,6 +845,16 @@ class Blackjack(commands.Cog):
 
         # Draw player's hand at bottom
         draw_hand(player_cards, 400)
+
+        # Load the background image
+        try:
+            background_image = Image.open("assests/bjbackground.jpg").convert('RGB')
+            background_image = background_image.resize((width, height))
+            image = background_image.copy()
+            image.paste(image, (0, 0), image)
+            draw = ImageDraw.Draw(image)
+        except:
+            pass
 
         # Save to bytes
         img_byte_array = io.BytesIO()
