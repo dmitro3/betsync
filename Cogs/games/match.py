@@ -167,16 +167,22 @@ class MatchButton(discord.ui.Button):
             await interaction.response.edit_message(view=self.view)
 
 class PlayAgainButton(discord.ui.Button):
-    def __init__(self, match_cog, bet_amount):
+    def __init__(self, match_cog, bet_amount, user_id):
         super().__init__(style=discord.ButtonStyle.success, label="Play Again", row=4)
         self.match_cog = match_cog
         self.bet_amount = bet_amount
-        #self.currency_type = currency_type
+        self.user_id = user_id
 
     async def callback(self, interaction: discord.Interaction):
+        # Ensure only the original player can click play again
+        if interaction.user.id != self.user_id:
+            return await interaction.response.send_message("This is not your game!", ephemeral=True)
+            
         # Start a new game with the same bet amount
         try:
+            # Create a mock context with the correct user
             ctx = await self.match_cog.bot.get_context(interaction.message)
+            ctx.author = interaction.user  # Override with the actual user
             await self.match_cog.match(ctx, str(self.bet_amount))
         except Exception as e:
             # Handle any errors that might occur
@@ -377,7 +383,7 @@ class Match(commands.Cog):
                 child.disabled = True
         
         # Add Play Again button
-        view.add_item(PlayAgainButton(self, match_game.bet_amount))
+        view.add_item(PlayAgainButton(self, match_game.bet_amount, match_game.user_id))
 
         # Try to edit the message, but handle potential interaction errors
         try:
