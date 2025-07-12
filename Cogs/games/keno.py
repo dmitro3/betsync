@@ -845,7 +845,7 @@ class Keno(commands.Cog):
                 if interaction.user.id != user_id:
                     return await interaction.response.send_message("This is not your game!", ephemeral=True)
                 
-                # Start a new game with same bet amount and currency
+                # Start a new game with same bet amount
                 await interaction.response.defer()
                 
                 # Use the command directly
@@ -853,7 +853,7 @@ class Keno(commands.Cog):
                 if bet_command:
                     new_ctx = await self.bot.get_context(interaction.message)
                     new_ctx.author = interaction.user
-                    await bet_command(new_ctx, str(bet_amount), currency_used)
+                    await bet_command(new_ctx, str(bet_amount))
             
             play_again_button.callback = play_again_callback
             play_again_view.add_item(play_again_button)
