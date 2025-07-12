@@ -7,12 +7,11 @@ from Cogs.utils.emojis import emoji
 
 class RacePlayAgainView(discord.ui.View):
     """View with a Play Again button that shows after a game ends"""
-    def __init__(self, cog, ctx, bet_amount,timeout=60):
+    def __init__(self, cog, ctx, bet_amount, timeout=60):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
         self.bet_amount = bet_amount
-        #self.currency_used = currency_used
         self.message = None
         self.original_author = ctx.author  # Store the original author explicitly
 
@@ -169,32 +168,16 @@ class RaceCog(commands.Cog):
 
         # Acknowledge the selection
         try:
-            await interaction.response.defer()
+            await interaction.response.send_message(f"You selected Car {selected_car}! Race starting...", ephemeral=True)
         except Exception as e:
-            print(f"Error deferring interaction: {e}")
+            print(f"Error responding to interaction: {e}")
 
         try:
-            # Disable all buttons
+            # Delete the car selection message
             message = self.ongoing_games[author.id]["message"]
-            view = discord.ui.View()
-            for i in range(1, 5):
-                btn = discord.ui.Button(label=f"Car {i}", style=discord.ButtonStyle.secondary, disabled=True)
-                view.add_item(btn)
-
-            # Update selection message
-            selection_embed = discord.Embed(
-                title="🏎️ Race Starting",
-                description=(
-                    f"**Bet:** {bet_amount:.2f} {currency_used}\n"
-                    f"**You selected:** Car {selected_car}\n\n"
-                    "The race is about to begin! Good luck!"
-                ),
-                color=0x00FFAE
-            )
-
-            await message.edit(embed=selection_embed, view=view)
+            await message.delete()
         except Exception as e:
-            print(f"Error updating selection message: {e}")
+            print(f"Error deleting selection message: {e}")
 
         # Run the race
         await self.run_race(interaction, selected_car, bet_amount, currency_used)
@@ -211,7 +194,7 @@ class RaceCog(commands.Cog):
         # Initial race display
         race_embed = discord.Embed(
             title="🏁 Race in Progress...",
-            description=f"You chose Car {selected_car}. Race is starting!",
+            description=f"{author.mention} chose Car {selected_car}. Race is starting!",
             color=0x00FFAE
         )
 
@@ -399,7 +382,7 @@ class RaceCog(commands.Cog):
             del self.ongoing_games[author.id]
 
         # Add play again button
-        play_again_view = RacePlayAgainView(self, ctx, bet_amount, currency_used)
+        play_again_view = RacePlayAgainView(self, ctx, bet_amount, timeout=60)
         play_again_message = await message.edit(embed=result_embed, view=play_again_view)
         play_again_view.message = play_again_message
 
