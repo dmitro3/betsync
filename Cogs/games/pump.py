@@ -502,8 +502,10 @@ class PumpCog(commands.Cog):
 
         db = Users()
         from Cogs.utils.currency_helper import process_bet_amount as pt
-        success, bet_info, error_embed = pt(ctx, bet_amount, loading_message)
-        if not success: await loading_message.delete(); await ctx.reply(embed=error_embed)
+        success, bet_info, error_embed = await pt(ctx, bet_amount, loading_message)
+        if not success: 
+            await loading_message.delete()
+            return await ctx.reply(embed=error_embed)
         tokens_used = bet_info["tokens_used"]
         total_bet = bet_info["total_bet_amount"]
 
