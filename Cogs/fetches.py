@@ -243,11 +243,11 @@ class Fetches(commands.Cog):
             if currency not in crypto_values:
                 await ctx.reply(f"**Invalid currency. Supported currencies: {', '.join(crypto_values.keys())}**")
                 return
-            
+
             #Calculate how much of the specified currency the user has based on points
             currency_rate = crypto_values.get(currency, 0)
             currency_value = points * currency_rate
-            
+
             #Prepare currency emojis
             emoji_map = {
                 "BTC": "<:btc:1339343483089063976>",
@@ -256,7 +256,7 @@ class Fetches(commands.Cog):
                 "USDT": "<:usdt:1340981835563401217>",
                 "SOL": "<:sol:1340981839497793556>"
             }
-            
+
             #Create embed to display the balance in the specified currency
             money = emoji()["money"]
             embed = discord.Embed(title=f"{money} | {user.name}'s Balance in {currency}", color=discord.Color.blue())
@@ -268,7 +268,7 @@ class Fetches(commands.Cog):
             embed.set_footer(text="Use !setbal to change your primary currency", icon_url=self.bot.user.avatar.url)
             await ctx.reply(embed=embed)
             return
-            
+
 
         # Get live prices using crypto utility
         try:
@@ -698,32 +698,7 @@ class Fetches(commands.Cog):
         )
 
         # Current rank section
-        embed.add_field(
-            name="Current Rank",
-            value=f"{current_emoji} **{current_rank_name}**\n"
-                  f"Level: **{current_level}**\n"
-                  f"XP: **{current_xp}/{xp_limit}**\n"
-                  f"Rakeback: **{current_rakeback}%**",
-            inline=True
-        )
-
-        # Next rank section
-        embed.add_field(
-            name="Next Rank",
-            value=f"{next_rank_emoji} **{next_rank_name}**\n"
-                  f"Required Level: **{next_rank_level}**\n"
-                  f"Levels Needed: **{levels_needed}**",
-            inline=True
-        )
-
-        # Progress bar
-        progress = min(1.0, current_xp / xp_limit)
-        bar_length = 12
-        filled_bars = round(progress * bar_length)
-        empty_bars = bar_length - filled_bars
-
-        progress_bar = "**Level Progress:**\n"
-        progress_bar += "```\n"
+        embed\n"
         progress_bar += f"[{'■' * filled_bars}{' ' * empty_bars}] {int(progress * 100)}%\n"
         progress_bar += "```"
 
@@ -935,278 +910,4 @@ class Fetches(commands.Cog):
         embed.add_field(
             name="ℹ️ About Rakeback",
             value=(
-                "```\nRakeback is a loyalty reward system that returns a percentage of your bets.\n```\n"
-                f"• Every bet earns {rank_emoji} **{rank_name}** rank members **{rakeback_percentage}%** rakeback\n"
-                "• Higher ranks receive higher rakeback percentages\n"
-                "• Claim your rakeback points to convert them to spendable points"
-            ),
-            inline=False
-        )
-
-        if user.avatar:
-            embed.set_thumbnail(url=user.avatar.url)
-
-        embed.set_footer(text="BetSync Casino • Rakeback Rewards", icon_url=self.bot.user.avatar.url)
-
-        # If viewing someone else's rakeback, don't show any button
-        if user.id != ctx.author.id:
-            return await ctx.reply(embed=embed)
-
-        # Create view with claim button
-        view = self.RakebackButton(self, ctx.author.id, rakeback_tokens)
-
-        # If rakeback tokens are less than 1, disable the button
-        if rakeback_tokens < 1:
-            for child in view.children:
-                child.disabled = True
-                child.label = "Insufficient Rakeback"
-
-        # Send the message with the view and save the returned message object
-        # This allows the view to properly reference the message for updates
-        view.message = await ctx.reply(embed=embed, view=view)
-
-    @commands.command(aliases=["setbal", "setbalance"])
-    async def set_balance(self, ctx, currency: str = None):
-        """
-        Set your primary currency
-        Usage: !setbal [currency] - Set primary currency or show dropdown menu
-        """
-        db = Users()
-        user_data = db.fetch_user(ctx.author.id)
-
-        if not user_data:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Account Required",
-                description="You need an account to set your primary currency.",
-                color=0xFF0000
-            )
-            await ctx.reply(embed=embed)
-            return
-
-        # Currency mapping
-        currency_names = {
-            "BITCOIN": "BTC", "BTC": "BTC",
-            "LITECOIN": "LTC", "LTC": "LTC", 
-            "ETHEREUM": "ETH", "ETH": "ETH",
-            "USDT": "USDT", "TETHER": "USDT",
-            "SOLANA": "SOL", "SOL": "SOL"
-        }
-
-        # Currency emojis
-        emoji_map = {
-            "BTC": "<:btc:1339343483089063976>",
-            "LTC": "<:ltc:1339343445675868191>", 
-            "ETH": "<:eth:1340981832799485985>",
-            "USDT": "<:usdt:1340981835563401217>",
-            "SOL": "<:sol:1340981839497793556>"
-        }
-
-        # If currency is specified, set it directly
-        if currency:
-            currency_upper = currency.upper()
-            if currency_upper in currency_names:
-                new_currency = currency_names[currency_upper]
-
-                # Update primary currency
-                await self.update_primary_currency(ctx, db, new_currency, emoji_map)
-                return
-            else:
-                embed = discord.Embed(
-                    title="<:no:1344252518305234987> | Invalid Currency",
-                    description=f"Invalid currency `{currency}`. Supported currencies: BTC, LTC, ETH, USDT, SOL",
-                    color=0xFF0000
-                )
-                await ctx.reply(embed=embed)
-                return
-
-        # Show dropdown menu
-        embed = discord.Embed(
-            title=":information_source: | Set Primary Currency",
-            description="Choose your primary currency from the dropdown below:",
-            color=0x00FFAE
-        )
-        embed.add_field(
-            name="Available Currencies",
-            value=(
-                f"{emoji_map['BTC']} **Bitcoin (BTC)**\n"
-                f"{emoji_map['LTC']} **Litecoin (LTC)**\n"
-                f"{emoji_map['ETH']} **Ethereum (ETH)**\n"
-                f"{emoji_map['USDT']} **Tether (USDT)**\n"
-                f"{emoji_map['SOL']} **Solana (SOL)**"
-            ),
-            inline=False
-        )
-
-        view = CurrencyDropdownView(ctx.author.id, db, emoji_map)
-        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-        await ctx.reply(embed=embed, view=view)
-
-    async def update_primary_currency(self, ctx, db, new_currency, emoji_map):
-        """Helper method to update primary currency"""
-        crypto_values = {
-            "BTC": 0.00000024,
-            "LTC": 0.00023,
-            "ETH": 0.000010,
-            "USDT": 0.0212,
-            "SOL": 0.0001442
-        }
-
-        user_data = db.fetch_user(ctx.author.id)
-        current_primary = user_data.get("primary_coin", "BTC")
-        current_points = user_data.get("points", 0)
-        wallet = user_data.get("wallet", {})
-
-        # Ensure current_primary is not None
-        if current_primary is None:
-            current_primary = "BTC"
-
-        # Convert current points to current currency amount
-        current_rate = crypto_values.get(current_primary, 0)
-        current_amount = current_points * current_rate
-
-        # Update wallet with current currency
-        wallet[current_primary] = current_amount
-
-        # Calculate new points based on new currency
-        new_rate = crypto_values.get(new_currency, 0)
-        new_amount = wallet.get(new_currency, 0)
-        new_points = new_amount / new_rate if new_rate > 0 else 0
-
-        # Update database
-        db.collection.update_one(
-            {"discord_id": ctx.author.id},
-            {
-                "$set": {
-                    "primary_coin": new_currency,
-                    "points": new_points,
-                    "wallet": wallet
-                }
-            }
-        )
-
-        embed = discord.Embed(
-            title="<:yes:1355501647538815106> | Primary Currency Updated",
-            description=f"Your primary currency has been set to {emoji_map.get(new_currency, '')} **{new_currency}**",
-            color=0x00FF00
-        )
-        embed.add_field(
-            name="New Balance",
-            value=f"`{new_points:.2f} points`",
-            inline=False
-        )
-        embed.set_footer(text="BetSync Casino", icon_url=ctx.bot.user.avatar.url)
-        await ctx.reply(embed=embed)
-
-class CurrencyDropdownView(discord.ui.View):
-    def __init__(self, user_id, db, emoji_map):
-        super().__init__(timeout=60)
-        self.user_id = user_id
-        self.db = db
-        self.emoji_map = emoji_map
-
-    async def interaction_check(self, interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your currency selection!", ephemeral=True)
-            return False
-        return True
-
-    @discord.ui.select(
-        placeholder="Choose your primary currency...",
-        options=[
-            discord.SelectOption(
-                label="Bitcoin (BTC)",
-                description="1 point = 0.00000024 BTC",
-                value="BTC",
-                emoji="<:btc:1339343483089063976>"
-            ),
-            discord.SelectOption(
-                label="Litecoin (LTC)",
-                description="1 point = 0.00023 LTC",
-                value="LTC",
-                emoji="<:ltc:1339343445675868191>"
-            ),
-            discord.SelectOption(
-                label="Ethereum (ETH)",
-                description="1 point = 0.000010 ETH",
-                value="ETH",
-                emoji="<:eth:1340981832799485985>"
-            ),
-            discord.SelectOption(
-                label="Tether (USDT)",
-                description="1 point = 0.0212 USDT",
-                value="USDT",
-                emoji="<:usdt:1340981835563401217>"
-            ),
-            discord.SelectOption(
-                label="Solana (SOL)",
-                description="1 point = 0.0001442 SOL",
-                value="SOL",
-                emoji="<:sol:1340981839497793556>"
-            )
-        ]
-    )
-    async def currency_select(self, select, interaction):
-        selected_currency = select.values[0]
-
-        # Update primary currency
-        crypto_values = {
-            "BTC": 0.00000024,
-            "LTC": 0.00023,
-            "ETH": 0.000010,
-            "USDT": 0.0212,
-            "SOL": 0.0001442
-        }
-
-        user_data = self.db.fetch_user(self.user_id)
-        current_primary = user_data.get("primary_coin", "BTC")
-        current_points = user_data.get("points", 0)
-        wallet = user_data.get("wallet", {})
-
-        # Ensure current_primary is not None
-        if current_primary is None:
-            current_primary = "BTC"
-
-        # Convert current points to current currency amount
-        current_rate = crypto_values.get(current_primary, 0)
-        current_amount = current_points * current_rate
-
-        # Update wallet with current currency
-        wallet[current_primary] = current_amount
-
-        # Calculate new points based on new currency
-        new_rate = crypto_values.get(selected_currency, 0)
-        new_amount = wallet.get(selected_currency, 0)
-        new_points = new_amount / new_rate if new_rate > 0 else 0
-
-        # Update database
-        self.db.collection.update_one(
-            {"discord_id": self.user_id},
-            {
-                "$set": {
-                    "primary_coin": selected_currency,
-                    "points": new_points,
-                    "wallet": wallet
-                }
-            }
-        )
-
-        embed = discord.Embed(
-            title="<:yes:1355501647538815106> | Primary Currency Updated",
-            description=f"Your primary currency has been set to {self.emoji_map.get(selected_currency, '')} **{selected_currency}**",
-            color=0x00FF00
-        )
-        embed.add_field(
-            name="New Balance",
-            value=f"`{new_points:.2f} points`",
-            inline=False
-        )
-        embed.set_footer(text="BetSync Casino", icon_url=interaction.client.user.avatar.url)
-
-        # Disable the dropdown
-        for item in self.children:
-            item.disabled = True
-
-        await interaction.response.edit_message(embed=embed, view=self)
-
-def setup(bot):
-    bot.add_cog(Fetches(bot))
+                "```\nRakeback is a loyalty reward system that returns a percentage of your bets.\n
