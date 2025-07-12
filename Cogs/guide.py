@@ -310,7 +310,7 @@ class Guide(commands.Cog):
             
             embed = discord.Embed(
                 title="🎮 BetSync Casino Games",
-                description=f"Here are all {len(game_list)} available games! Use `.{game_name}` to play any game.",
+                description=f"Here are all {len(game_list)} available games! Use `.game_name` to play any game.",
                 color=0x00FFAE
             )
             
