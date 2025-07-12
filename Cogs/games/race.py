@@ -112,9 +112,6 @@ class RaceCog(commands.Cog):
             color=0x00FFAE
         )
 
-        # Update the loading message with the car selection
-        await loading_message.edit(embed=embed)
-
         # Create buttons to select cars
         view = discord.ui.View(timeout=30)
 
@@ -129,7 +126,9 @@ class RaceCog(commands.Cog):
             car_button.callback = await make_callback(i)
             view.add_item(car_button)
 
-        game_message = await ctx.send(embed=embed, view=view)
+        # Update the loading message with the car selection and buttons
+        await loading_message.edit(embed=embed, view=view)
+        game_message = loading_message
         self.ongoing_games[ctx.author.id]["message"] = game_message
 
         # Auto-cancel the game after 30 seconds if no selection is made
