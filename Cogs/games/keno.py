@@ -332,7 +332,7 @@ class KenoNumberButton(discord.ui.Button):
         view.update_play_button()
         
         # Update the options embed with current selections and probabilities
-        embed = view.cog.create_options_embed(view.ctx.author, view.bet_amount, view.selected_numbers)
+        embed = view.cog.create_options_embed(view.ctx.author, view.bet_amount, view.selected_numbers, view.currency_used)
         
         # Generate paytable image for the current selection
         if view.selected_numbers:
