@@ -681,7 +681,7 @@ class Poker(commands.Cog):
                 print(f"Error updating server profit for loss: {e}")
 
             embed = discord.Embed(
-                title="<:no:1344252518305234987> No Win",
+                title="<:no:1344252518305234987> | You Lost",
                 description=(
                     f"**Hand:** {hand_type}\n"
                     f"**Bet:** `{bet_amount}`"
@@ -739,7 +739,7 @@ class Poker(commands.Cog):
                 print(f"Error updating server profit for loss: {e}")
 
             embed = discord.Embed(
-                title="❌ No Win",
+                title="<:no:1344252518305234987> | No Win",
                 description=(
                     f"**Hand:** {hand_type}\n"
                     f"**Bet:** `{bet_amount} points`"
