@@ -640,7 +640,7 @@ class LtcDeposit(commands.Cog):
 
                 processed_txids.add(txid) # Mark as processed for this check cycle
                 new_deposit_processed_in_this_check = True
-                print(f"{Fore.GREEN}[+] Processed LTC deposit for user {user_id}: {amount_crypto} LTC ({points_credited} points), TXID: {txid}{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}[+] Processed LTC deposit for user {user_id}: {amount_crypto} LTC (direct wallet deposit), TXID: {txid}{Style.RESET_ALL}")
 
                 # Return success details for the *first* successful deposit found in this check
                 # Only return amount and txid, balance update is handled internally
