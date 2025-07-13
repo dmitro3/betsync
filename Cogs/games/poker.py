@@ -648,6 +648,17 @@ class Poker(commands.Cog):
                 {"$inc": {"total_lost": 1, "total_played": 1, "total_spent": bet_amount*multiplier}}
             )
 
+            # Create loss entry for history
+            loss_entry = {
+                "type": "loss",
+                "game": "poker",
+                "bet": bet_amount,
+                "amount": bet_amount*multiplier,
+                "multiplier": multiplier,
+                "hand": hand_type,
+                "timestamp": int(time.time())
+            }
+
             # Add to history
             history_entry = loss_entry.copy()
             db.collection.update_one(
@@ -694,6 +705,17 @@ class Poker(commands.Cog):
                 {"discord_id": ctx.author.id},
                 {"$inc": {"total_lost": 1, "total_played": 1, "total_spent": bet_amount}}
             )
+
+            # Create loss entry for history
+            loss_entry = {
+                "type": "loss",
+                "game": "poker",
+                "bet": bet_amount,
+                "amount": bet_amount,
+                "multiplier": 0,
+                "hand": hand_type,
+                "timestamp": int(time.time())
+            }
 
             # Add to history
             history_entry = loss_entry.copy()
