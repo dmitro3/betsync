@@ -173,6 +173,9 @@ class PlayAgainView(discord.ui.View):
         await interaction.response.defer()
         await interaction.message.edit(view=self)
 
+        # Show processing message
+        await interaction.followup.send("Starting a new game with the same bet...", ephemeral=True)
+
         # Create a new penalty game with the same bet amount
         await self.cog.penalty(self.ctx, str(self.bet_amount))
 
@@ -399,7 +402,7 @@ class PenaltyCog(commands.Cog):
         # Create result embed
         if goal_scored:
             embed = discord.Embed(
-                title=f"<:yes:1355501647538815106> **GOOOOOAL!** ⚽",
+                title=f"<:yes:1355501647538815106> | **GOOOOOAL!** ⚽",
                 description=(
                     f"```diff\n"
                     f"+ SPECTACULAR SHOT! THE CROWD GOES WILD!\n"
@@ -426,7 +429,7 @@ class PenaltyCog(commands.Cog):
 
         else:
             embed = discord.Embed(
-                title=f"<:no:1344252518305234987> **SAVED!** 🥅",
+                title=f"<:no:1344252518305234987> | **SAVED!** 🥅",
                 description=(
                     f"```diff\n"
                     f"- The goalkeeper makes a brilliant save!\n"
@@ -491,7 +494,7 @@ class PenaltyCog(commands.Cog):
         # Create result embed
         if save_made:
             embed = discord.Embed(
-                title=f"<:yes:1355501647538815106> **INCREDIBLE SAVE!** 🥅",
+                title=f"<:yes:1355501647538815106> | **INCREDIBLE SAVE!** 🥅",
                 description=(
                     f"```diff\n"
                     f"+ WHAT A SAVE! ABSOLUTELY PHENOMENAL!\n"
@@ -521,7 +524,7 @@ class PenaltyCog(commands.Cog):
 
         else:
             embed = discord.Embed(
-                title=f"<:no:1344252518305234987> **GOAL CONCEDED!** ⚽",
+                title=f"<:no:1344252518305234987> | **GOAL CONCEDED!** ⚽",
                 description=(
                     f"```diff\n"
                     f"- The striker finds the back of the net!\n"
