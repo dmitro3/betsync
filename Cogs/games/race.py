@@ -132,27 +132,31 @@ class RaceCog(commands.Cog):
 
         # Auto-cancel the game after 30 seconds if no selection is made
         await asyncio.sleep(30)
-        if ctx.author.id in self.ongoing_games and "selected_car" not in self.ongoing_games[ctx.author.id]:
-            if ctx.author.id in self.ongoing_games:
+        
+        # Check if the game still exists and no car was selected
+        if ctx.author.id in self.ongoing_games:
+            game_data = self.ongoing_games[ctx.author.id]
+            if "selected_car" not in game_data:
+                # Remove the game from ongoing games
                 del self.ongoing_games[ctx.author.id]
 
-            # Refund the bet
-            #Implement refund logic here using currency_helper if needed
+                # Refund the bet
+                #Implement refund logic here using currency_helper if needed
 
-            cancel_embed = discord.Embed(
-                title="🚫 Race Cancelled",
-                description=(
-                    "You didn't pick a car in time.\n"
-                    f"Your bet of `{bet_amount:.2f} {currency_used}` has been refunded."
-                ),
-                color=0xFF0000
-            )
+                cancel_embed = discord.Embed(
+                    title="🚫 Race Cancelled",
+                    description=(
+                        "You didn't pick a car in time.\n"
+                        f"Your bet of `{bet_amount:.2f} {currency_used}` has been refunded."
+                    ),
+                    color=0xFF0000
+                )
 
-            # Update the message if it still exists
-            try:
-                await game_message.edit(embed=cancel_embed, view=None)
-            except:
-                pass
+                # Update the message if it still exists
+                try:
+                    await game_message.edit(embed=cancel_embed, view=None)
+                except:
+                    pass
 
     async def car_selected(self, interaction, selected_car, bet_amount, currency_used):
         """Process a car selection."""
@@ -161,6 +165,11 @@ class RaceCog(commands.Cog):
         # Make sure this is the game owner
         if author.id not in self.ongoing_games:
             await interaction.response.send_message("You don't have an active game!", ephemeral=True)
+            return
+
+        # Check if a car was already selected to prevent double-clicks
+        if "selected_car" in self.ongoing_games[author.id]:
+            await interaction.response.send_message("You have already selected a car!", ephemeral=True)
             return
 
         # Save the selected car
