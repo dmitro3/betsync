@@ -604,15 +604,14 @@ class LtcDeposit(commands.Cog):
                      print(f"{Fore.YELLOW}[!] Failed to update history for user {user_id}, txid {txid}. Balance was updated.{Style.RESET_ALL}")
                      # Balance is already updated, log this inconsistency
 
-                # 4. Add txid to processed list *before* saving/notifying
+                # 4. Add txid to processed list
                 # This prevents potential double-crediting if save/notify fails partially
                 self.users_db.collection.update_one(
                     {"discord_id": user_id},
                     {"$addToSet": {"processed_ltc_txids": txid}}
                 )
-                # 4. Save/Sync wallet (important after balance update)
-                # Run synchronous save in a separate thread to avoid blocking asyncio event loop
-                await asyncio.to_thread(self.users_db.save, user_id)
+                # Skip wallet save to prevent duplicate history entries
+                # The LTC wallet balance was already updated directly via MongoDB
 
                 # --- Notification ---
                 balance_after_ltc = balance_before_ltc + amount_crypto
