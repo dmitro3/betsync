@@ -200,15 +200,6 @@ class DepositView(discord.ui.View):
                 # Handle both single and multiple deposits
                 deposits = details.get('deposits', [details])  # Support both formats
                 total_ltc = sum(d['amount_crypto'] for d in deposits)
-                total_points = sum(d.get('points_credited', 0) for d in deposits)
-                
-                if total_points > 0:
-                    # Update balance with total points
-                    update_result = self.cog.users_db.update_balance(self.user_id, total_points, operation="$inc")
-                    if not update_result or update_result.matched_count == 0:
-                        print(f"{Fore.RED}[!] Failed to update balance for user {self.user_id} after successful deposit check.{Style.RESET_ALL}")
-                        await interaction.followup.send("Deposit detected, but failed to update your balance. Please contact support.", ephemeral=True)
-                        return
 
                     # Process each deposit
                     for deposit in deposits:
