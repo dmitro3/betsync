@@ -707,8 +707,9 @@ class LtcDeposit(commands.Cog):
                      txid_short = txid_short[:10] + '...'
 
 
-                points = entry.get('points_credited', entry.get('points', 0))
-                description += f"**{i+1}.** `{entry.get('amount_crypto', 0):.8f} LTC` (+{points:,.0f} points)\n" \
+                # For LTC deposits, show the LTC amount instead of points since LTC goes directly to wallet
+                ltc_amount = entry.get('amount_crypto', 0)
+                description += f"**{i+1}.** `{ltc_amount:.8f} LTC` (direct wallet deposit)\n" \
                                f"   TXID: `{txid_short}`\n" \
                                f"   Date: {ts_formatted}\n\n" # Add extra newline for spacing
             embed.description = description.strip() # Remove trailing newline
