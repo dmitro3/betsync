@@ -87,7 +87,7 @@ class BaccaratGame(commands.Cog):
                     "- **Card values: A=1, 2-9=face value, 10/J/Q/K=0**\n"
                     "- **Only the ones digit of the total matters (12 = 2)**\n"
                     "- **Win 1.95x your bet on correct player/banker pick**\n"
-                    "- **Win 8x your bet on a correct tie prediction**\n"
+                    "- **Win 4x your bet on a correct tie prediction**\n"
                 ),
                 color=0x00FFAE
             )
