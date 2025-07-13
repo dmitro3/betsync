@@ -27,7 +27,7 @@ class WheelSelectionView(discord.ui.View):
         await interaction.response.defer()
         await interaction.message.edit(view=self)
         
-        # Start the wheel spin animation
+        # Start the wheel spin instantly
         await self.cog.start_wheel_spin(self.ctx, interaction, self.bet_amount, self.spins, self.game_id)
 
     async def on_timeout(self):
@@ -46,8 +46,8 @@ class WheelSelectionView(discord.ui.View):
                 pass
 
 
-class PlayAgainView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, timeout=15, spins=1):
+class InstantSpinView(discord.ui.View):
+    def __init__(self, cog, ctx, bet_amount, spins, timeout=15):
         super().__init__(timeout=timeout)
         self.cog = cog
         self.ctx = ctx
@@ -55,8 +55,8 @@ class PlayAgainView(discord.ui.View):
         self.spins = spins
         self.message = None
 
-    @discord.ui.button(label="Play Again", style=discord.ButtonStyle.primary, emoji="🔄", custom_id="play_again")
-    async def play_again(self, button, interaction: discord.Interaction):
+    @discord.ui.button(label="🎰 SPIN AGAIN", style=discord.ButtonStyle.primary, emoji="🎰", custom_id="spin_again")
+    async def spin_again(self, button, interaction: discord.Interaction):
         if interaction.user.id != self.ctx.author.id:
             return await interaction.response.send_message("This is not your game!", ephemeral=True)
 
@@ -67,6 +67,32 @@ class PlayAgainView(discord.ui.View):
 
         # Start a new game with the same parameters
         await self.cog.wheel(self.ctx, str(self.bet_amount), self.spins)
+
+    @discord.ui.button(label="💰 DOUBLE BET", style=discord.ButtonStyle.danger, emoji="💰", custom_id="double_bet")
+    async def double_bet(self, button, interaction: discord.Interaction):
+        if interaction.user.id != self.ctx.author.id:
+            return await interaction.response.send_message("This is not your game!", ephemeral=True)
+
+        # Disable button to prevent multiple clicks
+        button.disabled = True
+        await interaction.response.defer()
+        await interaction.message.edit(view=self)
+
+        # Double the bet and start new game
+        await self.cog.wheel(self.ctx, str(self.bet_amount * 2), self.spins)
+
+    @discord.ui.button(label="📈 MAX SPINS", style=discord.ButtonStyle.success, emoji="📈", custom_id="max_spins")
+    async def max_spins(self, button, interaction: discord.Interaction):
+        if interaction.user.id != self.ctx.author.id:
+            return await interaction.response.send_message("This is not your game!", ephemeral=True)
+
+        # Disable button to prevent multiple clicks
+        button.disabled = True
+        await interaction.response.defer()
+        await interaction.message.edit(view=self)
+
+        # Start with maximum spins
+        await self.cog.wheel(self.ctx, str(self.bet_amount), 15)
 
     async def on_timeout(self):
         # Disable the button when the view times out
@@ -83,20 +109,20 @@ class WheelCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.ongoing_games = {}
-        # Define color multipliers
+        # Define color multipliers with more exciting rarities
         self.colors = {
-            "gray": {"emoji": "⚪", "multiplier": 0, "chance": 50},
-            "yellow": {"emoji": "🟡", "multiplier": 1.5, "chance": 25},
-            "red": {"emoji": "🔴", "multiplier": 2, "chance": 15},
-            "blue": {"emoji": "🔵", "multiplier": 3, "chance": 7},
-            "green": {"emoji": "🟢", "multiplier": 5, "chance": 3}
+            "gray": {"emoji": "⚫", "multiplier": 0, "chance": 45, "name": "BUST"},
+            "yellow": {"emoji": "🟡", "multiplier": 1.8, "chance": 28, "name": "BRONZE"},
+            "red": {"emoji": "🔴", "multiplier": 2.5, "chance": 18, "name": "SILVER"},
+            "blue": {"emoji": "🔵", "multiplier": 4.0, "chance": 7, "name": "GOLD"},
+            "green": {"emoji": "🟢", "multiplier": 8.0, "chance": 2, "name": "DIAMOND"}
         }
         # Calculate total chance to verify it sums to 100
         self.total_chance = sum(color["chance"] for color in self.colors.values())
 
     @commands.command(aliases=["wh"])
     async def wheel(self, ctx, bet_amount: str = None, spins: int = 1):
-        """Play the wheel game - bet on colors with different multipliers!"""
+        """🎰 Spin the Fortune Wheel - instant results, instant wins!"""
         # Limit the number of spins to 15
         if spins > 15:
             spins = 15
@@ -105,35 +131,36 @@ class WheelCog(commands.Cog):
 
         if not bet_amount:
             embed = discord.Embed(
-                title="🎰 **WHEEL OF FORTUNE** 🎰",
+                title="🎰 **FORTUNE WHEEL** 🎰",
                 description=(
+                    "```ansi\n"
+                    "\u001b[1;33m💎 INSTANT FORTUNE AWAITS 💎\u001b[0m\n"
                     "```\n"
-                    "🎯 Spin the Wheel & Win Big!\n"
-                    "```\n"
-                    "**📋 How to Play:**\n"
-                    "> Basic: `!wheel <amount> [spins]`\n"
-                    "> Example: `!wheel 100 5`\n\n"
+                    "**🚀 Quick Start:**\n"
+                    "> `!wheel <amount> [spins]`\n"
+                    "> `!wheel 100 5` - Spin 5 times instantly!\n\n"
                     
-                    "**🎨 Colors and Multipliers:**\n"
-                    "> ⚪ **Gray** - 0x (Loss) - 50% chance\n"
-                    "> 🟡 **Yellow** - 1.5x - 25% chance\n"
-                    "> 🔴 **Red** - 2x - 15% chance\n"
-                    "> 🔵 **Blue** - 3x - 7% chance\n"
-                    "> 🟢 **Green** - 5x - 3% chance\n\n"
+                    "**🎨 Wheel Zones & Multipliers:**\n"
+                    "> ⚫ **BUST** - 0x (45% chance) - Game over!\n"
+                    "> 🟡 **BRONZE** - 1.8x (28% chance) - Nice win!\n"
+                    "> 🔴 **SILVER** - 2.5x (18% chance) - Great win!\n"
+                    "> 🔵 **GOLD** - 4x (7% chance) - Amazing win!\n"
+                    "> 🟢 **DIAMOND** - 8x (2% chance) - JACKPOT!\n\n"
                     
-                    "**💰 Betting Info:**\n"
-                    "> • You bet using points\n"
-                    "> • Winnings are always paid in points\n"
-                    "> • Multiple spins available (max 15)\n\n"
+                    "**⚡ Features:**\n"
+                    "> • Instant results - no waiting!\n"
+                    "> • Multi-spin capability (max 15)\n"
+                    "> • Quick action buttons\n"
+                    "> • Progressive excitement\n\n"
                     
                     "```diff\n"
-                    "+ The higher the multiplier, the rarer the color!\n"
+                    "+ Ready for instant fortune? Let's spin! 🎰\n"
                     "```"
                 ),
-                color=0x00FFAE
+                color=0xFF6B00
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1345317103158431805.png")
-            embed.set_footer(text="🎰 BetSync Casino • Ready to spin?", icon_url=self.bot.user.avatar.url)
+            embed.set_footer(text="🎰 BetSync Casino • Fortune favors the bold!", icon_url=self.bot.user.avatar.url)
             return await ctx.reply(embed=embed)
 
         # Check if the user already has an ongoing game
@@ -145,17 +172,20 @@ class WheelCog(commands.Cog):
             )
             return await ctx.reply(embed=embed)
 
-        # Send loading message
+        # Send exciting loading message
         loading_embed = discord.Embed(
-            title="🎰 **Setting Up The Wheel...**",
+            title="🎰 **PREPARING THE WHEEL...**",
             description=(
+                "```ansi\n"
+                "\u001b[1;36m⚡ PROCESSING INSTANT FORTUNE ⚡\u001b[0m\n"
                 "```\n"
-                "🔄 Processing your bet...\n"
-                "📊 Checking balance...\n"
-                "🎰 Preparing the wheel...\n"
+                "```yaml\n"
+                "Status: Validating bet...\n"
+                "Action: Charging wheel...\n"
+                "Ready: Almost there...\n"
                 "```"
             ),
-            color=0xFFD700
+            color=0x00FFFF
         )
         loading_embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1345317103158431805.png")
         loading_message = await ctx.reply(embed=loading_embed)
@@ -163,8 +193,8 @@ class WheelCog(commands.Cog):
         # Process bet amount using currency_helper
         from Cogs.utils.currency_helper import process_bet_amount
         
-        # First process the bet amount for a single spin
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount*spins, loading_message)
+        # Process the bet amount for all spins
+        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
         
         # If processing failed, return the error
         if not success:
@@ -175,9 +205,6 @@ class WheelCog(commands.Cog):
         tokens_used = bet_info["tokens_used"]
         total_bet = bet_info["total_bet_amount"]
         bet_amount_value = total_bet
-        
-        # Calculate total amounts for multiple spins
-        total_tokens_used = tokens_used * spins
         
         # Verify user has enough for all spins
         db = Users()
@@ -200,43 +227,45 @@ class WheelCog(commands.Cog):
         self.ongoing_games[game_id] = {
             "user_id": ctx.author.id,
             "bet_amount": bet_amount_value,
-            "tokens_used": total_tokens_used,
+            "tokens_used": tokens_used,
             "spins": spins
         }
 
-        # Create wheel selection embed
+        # Create exciting wheel selection embed
+        potential_max = bet_amount_value * 8.0  # Max multiplier
         embed = discord.Embed(
-            title="🎰 **WHEEL OF FORTUNE** 🎰",
+            title="🎰 **FORTUNE WHEEL READY** 🎰",
             description=(
+                f"```ansi\n"
+                f"\u001b[1;32m💰 BET: {tokens_used:,.2f} points\u001b[0m\n"
+                f"\u001b[1;33m🎰 SPINS: {spins}\u001b[0m\n"
+                f"\u001b[1;35m💎 MAX WIN: {potential_max:,.2f} points\u001b[0m\n"
                 f"```\n"
-                f"💰 Your Bet: {total_tokens_used:,.2f} points\n"
-                f"🎰 Spins: {spins}\n"
-                f"```\n"
-                f"**🎨 The Wheel Colors:**\n\n"
+                f"**🔥 THE ZONES:**\n\n"
                 
-                f"⚪ **Gray Zone** - 0x (50% chance)\n"
-                f"> The danger zone - lose it all!\n\n"
+                f"⚫ **BUST ZONE** (45%)\n"
+                f"> Game over - lose everything!\n\n"
                 
-                f"🟡 **Yellow Zone** - 1.5x (25% chance)\n"
-                f"> Small but sweet victory!\n\n"
+                f"🟡 **BRONZE ZONE** (28%) - 1.8x\n"
+                f"> Win: **{bet_amount_value*1.8:,.2f} points**\n\n"
                 
-                f"🔴 **Red Zone** - 2x (15% chance)\n"
-                f"> Double your money!\n\n"
+                f"🔴 **SILVER ZONE** (18%) - 2.5x\n"
+                f"> Win: **{bet_amount_value*2.5:,.2f} points**\n\n"
                 
-                f"🔵 **Blue Zone** - 3x (7% chance)\n"
-                f"> Triple threat reward!\n\n"
+                f"🔵 **GOLD ZONE** (7%) - 4x\n"
+                f"> Win: **{bet_amount_value*4.0:,.2f} points**\n\n"
                 
-                f"🟢 **Green Zone** - 5x (3% chance)\n"
-                f"> The jackpot zone!\n\n"
+                f"🟢 **DIAMOND ZONE** (2%) - 8x\n"
+                f"> Win: **{potential_max:,.2f} points** 💎\n\n"
                 
                 f"```diff\n"
-                f"🎰 Ready to test your luck? Click to spin!\n"
+                f"⚡ Click to spin instantly - no delays!\n"
                 f"```"
             ),
-            color=0x00FFAE
+            color=0xFF6B00
         )
         embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1345317103158431805.png")
-        embed.set_footer(text="🎰 BetSync Casino • Fortune favors the bold!", icon_url=self.bot.user.avatar.url)
+        embed.set_footer(text="🎰 BetSync Casino • Ready for instant action?", icon_url=self.bot.user.avatar.url)
 
         # Create view with spin button
         view = WheelSelectionView(self, ctx, bet_amount_value, spins, game_id, timeout=30)
@@ -246,13 +275,13 @@ class WheelCog(commands.Cog):
         view.message = message
 
     async def start_wheel_spin(self, ctx, interaction, bet_amount, spins, game_id):
-        """Start the wheel spinning animation and process results"""
+        """Start the wheel spinning with instant results"""
         # Remove from ongoing games
         if game_id in self.ongoing_games:
             del self.ongoing_games[game_id]
 
-        # Calculate results for all spins with house edge (3-5%)
-        house_edge = 0.04  # 4% house edge
+        # Calculate results for all spins with house edge (3%)
+        house_edge = 0.03  # 3% house edge
 
         # Store results for all spins
         spin_results = []
@@ -260,7 +289,7 @@ class WheelCog(commands.Cog):
         bet_total = bet_amount / spins if spins > 1 else bet_amount
         total_bet_amount = bet_total * spins
 
-        # Calculate results for each spin
+        # Calculate results for each spin instantly
         for spin_num in range(spins):
             # Apply house edge to outcome calculation
             if random.random() < house_edge:
@@ -281,6 +310,7 @@ class WheelCog(commands.Cog):
             # Get multiplier for the result
             result_multiplier = self.colors[result_color]["multiplier"]
             result_emoji = self.colors[result_color]["emoji"]
+            result_name = self.colors[result_color]["name"]
 
             # Calculate winnings for this spin
             winnings = bet_total * result_multiplier
@@ -292,66 +322,38 @@ class WheelCog(commands.Cog):
                 "emoji": result_emoji,
                 "multiplier": result_multiplier,
                 "winnings": winnings,
-                "spin_number": spin_num + 1
+                "spin_number": spin_num + 1,
+                "name": result_name
             })
 
-        # Show spinning animation
-        await self.show_spinning_animation(interaction, spins)
-
-        # Show results
+        # Show instant results with excitement
         await self.show_wheel_results(ctx, interaction, spin_results, bet_total, total_bet_amount, total_winnings, spins)
 
-    async def show_spinning_animation(self, interaction, spins):
-        """Show spinning wheel animation"""
-        spin_frames = ["🎰", "🔄", "⚡", "✨", "🎯"]
-        
-        for i in range(8):  # 8 animation frames
-            frame = spin_frames[i % len(spin_frames)]
-            
-            embed = discord.Embed(
-                title=f"{frame} **THE WHEEL IS SPINNING!** {frame}",
-                description=(
-                    f"```\n"
-                    f"🌪️ The wheel spins faster and faster...\n"
-                    f"🎰 Where will it land?\n"
-                    f"⏳ {8-i} seconds remaining...\n"
-                    f"```\n"
-                    f"**🎨 Possible Outcomes:**\n"
-                    f"> ⚪ Gray (0x) • 🟡 Yellow (1.5x) • 🔴 Red (2x)\n"
-                    f"> 🔵 Blue (3x) • 🟢 Green (5x)\n\n"
-                    f"```diff\n"
-                    f"+ The suspense builds...\n"
-                    f"```"
-                ),
-                color=0xFFD700
-            )
-            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1345317103158431805.png")
-            embed.set_footer(text="🎰 BetSync Casino • The wheel decides your fate!", icon_url=interaction.client.user.avatar.url)
-            
-            try:
-                await interaction.message.edit(embed=embed, view=None)
-                if i < 7:  # Don't sleep on the last frame
-                    await asyncio.sleep(0.8)
-            except:
-                break
-
     async def show_wheel_results(self, ctx, interaction, spin_results, bet_total, total_bet_amount, total_winnings, spins):
-        """Show the final wheel results"""
+        """Show the final wheel results with exciting presentation"""
         # Determine overall result
         net_profit = total_winnings - total_bet_amount
         
-        # Create result embed
+        # Create result embed with excitement levels
         if total_winnings > 0:
-            if net_profit > 0:
-                title = "🎉 **CONGRATULATIONS! BIG WIN!** 🎉"
+            if net_profit >= total_bet_amount * 5:  # 5x+ profit
+                title = "🔥💎 **LEGENDARY WIN! DIAMOND FORTUNE!** 💎🔥"
+                color = 0x00FF88
+                result_icon = "💎"
+            elif net_profit >= total_bet_amount * 2:  # 2x+ profit
+                title = "🎉🏆 **AMAZING WIN! GOLD RUSH!** 🏆🎉"
+                color = 0xFFD700
+                result_icon = "🏆"
+            elif net_profit > 0:
+                title = "✨💰 **GREAT WIN! PROFIT SECURED!** 💰✨"
                 color = 0x00FF00
                 result_icon = "<:yes:1355501647538815106>"
             else:
-                title = "🎰 **PARTIAL WIN!** 🎰"
+                title = "🎰💫 **PARTIAL WIN!** 💫🎰"
                 color = 0xFFA500
                 result_icon = "🟡"
         else:
-            title = "💸 **BETTER LUCK NEXT TIME!** 💸"
+            title = "💸⚫ **BUST! TRY AGAIN!** ⚫💸"
             color = 0xFF4444
             result_icon = "<:no:1344252518305234987>"
 
@@ -360,54 +362,91 @@ class WheelCog(commands.Cog):
             color=color
         )
 
-        # Format bet description
-        embed.description = f"**💰 Total Bet:** {total_bet_amount:.2f} points"
+        # Format bet description with excitement
+        embed.description = f"```ansi\n\u001b[1;36m💰 TOTAL BET: {total_bet_amount:.2f} points\u001b[0m\n"
         if spins > 1:
-            embed.description += f" ({bet_total:.2f} per spin)"
+            embed.description += f"\u001b[1;37m🎰 PER SPIN: {bet_total:.2f} points\u001b[0m\n"
+        embed.description += "```"
 
-        # Create a summary of all results for multiple spins
+        # Create a summary of all results with visual excitement
         if spins > 1:
             results_summary = ""
             wins_count = 0
+            diamond_hits = 0
+            gold_hits = 0
             
             # Group results by color for cleaner display
             color_counts = {}
             for result in spin_results:
                 color = result['color']
                 if color not in color_counts:
-                    color_counts[color] = {'count': 0, 'total_winnings': 0, 'emoji': result['emoji'], 'multiplier': result['multiplier']}
+                    color_counts[color] = {
+                        'count': 0, 
+                        'total_winnings': 0, 
+                        'emoji': result['emoji'], 
+                        'multiplier': result['multiplier'],
+                        'name': result['name']
+                    }
                 color_counts[color]['count'] += 1
                 color_counts[color]['total_winnings'] += result['winnings']
                 if result['multiplier'] > 0:
                     wins_count += 1
+                if result['name'] == "DIAMOND":
+                    diamond_hits += 1
+                elif result['name'] == "GOLD":
+                    gold_hits += 1
 
-            # Display grouped results
+            # Display grouped results with excitement
             for color, data in color_counts.items():
                 if data['count'] > 0:
-                    results_summary += f"{data['emoji']} **{color.capitalize()}** x{data['count']} - {data['multiplier']}x each - {data['total_winnings']:.2f} points total\n"
+                    excitement = ""
+                    if data['name'] == "DIAMOND":
+                        excitement = " 💎✨"
+                    elif data['name'] == "GOLD":
+                        excitement = " 🏆⚡"
+                    elif data['name'] == "SILVER":
+                        excitement = " 🥈🔥"
+                    
+                    results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']}x - {data['total_winnings']:.2f} pts{excitement}\n"
+
+            special_hits = ""
+            if diamond_hits > 0:
+                special_hits += f" 💎 {diamond_hits} DIAMOND HIT{'S' if diamond_hits > 1 else ''}!"
+            if gold_hits > 0:
+                special_hits += f" 🏆 {gold_hits} GOLD HIT{'S' if gold_hits > 1 else ''}!"
 
             embed.add_field(
-                name=f"🎰 Spin Results ({wins_count}/{spins} wins)",
+                name=f"🎰 Spin Results ({wins_count}/{spins} wins){special_hits}",
                 value=results_summary,
                 inline=False
             )
         else:
-            # Single spin - show main result
+            # Single spin - show main result with excitement
             main_result = spin_results[0]
+            excitement_level = ""
+            if main_result['name'] == "DIAMOND":
+                excitement_level = " 💎✨ JACKPOT! ✨💎"
+            elif main_result['name'] == "GOLD":
+                excitement_level = " 🏆⚡ AMAZING! ⚡🏆"
+            elif main_result['name'] == "SILVER":
+                excitement_level = " 🥈🔥 GREAT! 🔥🥈"
+            
             embed.add_field(
                 name="🎯 Result",
-                value=f"{main_result['emoji']} **{main_result['color'].capitalize()}** - {main_result['multiplier']}x multiplier",
+                value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']}x{excitement_level}",
                 inline=False
             )
 
-        # Add overall result field
+        # Add overall result field with profit analysis
         if total_winnings > 0:
+            profit_percentage = (net_profit / total_bet_amount) * 100
             embed.add_field(
                 name=f"🏆 Final Results",
                 value=(
-                    f"**Total Winnings:** {total_winnings:.2f} points\n"
-                    f"**Net Profit:** {net_profit:+.2f} points\n"
-                    f"**Return:** {(total_winnings/total_bet_amount)*100:.1f}%"
+                    f"**💰 Total Winnings:** {total_winnings:.2f} points\n"
+                    f"**📈 Net Profit:** {net_profit:+.2f} points\n"
+                    f"**🔥 Profit Rate:** {profit_percentage:+.1f}%\n"
+                    f"**⚡ Multiplier:** {total_winnings/total_bet_amount:.2f}x"
                 ),
                 inline=False
             )
@@ -504,18 +543,22 @@ class WheelCog(commands.Cog):
                 server_db.update_server_profit(ctx, ctx.guild.id, house_profit, game="wheel")
 
         else:
-            # Complete loss (all gray)
+            # Complete loss (all bust)
             embed.add_field(
                 name="💸 Game Over",
-                value=f"**Total Loss:** {total_bet_amount:.2f} points\n**Better luck next time!**",
+                value=(
+                    f"**💸 Total Loss:** {total_bet_amount:.2f} points\n"
+                    f"**🎰 All spins hit BUST zone!**\n"
+                    f"**⚡ Ready for instant revenge?**"
+                ),
                 inline=False
             )
 
         embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1345317103158431805.png")
-        embed.set_footer(text="🎰 BetSync Casino • Want to spin again?", icon_url=interaction.client.user.avatar.url)
+        embed.set_footer(text="🎰 BetSync Casino • Instant action awaits!", icon_url=interaction.client.user.avatar.url)
 
-        # Create play again view
-        view = PlayAgainView(self, ctx, bet_total, spins=spins)
+        # Create instant action view with multiple options
+        view = InstantSpinView(self, ctx, bet_total, spins=spins)
         await interaction.message.edit(embed=embed, view=view)
         view.message = interaction.message
 
