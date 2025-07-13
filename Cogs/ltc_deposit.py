@@ -297,12 +297,7 @@ class DepositView(discord.ui.View):
                  # If followup fails after defer, try editing original response (though less likely needed now)
                  pass # Or log this specific state
 
-    @discord.ui.button(label="History", style=discord.ButtonStyle.grey, custom_id="deposit_history_button", emoji="📜")
-    async def deposit_history_button(self, button: discord.ui.Button, interaction: discord.Interaction):
-        """Button to show deposit history."""
-        await interaction.response.defer(ephemeral=True)
-        history_embed = await self.cog._show_deposit_history(self.user_id)
-        await interaction.followup.send(embed=history_embed, ephemeral=True)
+    
 
 # --- LTC Deposit Cog ---
 
