@@ -231,50 +231,10 @@ class WheelCog(commands.Cog):
             "spins": spins
         }
 
-        # Create exciting wheel selection embed
-        potential_max = bet_amount_value * 8.0  # Max multiplier
-        embed = discord.Embed(
-            title="🎰 **FORTUNE WHEEL READY** 🎰",
-            description=(
-                f"```ansi\n"
-                f"\u001b[1;32m💰 BET: {tokens_used:,.2f} points\u001b[0m\n"
-                f"\u001b[1;33m🎰 SPINS: {spins}\u001b[0m\n"
-                f"\u001b[1;35m💎 MAX WIN: {potential_max:,.2f} points\u001b[0m\n"
-                f"```\n"
-                f"**🔥 THE ZONES:**\n\n"
-                
-                f"⚫ **BUST ZONE** (45%)\n"
-                f"> Game over - lose everything!\n\n"
-                
-                f"🟡 **BRONZE ZONE** (28%) - 1.8x\n"
-                f"> Win: **{bet_amount_value*1.8:,.2f} points**\n\n"
-                
-                f"🔴 **SILVER ZONE** (18%) - 2.5x\n"
-                f"> Win: **{bet_amount_value*2.5:,.2f} points**\n\n"
-                
-                f"🔵 **GOLD ZONE** (7%) - 4x\n"
-                f"> Win: **{bet_amount_value*4.0:,.2f} points**\n\n"
-                
-                f"🟢 **DIAMOND ZONE** (2%) - 8x\n"
-                f"> Win: **{potential_max:,.2f} points** 💎\n\n"
-                
-                f"```diff\n"
-                f"⚡ Click to spin instantly - no delays!\n"
-                f"```"
-            ),
-            color=0xFF6B00
-        )
-        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1345317103158431805.png")
-        embed.set_footer(text="🎰 BetSync Casino • Ready for instant action?", icon_url=self.bot.user.avatar.url)
+        # Skip to results immediately
+        await self.start_wheel_spin(ctx, loading_message, bet_amount_value, spins, game_id)
 
-        # Create view with spin button
-        view = WheelSelectionView(self, ctx, bet_amount_value, spins, game_id, timeout=30)
-        
-        # Update the loading message
-        message = await loading_message.edit(embed=embed, view=view)
-        view.message = message
-
-    async def start_wheel_spin(self, ctx, interaction, bet_amount, spins, game_id):
+    async def start_wheel_spin(self, ctx, message, bet_amount, spins, game_id):
         """Start the wheel spinning with instant results"""
         # Remove from ongoing games
         if game_id in self.ongoing_games:
@@ -327,9 +287,9 @@ class WheelCog(commands.Cog):
             })
 
         # Show instant results with excitement
-        await self.show_wheel_results(ctx, interaction, spin_results, bet_total, total_bet_amount, total_winnings, spins)
+        await self.show_wheel_results(ctx, message, spin_results, bet_total, total_bet_amount, total_winnings, spins)
 
-    async def show_wheel_results(self, ctx, interaction, spin_results, bet_total, total_bet_amount, total_winnings, spins):
+    async def show_wheel_results(self, ctx, message, spin_results, bet_total, total_bet_amount, total_winnings, spins):
         """Show the final wheel results with exciting presentation"""
         # Determine overall result
         net_profit = total_winnings - total_bet_amount
@@ -555,12 +515,12 @@ class WheelCog(commands.Cog):
             )
 
         embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1345317103158431805.png")
-        embed.set_footer(text="🎰 BetSync Casino • Instant action awaits!", icon_url=interaction.client.user.avatar.url)
+        embed.set_footer(text="🎰 BetSync Casino • Instant action awaits!", icon_url=self.bot.user.avatar.url)
 
         # Create instant action view with multiple options
         view = InstantSpinView(self, ctx, bet_total, spins=spins)
-        await interaction.message.edit(embed=embed, view=view)
-        view.message = interaction.message
+        await message.edit(embed=embed, view=view)
+        view.message = message
 
         # Remove user from ongoing games
         self.ongoing_games.pop(ctx.author.id, None)
