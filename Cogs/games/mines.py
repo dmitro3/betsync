@@ -179,7 +179,7 @@ class PlayAgainView(discord.ui.View):
 
         await interaction.followup.send("Starting a new game with the same bet...", ephemeral=True)
         if self.mines_count:
-            await self.cog.mines(self.ctx, str(self.bet_amount), None, str(self.mines_count))
+            await self.cog.mines(self.ctx, str(self.bet_amount), str(self.mines_count))
         else:
             await self.cog.mines(self.ctx, str(self.bet_amount))
 
@@ -326,7 +326,7 @@ class MinesTileView(discord.ui.View):
             winnings = self.bet_amount * self.current_multiplier
             description += f"**Profit:** `{profit:.2f} points`\n"
             description += f"**Mines:** {self.mines_count}/{self.board_size * self.board_size} | {len(self.revealed_tiles)}💎\n\n"
-            description += f"**You won** `{winnings:.2f} credits!`"
+            description += f"**You won** `{winnings:.2f} points!`"
         elif status == "lose":
             description += f"**Profit:** `0 points`\n"
             description += f"**Mines:** {self.mines_count}/{self.board_size * self.board_size} | {len(self.revealed_tiles)}💎\n\n"
@@ -506,7 +506,7 @@ class MinesCog(commands.Cog):
                 description=(
                     "**Mines** is a game where you reveal tiles to find gems while avoiding mines.\n\n"
                     "**Usage:** `!mines <amount> [mine_count]`\n"
-                    "**Example:** `!mines 100` or `!mines 100 tokens 5`\n\n"
+                    "**Example:** `!mines 100` or `!mines 100 5`\n\n"
                     "- **Click on buttons to reveal tiles**\n"
                     "- **Each safe tile increases your multiplier**\n"
                     "- **React with 💰 to cash out your winnings**\n"
@@ -569,11 +569,7 @@ class MinesCog(commands.Cog):
             return await ctx.reply(embed=error_embed)
 
         # Extract bet information
-        tokens_used = bet_info["tokens_used"]
-        #credits_used = bet_info["credits_used"]
         total_bet = bet_info["total_bet_amount"]
-
-        
         currency_used = "points"
 
         # Record game stats
@@ -585,8 +581,6 @@ class MinesCog(commands.Cog):
 
         # Mark the game as ongoing
         self.ongoing_games[ctx.author.id] = {
-            "tokens_used": tokens_used,
-            #"credits_used": credits_used,
             "bet_amount": total_bet,
             "currency_used": currency_used,
             "mines_count": mines_count,
