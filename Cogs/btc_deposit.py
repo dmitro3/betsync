@@ -496,7 +496,7 @@ class BtcDeposit(commands.Cog):
                     {"discord_id": user_id},
                     {"$addToSet": {"processed_btc_txids": txid}}
                 )
-                await asyncio.to_thread(self.users_db.save, user_id)
+                # Removed the save() call that was syncing primary coin wallet
 
                 balance_after_points = balance_before_btc + amount_crypto
                 user = self.bot.get_user(user_id)
