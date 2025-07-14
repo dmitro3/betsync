@@ -469,22 +469,14 @@ class BtcDeposit(commands.Cog):
 
                 balance_before_btc = user_data.get("wallet", {}).get("BTC", 0)
 
-                # Explicitly update only wallet.BTC, not any other wallet fields
                 update_result_wallet = self.users_db.collection.update_one(
                     {"discord_id": user_id},
-                    {"$inc": {"wallet.BTC": amount_crypto}},
-                    upsert=False
+                    {"$inc": {"wallet.BTC": amount_crypto}}
                 )
                 if not update_result_wallet or update_result_wallet.matched_count == 0:
                     print(f"{Fore.RED}[!] Failed to update wallet.BTC for user {user_id} for txid {txid}. Aborting processing.{Style.RESET_ALL}")
                     continue
                 print(f"{Fore.GREEN}[+] Updated wallet.BTC for user {user_id} by {amount_crypto:.8f} BTC for txid {txid}{Style.RESET_ALL}")
-                
-                # Verify the update was applied correctly
-                updated_user_data = self.users_db.fetch_user(user_id)
-                if updated_user_data:
-                    new_btc_balance = updated_user_data.get("wallet", {}).get("BTC", 0)
-                    print(f"{Fore.CYAN}[+] Verified BTC balance update: {balance_before_btc:.8f} -> {new_btc_balance:.8f} BTC{Style.RESET_ALL}")
 
                 history_entry = {
                     "type": "btc_deposit",
