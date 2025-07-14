@@ -145,7 +145,7 @@ class DepositView(discord.ui.View):
                 print(f"{Fore.YELLOW}[!] Warning: Failed to edit timed-out deposit message for user {self.user_id} (message not found).{Style.RESET_ALL}")
             except Exception as e:
                 print(f"{Fore.RED}[!] Error editing timed-out deposit message for user {self.user_id}: {e}{Style.RESET_ALL}")
-        
+
         if self.user_id in self.cog.active_deposit_views:
             try:
                 del self.cog.active_deposit_views[self.user_id]
@@ -173,7 +173,7 @@ class DepositView(discord.ui.View):
                 deposits = details.get('deposits', [details])
                 total_btc = sum(d['amount_crypto'] for d in deposits)
                 total_points = sum(d.get('points_credited', 0) for d in deposits)
-                
+
                 if total_points > 0:
                     update_result = self.cog.users_db.update_balance(self.user_id, total_points, operation="$inc")
                     if not update_result or update_result.matched_count == 0:
@@ -184,7 +184,7 @@ class DepositView(discord.ui.View):
                     for deposit in deposits:
                         btc_price = await get_crypto_price('bitcoin')
                         usd_value = deposit['amount_crypto'] * btc_price if btc_price else None
-                        
+
                         history_entry = {
                             "type": "btc_deposit",
                             "amount_crypto": deposit['amount_crypto'],
@@ -196,7 +196,7 @@ class DepositView(discord.ui.View):
                             "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
                         }
                         self.cog.users_db.update_history(self.user_id, history_entry)
-                        
+
                         if usd_value:
                             self.cog.users_db.collection.update_one(
                                 {"discord_id": self.user_id},
@@ -218,7 +218,7 @@ class DepositView(discord.ui.View):
                     txid_short = txid[:10] + '...' if len(txid) > 10 else txid
                     explorer_url = f"https://mempool.space/tx/{txid}"
                     tx_value = f"[`{txid_short}`]({explorer_url})" if txid != 'N/A' else "N/A"
-                    
+
                     main_embed.add_field(
                         name=f"Transaction #{i}",
                         value=f"Amount: {deposit['amount_crypto']:,.8f} BTC\nTXID: {tx_value}",
@@ -228,7 +228,7 @@ class DepositView(discord.ui.View):
                 updated_user = self.cog.users_db.fetch_user(self.user_id)
                 btc_balance = updated_user.get("wallet", {}).get("BTC", "N/A") if updated_user else "N/A"
                 main_embed.add_field(name="New BTC Balance", value=f"<:btc:1339343483089063976> {btc_balance:,.8f} BTC", inline=True)
-                
+
                 for item in self.children:
                     if isinstance(item, discord.ui.Button) and item.custom_id == "check_deposit_button":
                         item.disabled = True
@@ -496,7 +496,7 @@ class BtcDeposit(commands.Cog):
                     {"discord_id": user_id},
                     {"$addToSet": {"processed_btc_txids": txid}}
                 )
-                # Removed the save() call that was syncing primary coin wallet
+                await asyncio.to_thread(self.users_db.save, user_id)
 
                 balance_after_points = balance_before_btc + amount_crypto
                 user = self.bot.get_user(user_id)
