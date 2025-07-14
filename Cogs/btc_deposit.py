@@ -174,29 +174,34 @@ class DepositView(discord.ui.View):
                 total_btc = sum(d['amount_crypto'] for d in deposits)
                 total_points = sum(d.get('points_credited', 0) for d in deposits)
 
-                # BTC deposits only update wallet.BTC, not current wallet balance
+                if total_points > 0:
+                    update_result = self.cog.users_db.update_balance(self.user_id, total_points, operation="$inc")
+                    if not update_result or update_result.matched_count == 0:
+                        print(f"{Fore.RED}[!] Failed to update balance for user {self.user_id} after successful deposit check.{Style.RESET_ALL}")
+                        await interaction.followup.send("Deposit detected, but failed to update your balance. Please contact support.", ephemeral=True)
+                        return
 
-                for deposit in deposits:
-                    btc_price = await get_crypto_price('bitcoin')
-                    usd_value = deposit['amount_crypto'] * btc_price if btc_price else None
+                    for deposit in deposits:
+                        btc_price = await get_crypto_price('bitcoin')
+                        usd_value = deposit['amount_crypto'] * btc_price if btc_price else None
 
-                    history_entry = {
-                        "type": "btc_deposit",
-                        "amount_crypto": deposit['amount_crypto'],
-                        "currency": "BTC",
-                        "usd_value": usd_value,
-                        "txid": deposit['txid'],
-                        "address": self.address,
-                        "confirmations": deposit.get('confirmations', REQUIRED_CONFIRMATIONS),
-                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
-                    }
-                    self.cog.users_db.update_history(self.user_id, history_entry)
+                        history_entry = {
+                            "type": "btc_deposit",
+                            "amount_crypto": deposit['amount_crypto'],
+                            "currency": "BTC",
+                            "usd_value": usd_value,
+                            "txid": deposit['txid'],
+                            "address": self.address,
+                            "confirmations": deposit.get('confirmations', REQUIRED_CONFIRMATIONS),
+                            "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+                        }
+                        self.cog.users_db.update_history(self.user_id, history_entry)
 
-                    if usd_value:
-                        self.cog.users_db.collection.update_one(
-                            {"discord_id": self.user_id},
-                            {"$inc": {"total_deposit_amount_usd": usd_value}}
-                        )
+                        if usd_value:
+                            self.cog.users_db.collection.update_one(
+                                {"discord_id": self.user_id},
+                                {"$inc": {"total_deposit_amount_usd": usd_value}}
+                            )
 
                 if not self.message:
                     await interaction.followup.send("Error: Could not find the original deposit message to update.", ephemeral=True)
@@ -632,4 +637,50 @@ class BtcDeposit(commands.Cog):
         address, error = await self._generate_btc_address(user_id)
 
         if error:
-            await ctx.reply(f"<:no:13442525{address}
+            await ctx.reply(f"<:no:1344252518305234987> Error generating address: {error}")
+            return
+        if not address:
+            await ctx.reply("<:no:1344252518305234987> An unknown error occurred while generating the address.")
+            return
+
+        try:
+            qr_buffer = await asyncio.to_thread(generate_qr_code, address, ctx.author.name)
+            qr_file = discord.File(qr_buffer, filename="btc_deposit_qr.png")
+        except Exception as qr_err:
+            print(f"{Fore.RED}[!] Failed to generate QR code for {address}: {qr_err}{Style.RESET_ALL}")
+            import traceback
+            traceback.print_exc()
+            await ctx.reply("<:no:1344252518305234987> Failed to generate QR code image.")
+            return
+
+        embed = discord.Embed(
+            title="<:btc:1339343483089063976> | Your BTC deposit address",
+            description=f"{ctx.author.mention}, deposit strictly Bitcoin to the following address:",
+            color=0xBFBFBF
+        )
+        embed.add_field(name="\u200B", value=f"```{address}```", inline=False)
+        embed.add_field(name="Conversion Rate", value="`1 point = 0.00000024 BTC`", inline=False)
+        embed.set_image(url="attachment://btc_deposit_qr.png")
+
+        view = DepositView(self, user_id, address)
+
+        msg_content = f"`{address}`"
+        try:
+            message = await ctx.reply(content=msg_content, embed=embed, file=qr_file, view=view)
+            view.message = message
+            self.active_deposit_views[user_id] = message
+        except Exception as send_err:
+            print(f"{Fore.RED}[!] Failed to send deposit message for user {user_id}: {send_err}{Style.RESET_ALL}")
+            await ctx.reply("<:no:1344252518305234987> Failed to send deposit message. Please try again.")
+
+def setup(bot):
+    if BTC_XPUB:
+        try:
+            bot.add_cog(BtcDeposit(bot))
+            print(f"{Fore.GREEN}[+] Loaded Cog: {Fore.GREEN}BtcDeposit{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}[-] Failed to load Cog: {Fore.RED}BtcDeposit{Style.RESET_ALL} - Error: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"{Fore.RED}[-] Failed to load Cog: {Fore.RED}BtcDeposit{Style.RESET_ALL} (BTC_XPUB not set in .env)")
