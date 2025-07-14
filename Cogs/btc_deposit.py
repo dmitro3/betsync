@@ -622,9 +622,11 @@ class BtcDeposit(commands.Cog):
             return await ctx.reply(embed=embed)
 
         currency = currency.lower() if currency else None
-        if currency and currency != "btc":
+        if currency != "btc":
             # Only show BTC deposit interface if currency is explicitly "btc"
-            return
+            if currency:
+                return
+            # Show general deposit menu if no currency specified
 
         user_id = ctx.author.id
         address, error = await self._generate_btc_address(user_id)
