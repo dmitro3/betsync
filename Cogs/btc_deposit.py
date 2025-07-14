@@ -174,7 +174,12 @@ class DepositView(discord.ui.View):
                 total_btc = sum(d['amount_crypto'] for d in deposits)
                 total_points = sum(d.get('points_credited', 0) for d in deposits)
                 
-                # BTC deposits only update wallet.BTC, no points conversion needed
+                if total_points > 0:
+                    update_result = self.cog.users_db.update_balance(self.user_id, total_points, operation="$inc")
+                    if not update_result or update_result.matched_count == 0:
+                        print(f"{Fore.RED}[!] Failed to update balance for user {self.user_id} after successful deposit check.{Style.RESET_ALL}")
+                        await interaction.followup.send("Deposit detected, but failed to update your balance. Please contact support.", ephemeral=True)
+                        return
 
                     for deposit in deposits:
                         btc_price = await get_crypto_price('bitcoin')
