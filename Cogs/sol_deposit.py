@@ -333,38 +333,23 @@ class SolDeposit(commands.Cog):
         await self.solana_client.close()
 
     async def _generate_sol_address(self, user_id: int) -> tuple[str | None, str | None]:
-        """Generate a unique SOL deposit address for the user."""
+        """Generate SOL deposit address - all users get the same account 1 address."""
         try:
             if not PHANTOM_SEED:
                 return None, "PHANTOM_SEED environment variable is not configured."
 
-            # Check if user already has an address
-            user_data = self.users_db.fetch_user(user_id)
-            if user_data and user_data.get('sol_address'):
-                existing_address = user_data.get('sol_address')
-                print(f"{Fore.GREEN}[+] Using existing SOL address for user {user_id}: {existing_address}{Style.RESET_ALL}")
-                return existing_address, None
-
-            # Always use account 1 for all deposits
+            # Always use account 1 for all deposits - same address for everyone
             seed_bytes = Bip39SeedGenerator(PHANTOM_SEED).Generate()
             bip44_mst_ctx = Bip44.FromSeed(seed_bytes, Bip44Coins.SOLANA)
             
-            # Use unique derivation path for each user but all under account 1
-            # This creates unique addresses while keeping funds in account 1
-            highest_index_user = self.users_db.collection.find_one(
-                {"sol_address_index": {"$exists": True}},
-                sort=[("sol_address_index", -1)]
-            )
-            next_index = highest_index_user['sol_address_index'] + 1 if highest_index_user else 0
+            # Generate account 1 address (index 0) - your actual Phantom account 1
+            deposit_address = bip44_mst_ctx.Purpose().Coin().Account(1).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0).PublicKey().ToAddress()
 
-            # Generate address using account 1 with unique address index
-            deposit_address = bip44_mst_ctx.Purpose().Coin().Account(1).Change(Bip44Changes.CHAIN_EXT).AddressIndex(next_index).PublicKey().ToAddress()
-
-            # Store in database
+            # Store in database (all users will have the same address)
+            user_data = self.users_db.fetch_user(user_id)
             update_data = {
                 "$set": {
                     "sol_address": deposit_address,
-                    "sol_address_index": next_index,
                     "processed_sol_txids": user_data.get('processed_sol_txids', []) if user_data else []
                 }
             }
@@ -378,7 +363,7 @@ class SolDeposit(commands.Cog):
             if result.matched_count == 0 and not result.upserted_id:
                 return None, "Failed to store address info"
             
-            print(f"{Fore.GREEN}[+] Generated new SOL address for user {user_id}: {deposit_address} (account 1, index: {next_index}){Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[+] Using account 1 SOL address for user {user_id}: {deposit_address}{Style.RESET_ALL}")
             return deposit_address, None
 
         except Exception as e:
@@ -532,20 +517,9 @@ class SolDeposit(commands.Cog):
             return "error", {"error": f"An unexpected error occurred: {e}"}
 
     async def _transfer_to_main_wallet(self, from_address: str, amount_sol: float):
-        """Transfer funds from deposit address to main wallet (account 1)."""
-        try:
-            from solana.transaction import Transaction
-            from solders.system_program import TransferParams, transfer
-            from solders.pubkey import Pubkey
-            
-            # Since all deposits are now in account 1, we don't need to transfer
-            # Just log that the deposit was received in account 1
-            print(f"{Fore.GREEN}[+] SOL deposit of {amount_sol:.6f} received in account 1 address: {from_address}{Style.RESET_ALL}")
-            return
-                
-        except Exception as e:
-            print(f"{Fore.RED}[!] Error in fund transfer: {e}{Style.RESET_ALL}")
-            traceback.print_exc()
+        """No transfer needed - deposits go directly to account 1."""
+        print(f"{Fore.GREEN}[+] SOL deposit of {amount_sol:.6f} received directly in account 1: {from_address}{Style.RESET_ALL}")
+        return
 
     async def _show_deposit_history(self, user_id: int) -> discord.Embed:
         """Show user's SOL deposit history."""
