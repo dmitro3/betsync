@@ -172,36 +172,28 @@ class DepositView(discord.ui.View):
             if status == "success":
                 deposits = details.get('deposits', [details])
                 total_btc = sum(d['amount_crypto'] for d in deposits)
-                total_points = sum(d.get('points_credited', 0) for d in deposits)
 
-                if total_points > 0:
-                    update_result = self.cog.users_db.update_balance(self.user_id, total_points, operation="$inc")
-                    if not update_result or update_result.matched_count == 0:
-                        print(f"{Fore.RED}[!] Failed to update balance for user {self.user_id} after successful deposit check.{Style.RESET_ALL}")
-                        await interaction.followup.send("Deposit detected, but failed to update your balance. Please contact support.", ephemeral=True)
-                        return
+                for deposit in deposits:
+                    btc_price = await get_crypto_price('bitcoin')
+                    usd_value = deposit['amount_crypto'] * btc_price if btc_price else None
 
-                    for deposit in deposits:
-                        btc_price = await get_crypto_price('bitcoin')
-                        usd_value = deposit['amount_crypto'] * btc_price if btc_price else None
+                    history_entry = {
+                        "type": "btc_deposit",
+                        "amount_crypto": deposit['amount_crypto'],
+                        "currency": "BTC",
+                        "usd_value": usd_value,
+                        "txid": deposit['txid'],
+                        "address": self.address,
+                        "confirmations": deposit.get('confirmations', REQUIRED_CONFIRMATIONS),
+                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+                    }
+                    self.cog.users_db.update_history(self.user_id, history_entry)
 
-                        history_entry = {
-                            "type": "btc_deposit",
-                            "amount_crypto": deposit['amount_crypto'],
-                            "currency": "BTC",
-                            "usd_value": usd_value,
-                            "txid": deposit['txid'],
-                            "address": self.address,
-                            "confirmations": deposit.get('confirmations', REQUIRED_CONFIRMATIONS),
-                            "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
-                        }
-                        self.cog.users_db.update_history(self.user_id, history_entry)
-
-                        if usd_value:
-                            self.cog.users_db.collection.update_one(
-                                {"discord_id": self.user_id},
-                                {"$inc": {"total_deposit_amount_usd": usd_value}}
-                            )
+                    if usd_value:
+                        self.cog.users_db.collection.update_one(
+                            {"discord_id": self.user_id},
+                            {"$inc": {"total_deposit_amount_usd": usd_value}}
+                        )
 
                 if not self.message:
                     await interaction.followup.send("Error: Could not find the original deposit message to update.", ephemeral=True)
@@ -465,7 +457,6 @@ class BtcDeposit(commands.Cog):
                     continue
 
                 amount_crypto = round(amount_received_satoshi / BTC_SATOSHIS, 8)
-                points_credited = round(amount_crypto / BTC_CONVERSION_RATE, 2)
 
                 balance_before_btc = user_data.get("wallet", {}).get("BTC", 0)
 
@@ -482,7 +473,6 @@ class BtcDeposit(commands.Cog):
                     "type": "btc_deposit",
                     "amount_crypto": amount_crypto,
                     "currency": "BTC",
-                    "points": points_credited,
                     "txid": txid,
                     "address": address,
                     "confirmations": confirmations,
@@ -498,7 +488,7 @@ class BtcDeposit(commands.Cog):
                 )
                 await asyncio.to_thread(self.users_db.save, user_id)
 
-                balance_after_points = balance_before_btc + amount_crypto
+                balance_after_btc = balance_before_btc + amount_crypto
                 user = self.bot.get_user(user_id)
                 if not user:
                     try:
@@ -513,20 +503,19 @@ class BtcDeposit(commands.Cog):
                         username=username,
                         amount_crypto=amount_crypto,
                         currency="BTC",
-                        points_credited=points_credited,
+                        points_credited=0,  # No points credited, only BTC
                         txid=txid,
                         balance_before=balance_before_btc,
-                        balance_after=balance_after_points,
+                        balance_after=balance_after_btc,
                         webhook_url=DEPOSIT_WEBHOOK_URL
                     ))
 
                 processed_txids.add(txid)
                 new_deposit_processed_in_this_check = True
-                print(f"{Fore.GREEN}[+] Processed BTC deposit for user {user_id}: {amount_crypto} BTC ({points_credited} points), TXID: {txid}{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}[+] Processed BTC deposit for user {user_id}: {amount_crypto} BTC, TXID: {txid}{Style.RESET_ALL}")
 
                 return "success", {
                     "amount_crypto": amount_crypto,
-                    "points_credited": points_credited,
                     "txid": txid
                 }
 
