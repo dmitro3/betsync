@@ -469,6 +469,7 @@ class BtcDeposit(commands.Cog):
 
                 balance_before_btc = user_data.get("wallet", {}).get("BTC", 0)
 
+                # Only update wallet.BTC - do not update any other wallet fields
                 update_result_wallet = self.users_db.collection.update_one(
                     {"discord_id": user_id},
                     {"$inc": {"wallet.BTC": amount_crypto}}
@@ -482,7 +483,6 @@ class BtcDeposit(commands.Cog):
                     "type": "btc_deposit",
                     "amount_crypto": amount_crypto,
                     "currency": "BTC",
-                    "points": points_credited,
                     "txid": txid,
                     "address": address,
                     "confirmations": confirmations,
