@@ -461,16 +461,18 @@ class SolDeposit(commands.Cog):
 
                     # Calculate SOL received
                     lamports_received = 0
-                    account_keys = tx_data.transaction.message.account_keys
                     target_pubkey_str = address
 
-                    if tx_data.transaction.meta:
+                    if tx_data.transaction and tx_data.transaction.meta and tx_data.transaction.message:
                         pre_balances = tx_data.transaction.meta.pre_balances
                         post_balances = tx_data.transaction.meta.post_balances
+                        account_keys = tx_data.transaction.message.account_keys
 
                         for i, key in enumerate(account_keys):
                             if i < len(pre_balances) and i < len(post_balances):
-                                if str(key.pubkey) == target_pubkey_str:
+                                # Handle both string and pubkey object types
+                                key_str = str(key.pubkey) if hasattr(key, 'pubkey') else str(key)
+                                if key_str == target_pubkey_str:
                                     balance_change = post_balances[i] - pre_balances[i]
                                     if balance_change > 0:
                                         lamports_received = balance_change
