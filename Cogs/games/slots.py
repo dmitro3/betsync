@@ -266,7 +266,7 @@ class SlotsCog(commands.Cog):
             
             return await ctx.reply(embed=help_embed)
 
-        # Check for ongoing games
+        # Check for ongoing games FIRST
         if ctx.author.id in self.ongoing_games:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Game In Progress",
@@ -283,12 +283,18 @@ class SlotsCog(commands.Cog):
         )
         loading_message = await ctx.reply(embed=loading_embed)
 
-        # Process bet amount
-        db = Users()
-        user_data = db.fetch_user(ctx.author.id)
+        # Mark game as ongoing IMMEDIATELY to prevent spam
+        self.ongoing_games[ctx.author.id] = {"starting": True}
+
+        try:
+            # Process bet amount
+            db = Users()
+            user_data = db.fetch_user(ctx.author.id)
 
         if not user_data:
             await loading_message.delete()
+            if ctx.author.id in self.ongoing_games:
+                del self.ongoing_games[ctx.author.id]
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Account Not Found",
                 description="Please create an account first or wait for auto-registration.",
@@ -300,6 +306,8 @@ class SlotsCog(commands.Cog):
         success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
         if not success:
             await loading_message.delete()
+            if ctx.author.id in self.ongoing_games:
+                del self.ongoing_games[ctx.author.id]
             return await ctx.reply(embed=error_embed)
 
         total_bet = bet_info["total_bet_amount"] * spins
@@ -309,6 +317,8 @@ class SlotsCog(commands.Cog):
         # Check if user has enough for all spins
         if user_data.get("points", 0) < total_bet:
             await loading_message.delete()
+            if ctx.author.id in self.ongoing_games:
+                del self.ongoing_games[ctx.author.id]
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Insufficient Balance",
                 description=f"You need `{total_bet:.0f}` points for {spins} spins but only have `{user_data.get('points', 0):.0f}` points.",
@@ -319,11 +329,23 @@ class SlotsCog(commands.Cog):
         # Deduct total bet amount upfront
         db.update_balance(ctx.author.id, -total_bet, "points", "$inc")
 
-        # Mark game as ongoing
+        # Update game tracking with proper data
         self.ongoing_games[ctx.author.id] = {
             "tokens_used": tokens_used,
             "bet_amount": total_bet
         }
+
+        except Exception as e:
+            # Clean up if error occurred during setup
+            if ctx.author.id in self.ongoing_games:
+                del self.ongoing_games[ctx.author.id]
+            await loading_message.delete()
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Setup Error",
+                description="An error occurred during game setup. Please try again.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
 
         try:
             total_winnings = 0
