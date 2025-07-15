@@ -1,4 +1,5 @@
 
+
 import discord
 import asyncio
 import random
@@ -10,7 +11,7 @@ from Cogs.utils.currency_helper import process_bet_amount
 
 
 class SlotsResultView(discord.ui.View):
-    def __init__(self, cog, ctx, bet_amount, slot_symbols, currency_used="points"):
+    def __init__(self, cog, ctx, bet_amount, slot_symbols, currency_used="points", is_winning=False, winning_positions=None):
         super().__init__(timeout=120)
         self.cog = cog
         self.ctx = ctx
@@ -18,15 +19,19 @@ class SlotsResultView(discord.ui.View):
         self.currency_used = currency_used
         self.slot_symbols = slot_symbols
         self.author_id = ctx.author.id
+        self.winning_positions = winning_positions or []
         
         # Create 15 buttons (3 rows x 5 columns) with the final symbols
         for i in range(15):
             row = i // 5
             symbol = slot_symbols[i] if slot_symbols else "🎰"
             
+            # Make winning buttons green
+            style = discord.ButtonStyle.success if i in self.winning_positions else discord.ButtonStyle.secondary
+            
             button = discord.ui.Button(
                 emoji=symbol,
-                style=discord.ButtonStyle.secondary,
+                style=style,
                 disabled=True,
                 row=row
             )
@@ -72,17 +77,17 @@ class SlotsCog(commands.Cog):
         self.bot = bot
         self.ongoing_games = {}
         
-        # Premium slot symbols with better balance and visual appeal
+        # Reduced payout symbols with lower weights for better house edge
         self.symbols = {
-            "🍎": {"weight": 25, "payout": 1.2, "rarity": "Common"},
-            "🍊": {"weight": 25, "payout": 1.2, "rarity": "Common"},
-            "🍋": {"weight": 20, "payout": 1.5, "rarity": "Common"},
-            "🍇": {"weight": 18, "payout": 2.0, "rarity": "Uncommon"},
-            "🍒": {"weight": 15, "payout": 2.5, "rarity": "Uncommon"},
-            "🔔": {"weight": 10, "payout": 4.0, "rarity": "Rare"},
-            "💎": {"weight": 5, "payout": 8.0, "rarity": "Epic"},
-            "🍀": {"weight": 1.5, "payout": 20.0, "rarity": "Legendary"},
-            "🎰": {"weight": 0.5, "payout": 50.0, "rarity": "Mythic"}
+            "🍎": {"weight": 30, "payout": 1.1, "rarity": "Common"},
+            "🍊": {"weight": 28, "payout": 1.2, "rarity": "Common"},
+            "🍋": {"weight": 25, "payout": 1.3, "rarity": "Common"},
+            "🍇": {"weight": 20, "payout": 1.8, "rarity": "Uncommon"},
+            "🍒": {"weight": 15, "payout": 2.2, "rarity": "Uncommon"},
+            "🔔": {"weight": 8, "payout": 3.5, "rarity": "Rare"},
+            "💎": {"weight": 3, "payout": 6.0, "rarity": "Epic"},
+            "🍀": {"weight": 1, "payout": 15.0, "rarity": "Legendary"},
+            "🎰": {"weight": 0.2, "payout": 35.0, "rarity": "Mythic"}
         }
 
     def generate_slot_result(self):
@@ -94,7 +99,7 @@ class SlotsCog(commands.Cog):
             symbol_list.append(symbol)
             weights.append(data["weight"])
         
-        # Generate 15 symbols with slight bias for better player experience
+        # Generate 15 symbols with bias towards losing combinations
         result = []
         for _ in range(15):
             symbol = random.choices(symbol_list, weights=weights)[0]
@@ -108,57 +113,48 @@ class SlotsCog(commands.Cog):
         
         total_multiplier = 0
         winning_combinations = []
+        winning_positions = set()
         
         # Horizontal paylines (3 rows)
         for row_idx, row in enumerate(grid):
-            line_wins = self.check_payline(row, f"Row {row_idx + 1}")
+            line_wins, positions = self.check_payline(row, f"Row {row_idx + 1}", row_idx * 5)
             for win in line_wins:
                 total_multiplier += win["multiplier"]
                 winning_combinations.append(win)
+                winning_positions.update(positions)
         
         # Vertical paylines (5 columns)
         for col_idx in range(5):
             column = [grid[row][col_idx] for row in range(3)]
-            line_wins = self.check_payline(column, f"Column {col_idx + 1}")
+            positions = [col_idx + row * 5 for row in range(3)]
+            line_wins, win_positions = self.check_payline(column, f"Column {col_idx + 1}", 0, positions)
             for win in line_wins:
                 total_multiplier += win["multiplier"]
                 winning_combinations.append(win)
+                winning_positions.update(win_positions)
         
-        # Diagonal paylines
-        diagonals = [
-            ([grid[0][0], grid[1][1], grid[2][2]], "Main Diagonal"),
-            ([grid[0][2], grid[1][1], grid[2][0]], "Anti Diagonal"),
-            ([grid[0][1], grid[1][2], grid[2][3]], "Upper Diagonal"),
-            ([grid[0][3], grid[1][2], grid[2][1]], "Lower Diagonal")
-        ]
-        
-        for diagonal_symbols, name in diagonals:
-            line_wins = self.check_payline(diagonal_symbols, name)
-            for win in line_wins:
-                total_multiplier += win["multiplier"]
-                winning_combinations.append(win)
-        
-        # Apply house edge (10% reduction)
-        house_edge = 0.90
+        # Apply stronger house edge (15% reduction)
+        house_edge = 0.85
         final_multiplier = total_multiplier * house_edge
         winnings = bet_amount * final_multiplier
         
-        return winnings, winning_combinations, final_multiplier
+        return winnings, winning_combinations, final_multiplier, list(winning_positions)
 
-    def check_payline(self, line, line_name):
+    def check_payline(self, line, line_name, start_pos=0, custom_positions=None):
         """Check for winning combinations in a payline"""
         wins = []
+        winning_positions = []
         
         for symbol, data in self.symbols.items():
             count = line.count(symbol)
             if count >= 3:
                 base_payout = data["payout"]
                 
-                # Bonus multipliers for 4+ matches
+                # Reduced bonus multipliers
                 if count == 4:
-                    multiplier = base_payout * 1.5
+                    multiplier = base_payout * 1.3
                 elif count == 5:
-                    multiplier = base_payout * 2.5
+                    multiplier = base_payout * 2.0
                 else:
                     multiplier = base_payout
                 
@@ -169,8 +165,15 @@ class SlotsCog(commands.Cog):
                     "line": line_name,
                     "rarity": data["rarity"]
                 })
+                
+                # Track winning positions
+                if custom_positions:
+                    symbol_positions = [pos for i, pos in enumerate(custom_positions) if line[i] == symbol]
+                else:
+                    symbol_positions = [start_pos + i for i, s in enumerate(line) if s == symbol]
+                winning_positions.extend(symbol_positions[:count])
         
-        return wins
+        return wins, winning_positions
 
     def create_beautiful_embed(self, title, description, color, bet_amount=None, winnings=None, 
                              multiplier=None, winning_combinations=None, footer_text=None):
@@ -207,69 +210,57 @@ class SlotsCog(commands.Cog):
         
         if winning_combinations:
             combinations_text = ""
-            for combo in winning_combinations[:5]:  # Show max 5 combinations
+            for combo in winning_combinations[:3]:  # Show max 3 combinations
                 rarity_emoji = {
                     "Common": "⚪", "Uncommon": "🟢", "Rare": "🔵", 
                     "Epic": "🟣", "Legendary": "🟡", "Mythic": "🔴"
                 }.get(combo["rarity"], "⚪")
                 
-                combinations_text += f"{rarity_emoji} **{combo['count']}x {combo['symbol']}** on {combo['line']} - `{combo['multiplier']:.1f}x`\n"
+                combinations_text += f"{rarity_emoji} **{combo['count']}x {combo['symbol']}** - `{combo['multiplier']:.1f}x`\n"
             
-            if len(winning_combinations) > 5:
-                combinations_text += f"*+{len(winning_combinations) - 5} more combinations...*"
+            if len(winning_combinations) > 3:
+                combinations_text += f"*+{len(winning_combinations) - 3} more...*"
             
             embed.add_field(
-                name="🏆 Winning Combinations", 
+                name="🏆 Winning Lines", 
                 value=combinations_text or "None", 
                 inline=False
             )
         
         embed.set_footer(
-            text=footer_text or "🎰 BetSync Casino • Premium Slots Experience", 
+            text=footer_text or "🎰 BetSync Casino • Premium Slots", 
             icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
         )
         
         return embed
 
     @commands.command(aliases=["slot"])
-    async def slots(self, ctx, bet_amount: str = None):
+    async def slots(self, ctx, bet_amount: str = None, spins: int = 1):
         """🎰 Premium Slots - Spin the reels and win big!"""
         
+        # Limit spins to max 10
+        if spins > 10:
+            spins = 10
+        elif spins < 1:
+            spins = 1
+        
         if not bet_amount:
-            # Create beautiful help embed
+            # Shorter, more concise help embed
             help_embed = discord.Embed(
                 title="🎰 Premium Slots Machine",
                 description=(
-                    "**Experience the thrill of our premium slot machine!**\n"
-                    "Match symbols across multiple paylines to win big!\n\n"
-                    "**How to Play:**\n"
-                    "• Use `!slots <amount>` to place your bet\n"
-                    "• Match 3+ symbols on any payline to win\n"
-                    "• Multiple paylines = bigger wins!\n\n"
-                    "**Paylines Include:**\n"
-                    "• 3 Horizontal rows\n"
-                    "• 5 Vertical columns  \n"
-                    "• 4 Diagonal lines\n\n"
-                    "**Symbol Rarities & Base Payouts:**"
+                    "**Match 3+ symbols on paylines to win!**\n\n"
+                    "**Usage:** `!slots <amount> [spins]`\n"
+                    "**Example:** `!slots 100 5` (5 spins)\n\n"
+                    "**Paylines:** 3 rows + 5 columns\n"
+                    "**Max Spins:** 10 per command\n\n"
+                    "**Symbols & Payouts:**\n"
+                    "🍎🍊🍋 Common (1.1-1.3x)\n"
+                    "🍇🍒 Uncommon (1.8-2.2x)\n"
+                    "🔔 Rare (3.5x) | 💎 Epic (6x)\n"
+                    "🍀 Legendary (15x) | 🎰 Mythic (35x)"
                 ),
                 color=0x00FFAE
-            )
-            
-            # Add symbol information in a clean format
-            symbol_info = ""
-            for symbol, data in self.symbols.items():
-                rarity_colors = {
-                    "Common": "⚪", "Uncommon": "🟢", "Rare": "🔵",
-                    "Epic": "🟣", "Legendary": "🟡", "Mythic": "🔴"
-                }
-                color_indicator = rarity_colors.get(data["rarity"], "⚪")
-                symbol_info += f"{color_indicator} {symbol} **{data['rarity']}** - `{data['payout']:.1f}x`\n"
-            
-            help_embed.add_field(name="🎯 Symbols", value=symbol_info, inline=False)
-            help_embed.add_field(
-                name="💡 Pro Tips", 
-                value="• 4 matches = 1.5x bonus\n• 5 matches = 2.5x bonus\n• Multiple wins stack!", 
-                inline=False
             )
             help_embed.set_footer(text="🎰 Good luck and spin responsibly!")
             
@@ -278,15 +269,15 @@ class SlotsCog(commands.Cog):
         # Check for ongoing games
         if ctx.author.id in self.ongoing_games:
             embed = discord.Embed(
-                title="⚠️ Game In Progress",
+                title="<:no:1344252518305234987> | Game In Progress",
                 description="You already have a slots game running! Please finish it first.",
-                color=0xFFAA00
+                color=0xFF0000
             )
             return await ctx.reply(embed=embed, delete_after=5)
 
         # Create initial loading embed
         loading_embed = discord.Embed(
-            title="🎰 Initializing Slot Machine...",
+            title="<:loading:1344611780638412811> | Initializing Slots",
             description="Setting up your premium gaming experience...",
             color=0x00FFAE
         )
@@ -299,104 +290,139 @@ class SlotsCog(commands.Cog):
         if not user_data:
             await loading_message.delete()
             embed = discord.Embed(
-                title="❌ Account Not Found",
+                title="<:no:1344252518305234987> | Account Not Found",
                 description="Please create an account first or wait for auto-registration.",
                 color=0xFF0000
             )
             return await ctx.reply(embed=embed)
 
-        # Validate and process bet
+        # Validate and process bet for all spins
         success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
         if not success:
             await loading_message.delete()
             return await ctx.reply(embed=error_embed)
 
-        bet_amount_value = bet_info["total_bet_amount"]
+        total_bet = bet_info["total_bet_amount"] * spins
+        bet_per_spin = bet_info["total_bet_amount"]
         tokens_used = bet_info["tokens_used"]
+
+        # Check if user has enough for all spins
+        if user_data.get("points", 0) < total_bet:
+            await loading_message.delete()
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Insufficient Balance",
+                description=f"You need `{total_bet:.0f}` points for {spins} spins but only have `{user_data.get('points', 0):.0f}` points.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
+
+        # Deduct total bet amount upfront
+        db.update_balance(ctx.author.id, -total_bet, "points", "$inc")
 
         # Mark game as ongoing
         self.ongoing_games[ctx.author.id] = {
             "tokens_used": tokens_used,
-            "bet_amount": bet_amount_value
+            "bet_amount": total_bet
         }
 
         try:
-            # Update to spinning state
-            spinning_embed = self.create_beautiful_embed(
-                title="🎰 SPINNING...",
-                description="✨ **The reels are spinning!** ✨\n🎲 Calculating your fortune...",
-                color=0x00FFAE,
-                bet_amount=bet_amount_value,
-                footer_text="🎰 BetSync Casino • Spinning in progress..."
-            )
-            
-            spinning_view = SlotsSpinningView()
-            await loading_message.edit(embed=spinning_embed, view=spinning_view)
+            total_winnings = 0
+            all_results = []
 
-            # Dramatic pause for anticipation
-            await asyncio.sleep(3.5)
+            for spin_num in range(spins):
+                # Update to spinning state
+                spinning_embed = self.create_beautiful_embed(
+                    title="<:loading:1344611780638412811> | Spinning",
+                    description=f"✨ **Spin {spin_num + 1}/{spins}** ✨\n🎲 The reels are spinning...",
+                    color=0x00FFAE,
+                    bet_amount=bet_per_spin,
+                    footer_text=f"🎰 BetSync Casino • Spin {spin_num + 1}/{spins}"
+                )
+                
+                spinning_view = SlotsSpinningView()
+                await loading_message.edit(embed=spinning_embed, view=spinning_view)
 
-            # Generate results
-            slot_symbols = self.generate_slot_result()
-            winnings, winning_combinations, multiplier = self.calculate_winnings(slot_symbols, bet_amount_value)
-            user_won = winnings > 0
+                # Wait between spins
+                await asyncio.sleep(2.0 if spins == 1 else 1.5)
 
-            # Update balances and stats
-            if user_won:
-                db.update_balance(ctx.author.id, winnings, "points", "$inc")
-                server_db = Servers()
-                server_db.update_server_profit(ctx, ctx.guild.id, (bet_amount_value - winnings), game="slots")
-            else:
-                server_db = Servers()
-                server_db.update_server_profit(ctx, ctx.guild.id, bet_amount_value, game="slots")
+                # Generate results
+                slot_symbols = self.generate_slot_result()
+                winnings, winning_combinations, multiplier, winning_positions = self.calculate_winnings(slot_symbols, bet_per_spin)
+                
+                all_results.append({
+                    "symbols": slot_symbols,
+                    "winnings": winnings,
+                    "combinations": winning_combinations,
+                    "multiplier": multiplier,
+                    "winning_positions": winning_positions
+                })
+                
+                total_winnings += winnings
+
+            # Add winnings to balance
+            if total_winnings > 0:
+                db.update_balance(ctx.author.id, total_winnings, "points", "$inc")
+
+            # Update server profit
+            server_db = Servers()
+            server_profit = total_bet - total_winnings
+            server_db.update_server_profit(ctx, ctx.guild.id, server_profit, game="slots")
 
             # Add to history
             history_entry = {
-                "type": "win" if user_won else "loss",
+                "type": "win" if total_winnings > 0 else "loss",
                 "game": "slots",
-                "amount": winnings if user_won else bet_amount_value,
-                "bet": bet_amount_value,
-                "multiplier": multiplier,
+                "amount": total_winnings if total_winnings > 0 else total_bet,
+                "bet": total_bet,
+                "spins": spins,
                 "timestamp": int(time.time())
             }
             db.update_history(ctx.author.id, history_entry)
 
-            # Create result embed
+            # Show final result
+            user_won = total_winnings > 0
+            last_result = all_results[-1]
+
             if user_won:
-                title = "🎉 JACKPOT! YOU WON! 🎉"
-                description = f"🌟 **Congratulations!** You hit winning combinations! 🌟"
+                title = "<:yes:1355501647538815106> | You Won!"
+                description = f"🌟 **Congratulations!** Won on {sum(1 for r in all_results if r['winnings'] > 0)}/{spins} spins! 🌟"
                 color = 0x00FF00
             else:
-                title = "😔 No Win This Time"
-                description = "🎲 Better luck on your next spin! The reels are waiting..."
-                color = 0xFF6B6B
+                title = "<:no:1344252518305234987> | You Lost"
+                description = f"🎲 No wins this time! Better luck on your next {spins} spin{'s' if spins > 1 else ''}!"
+                color =0xFF0000
 
             result_embed = self.create_beautiful_embed(
                 title=title,
                 description=description,
                 color=color,
-                bet_amount=bet_amount_value,
-                winnings=winnings if user_won else 0,
-                multiplier=multiplier if user_won else 0,
-                winning_combinations=winning_combinations if user_won else None
+                bet_amount=total_bet,
+                winnings=total_winnings if user_won else 0,
+                multiplier=sum(r['multiplier'] for r in all_results) if user_won else 0,
+                winning_combinations=last_result["combinations"] if user_won else None
             )
 
-            # Create final view with results and play again button
-            result_view = SlotsResultView(self, ctx, bet_amount_value, slot_symbols)
+            # Show result of the last spin in buttons
+            result_view = SlotsResultView(
+                self, ctx, bet_per_spin, 
+                last_result["symbols"], 
+                "points", 
+                user_won, 
+                last_result["winning_positions"]
+            )
             await loading_message.edit(embed=result_embed, view=result_view)
 
         except Exception as e:
             print(f"Slots game error: {e}")
             error_embed = discord.Embed(
-                title="⚠️ Game Error",
+                title="<:no:1344252518305234987> | Game Error",
                 description="An unexpected error occurred. Your bet has been refunded.",
                 color=0xFF0000
             )
             await ctx.reply(embed=error_embed)
             
             # Refund the bet
-            if user_won is False:  # Only refund if we haven't already processed winnings
-                db.update_balance(ctx.author.id, bet_amount_value, "points", "$inc")
+            db.update_balance(ctx.author.id, total_bet, "points", "$inc")
 
         finally:
             # Clean up ongoing game
@@ -406,3 +432,4 @@ class SlotsCog(commands.Cog):
 
 def setup(bot):
     bot.add_cog(SlotsCog(bot))
+
