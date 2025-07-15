@@ -1,1 +1,4 @@
 this is how to make titles: 
+1) when something is good or positive or the guy won something : "<:yes:1355501647538815106> | title" , interchange the "title" for the actual title
+2)when something is bad or negative or the guy lost something : "<:no:1344252518305234987> | title" , interchange the "title" for the actual title
+3) when something is loading use "<:loading:1344611780638412811> | loading" interchange loading for suitable text
