@@ -52,7 +52,7 @@ cogs = [
     "Cogs.games.race", "Cogs.games.cases",
     "Cogs.games.hilo", "Cogs.games.poker", "Cogs.games.plinko", 
     "Cogs.games.keno", "Cogs.games.blackjack", "Cogs.games.baccarat",
-    "Cogs.games.match", "Cogs.sol_deposit" # Added sol_deposit cog
+    "Cogs.games.match", "Cogs.sol_deposit", "Cogs.games.slots" # Added sol_deposit cog
 ]
 
 @bot.event
@@ -66,7 +66,7 @@ async def on_command_error(ctx, error):
         await ctx.reply(embed=embed, delete_after=5)
         #print(f"{Fore.RED}[-] {Fore.WHITE} User {Fore.BLACK}{ctx.message.author}{Fore.WHITE} tried to use a non-existent command")
     else:
-        
+
         pass #print(f"{Fore.RED}[!] {Fore.WHITE}Command error: {Fore.RED}{error}")
 
 @bot.event
