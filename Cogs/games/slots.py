@@ -277,7 +277,7 @@ class SlotsCog(commands.Cog):
 
         # Create initial loading embed
         loading_embed = discord.Embed(
-            title="<:loading:1344611780638412811> | Initializing Slots",
+            title="<a:loading:1344611780638412811> | Initializing Slots",
             description="Setting up your premium gaming experience...",
             color=0x00FFAE
         )
@@ -346,7 +346,7 @@ class SlotsCog(commands.Cog):
             for spin_num in range(spins):
                 # Update to spinning state
                 spinning_embed = self.create_beautiful_embed(
-                    title="<:loading:1344611780638412811> | Spinning",
+                    title="<a:loading:1344611780638412811> | Spinning",
                     description=f"✨ **Spin {spin_num + 1}/{spins}** ✨\n🎲 The reels are spinning...",
                     color=0x00FFAE,
                     bet_amount=bet_per_spin,
