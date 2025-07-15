@@ -330,7 +330,7 @@ class SlotsCog(commands.Cog):
             await loading_message.edit(embed=result_embed, view=final_view)
             
             # Send play again button as a separate message
-            play_again_message = await ctx.followup.send("Want to spin again?", view=play_again_view)
+            play_again_message = await ctx.send("Want to spin again?", view=play_again_view)
             play_again_view.message = play_again_message
 
             # Clear ongoing game
