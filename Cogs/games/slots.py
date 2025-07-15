@@ -307,17 +307,31 @@ class SlotsCog(commands.Cog):
         tokens_used = bet_info["tokens_used"]
 
         # Check if user has enough for all spins
-        if user_data.get("points", 0) < total_bet:
+        current_balance = user_data.get("points", 0)
+        if current_balance < total_bet:
             await loading_message.delete()
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Insufficient Balance",
-                description=f"You need `{total_bet:.0f}` points for {spins} spins but only have `{user_data.get('points', 0):.0f}` points.",
+                description=f"You need `{total_bet:.0f}` points for {spins} spins but only have `{current_balance:.0f}` points.",
                 color=0xFF0000
             )
             return await ctx.reply(embed=embed)
 
-        # Deduct total bet amount upfront
-        db.update_balance(ctx.author.id, -total_bet, "points", "$inc")
+        # Deduct total bet amount upfront and verify the transaction
+        result = db.update_balance(ctx.author.id, -total_bet, "points", "$inc")
+        
+        # Double-check that balance didn't go negative
+        updated_user_data = db.fetch_user(ctx.author.id)
+        if updated_user_data.get("points", 0) < 0:
+            # Refund the bet and show error
+            db.update_balance(ctx.author.id, total_bet, "points", "$inc")
+            await loading_message.delete()
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Transaction Failed",
+                description="Transaction failed due to insufficient balance. Please try again.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
 
         # Mark game as ongoing
         self.ongoing_games[ctx.author.id] = {
