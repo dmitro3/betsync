@@ -328,6 +328,19 @@ class BaccaratGame(commands.Cog):
                 
                 
             #user_db.save(ctx.author.id)
+            # Add to user history
+            history_entry = {
+                "type": "win" if win_amount > 0 else "loss",
+                "game": "baccarat",
+                "amount": win_amount if win_amount > 0 else total_bet,
+                "bet": total_bet,
+                "multiplier": win_multiplier if win_amount > 0 else 0,
+                "bet_on": bet_on,
+                "winner": winner,
+                "timestamp": timestamp
+            }
+            user_db.update_history(author.id, history_entry)
+
             # Remove game from ongoing games
             if ctx.author.id in self.ongoing_games:
                 del self.ongoing_games[ctx.author.id]

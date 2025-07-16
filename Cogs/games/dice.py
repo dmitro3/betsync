@@ -168,6 +168,17 @@ class DiceCog(commands.Cog):
                 db.update_balance(ctx.author.id, tokens_used, "credits", "$inc")
 
                 # Add to history as a draw
+                history_entry = {
+                    "type": "push",
+                    "game": "dice",
+                    "amount": total_bet,
+                    "bet": total_bet,
+                    "multiplier": 1.0,
+                    "user_roll": user_roll,
+                    "dealer_roll": dealer_roll,
+                    "timestamp": int(time.time())
+                }
+                db.update_history(ctx.author.id, history_entry)
 
             elif user_won:
                 # Calculate winnings
@@ -197,6 +208,17 @@ class DiceCog(commands.Cog):
                 servers_db.update_server_profit(ctx, ctx.guild.id, server_profit, game="dice")
 
                 # Add to history
+                history_entry = {
+                    "type": "win",
+                    "game": "dice",
+                    "amount": winnings,
+                    "bet": total_bet,
+                    "multiplier": multiplier,
+                    "user_roll": user_roll,
+                    "dealer_roll": dealer_roll,
+                    "timestamp": int(time.time())
+                }
+                db.update_history(ctx.author.id, history_entry)
                 
 
             else:
@@ -215,7 +237,18 @@ class DiceCog(commands.Cog):
                 db = Users()
                 servers_db = Servers()
 
-                
+                # Add to history
+                history_entry = {
+                    "type": "loss",
+                    "game": "dice",
+                    "amount": total_bet,
+                    "bet": total_bet,
+                    "multiplier": 0,
+                    "user_roll": user_roll,
+                    "dealer_roll": dealer_roll,
+                    "timestamp": int(time.time())
+                }
+                db.update_history(ctx.author.id, history_entry)
 
                 # Update server profit
                 servers_db.update_server_profit(ctx, ctx.guild.id, total_bet, game="dice")

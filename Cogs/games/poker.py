@@ -612,19 +612,19 @@ class Poker(commands.Cog):
         db = Users()
         server_db = Servers()
 
-        
+
 
         if multiplier > 1:
             # Win
             db.update_balance(ctx.author.id, winnings)
 
-            
+
 
             # Update server profit (negative because server loses when player wins)
             try:
                 profit = bet_amount - winnings  # Server profit is negative when player wins
                 server_db.update_server_profit(ctx, ctx.guild.id, profit, game="poker")
-                
+
             except Exception as e:
                 print(f"Error updating server profit for win: {e}")
 
@@ -697,7 +697,7 @@ class Poker(commands.Cog):
             #play_again_view = PlayAgainView(self, ctx, bet_amount)
             #result_message = await ctx.reply(file=file, embed=embed, view=play_again_view)
             #play_again_view.message = result_message
-            
+
         elif multiplier < 0.5:
             # Loss
             # Update stats directly in the collection
@@ -754,6 +754,18 @@ class Poker(commands.Cog):
         play_again_view = PlayAgainView(self, ctx, bet_amount)
         result_message = await ctx.reply(file=file, embed=embed, view=play_again_view)
         play_again_view.message = result_message
+
+        # Update user stats and add to history
+        history_entry = {
+            "type": "win" if winnings > 0 else "loss",
+            "game": "poker",
+            "amount": winnings if winnings > 0 else bet_amount_value,
+            "bet": bet_amount_value,
+            "multiplier": multiplier,
+            "hand_type": hand_type,
+            "timestamp": int(time.time())
+        }
+        db.update_history(ctx.author.id, history_entry)
 
         # Remove from ongoing games
         if ctx.author.id in self.ongoing_games:
