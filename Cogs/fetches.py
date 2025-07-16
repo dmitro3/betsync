@@ -1024,7 +1024,7 @@ class Fetches(commands.Cog):
                 new_currency = currency_names[currency_upper]
 
                 # Check if currency is disabled
-                if new_currency in ["ETH", "USDT"]:
+                if new_currency in ["ETH", "USDT", "SOL"]:
                     embed = discord.Embed(
                         title="<:no:1344252518305234987> | Currency Coming Soon",
                         description=f"{emoji_map.get(new_currency, '')} **{new_currency}** will be available as a primary currency soon!\n\nPlease use a different currency for now.",
@@ -1040,7 +1040,7 @@ class Fetches(commands.Cog):
             else:
                 embed = discord.Embed(
                     title="<:no:1344252518305234987> | Invalid Currency",
-                    description=f"Invalid currency `{currency}`. Supported currencies: BTC, LTC, SOL",
+                    description=f"Invalid currency `{currency}`. Supported currencies: BTC, LTC",
                     color=0xFF0000
                 )
                 await ctx.reply(embed=embed)
@@ -1176,7 +1176,7 @@ class CurrencyDropdownView(discord.ui.View):
         selected_currency = select.values[0]
 
         # Check if currency is disabled
-        if selected_currency in ["ETH", "USDT"]:
+        if selected_currency in ["ETH", "USDT", "SOL"]:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Currency Coming Soon",
                 description=f"{self.emoji_map.get(selected_currency, '')} **{selected_currency}** will be available as a primary currency soon!\n\nPlease select a different currency for now.",
@@ -1189,8 +1189,7 @@ class CurrencyDropdownView(discord.ui.View):
         # Update primary currency
         crypto_values = {
             "BTC": 0.00000024,
-            "LTC": 0.00023,
-            "SOL": 0.0001442
+            "LTC": 0.00023
         }
 
         user_data = self.db.fetch_user(self.user_id)
