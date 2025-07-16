@@ -352,6 +352,18 @@ class MinesTileView(discord.ui.View):
 
         # Add credits to user (always give credits for winnings)
         db.update_balance(ctx.author.id, winnings)
+        
+        # Add win to history
+        win_entry = {
+            "type": "win",
+            "game": "mines",
+            "bet": self.bet_amount,
+            "amount": winnings,
+            "multiplier": self.current_multiplier,
+            "timestamp": int(time.time())
+        }
+        db.update_history(ctx.author.id, win_entry)
+        
         server_db = Servers()
             
 
@@ -367,7 +379,15 @@ class MinesTileView(discord.ui.View):
         # Get database connection
         db = Users()
 
-        
+        # Add loss to history
+        loss_entry = {
+            "type": "loss",
+            "game": "mines",
+            "bet": self.bet_amount,
+            "amount": self.bet_amount,
+            "timestamp": int(time.time())
+        }
+        db.update_history(ctx.author.id, loss_entry)
 
         # Update server history
         server_db = Servers()

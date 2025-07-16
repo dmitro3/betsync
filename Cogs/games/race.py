@@ -320,12 +320,12 @@ class RaceCog(commands.Cog):
 
         # Add game to user history
         history_entry = {
+            "type": "win" if user_won else "loss",
             "game": "race",
-            "bet_amount": bet_amount,
-            "currency": currency_used,
-            "result": "win" if user_won else "loss",
-            "win_amount": win_amount,
-            "timestamp": int(discord.utils.utcnow().timestamp())
+            "bet": bet_amount,
+            "amount": win_amount if user_won else bet_amount,
+            "multiplier": 3.0 if user_won else 0,
+            "timestamp": int(time.time())
         }
         db.update_history(author.id, history_entry)
 

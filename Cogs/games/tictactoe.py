@@ -347,27 +347,24 @@ class TicTacToeGame:
         history_entry_winner = {
             "type": "win",
             "game": "tictactoe",
-            "opponent": loser.name,
+            "bet": self.bet_amount,
             "amount": reward,
-            "timestamp": int(datetime.datetime.now().timestamp())
+            "multiplier": 1.95,
+            "opponent": loser.name,
+            "timestamp": int(time.time())
         }
-        db.collection.update_one(
-            {"discord_id": winner.id},
-            {"$push": {"history": {"$each": [history_entry_winner], "$slice": -100}}}
-        )
+        db.update_history(winner.id, history_entry_winner)
 
         # Add to loser's history
         history_entry_loser = {
             "type": "loss",
             "game": "tictactoe",
-            "opponent": winner.name,
+            "bet": self.bet_amount,
             "amount": self.bet_amount,
-            "timestamp": int(datetime.datetime.now().timestamp())
+            "opponent": winner.name,
+            "timestamp": int(time.time())
         }
-        db.collection.update_one(
-            {"discord_id": loser.id},
-            {"$push": {"history": {"$each": [history_entry_loser], "$slice": -100}}}
-        )
+        db.update_history(loser.id, history_entry_loser)
         #from Cogs.utils.mongo import Servers
         #serverss = Servers()
         #serverss.update_server_profit(ctx.guild.id, )

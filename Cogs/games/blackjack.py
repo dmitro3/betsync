@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 from discord.ext import commands
 from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
+import time
 
 # Card values
 CARD_VALUES = {
@@ -170,7 +171,7 @@ class BlackjackView(discord.ui.View):
             dealer_first_card = self.dealer_cards[0]
             dealer_first_card_text = f"{dealer_first_card[0]}{['♥', '♦', '♣', '♠'][['hearts', 'diamonds', 'clubs', 'spades'].index(dealer_first_card[1])]}"
             dealer_first_value = CARD_VALUES[dealer_first_card[0]]
-            
+
             embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
             embed.add_field(name="Dealer's Hand", value=f"{dealer_first_card_text} ?\nShowing: {dealer_first_value}", inline=True)
             embed.set_image(url="attachment://blackjack_game.png")
@@ -600,7 +601,7 @@ class Blackjack(commands.Cog):
                 dealer_first_card = view.dealer_cards[0]
                 dealer_first_card_text = f"{dealer_first_card[0]}{['♥', '♦', '♣', '♠'][['hearts', 'diamonds', 'clubs', 'spades'].index(dealer_first_card[1])]}"
                 dealer_first_value = CARD_VALUES[dealer_first_card[0]]
-                
+
                 embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
                 embed.add_field(name="Dealer's Hand", value=f"{dealer_first_card_text} ?\nShowing: {dealer_first_value}", inline=True)
                 embed.set_image(url="attachment://blackjack_game.png")
@@ -771,7 +772,7 @@ class Blackjack(commands.Cog):
                     card_img = Image.open(card_path).convert('RGBA')
                     card_img = card_img.resize((card_width, card_height))
 
-                    # Create white background for card with subtle shadow effect
+                    # Create white background for card with subtle shadow effect<previous_generation>```
                     card_bg = Image.new('RGB', (card_width, card_height), (255, 255, 255))
                     card_bg.paste(card_img, (0, 0), card_img)
 
@@ -901,102 +902,75 @@ class Blackjack(commands.Cog):
 
         return view
 
-    async def handle_game_end(self, ctx, bet_amount, currency_used, result, player_cards, dealer_cards):
-        """Handle game end in the database and update statistics"""
-        user_id = ctx.author.id
+    async def handle_game_end(self, ctx, bet_amount, currency_used, result_type, player_cards, dealer_cards):
+        """Handle the end of a blackjack game and update balances/history"""
+        # Get database connections
+        db = Users()
+        servers_db = Servers()
 
-        # Remove game from ongoing games
-        if user_id in self.ongoing_games:
-            del self.ongoing_games[user_id]
+        # Calculate winnings based on result
+        if result_type == "win":
+            # Check for blackjack (21 with 2 cards)
+            if len(player_cards) == 2 and self.calculate_hand_value(player_cards) == 21:
+                # Blackjack pays 1.5x
+                winnings = bet_amount * 1.5
+                multiplier = 1.5
+            else:
+                # Normal win pays 1.98x  
+                winnings = bet_amount * 1.98
+                multiplier = 1.98
 
-        # Get database instances
-        user_db = Users()
-        server_db = Servers()
-
-        # Calculate win amount
-        win_amount = 0
-        if result == "win":
-            win_amount = bet_amount * 1.98
-        elif result == "blackjack":
-            win_amount = bet_amount * 1.5
-
-        # Timestamp for history entries
-        timestamp = int(datetime.datetime.now().timestamp())
-
-        if result == "win" or result == "blackjack" or result == "push":
-            # Player wins - add winnings to balance
-            user_db.update_balance(user_id, win_amount, "credits", "$inc")
+            # Credit user with winnings
+            db.update_balance(ctx.author.id, winnings, "credits", "$inc")
 
             # Add win to history
-            multiplier = 1.5 if result == "blackjack" else 1.98
-            history_entry = {
+            win_entry = {
                 "type": "win",
                 "game": "blackjack",
-                "amount": win_amount,
                 "bet": bet_amount,
+                "amount": winnings,
                 "multiplier": multiplier,
-                "timestamp": timestamp
+                "timestamp": int(time.time())
             }
+            db.update_history(ctx.author.id, win_entry)
 
-            user_db.collection.update_one(
-                {"discord_id": user_id},
-                {
-                    "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                    "$inc": {"total_earned": win_amount, "total_won": 1, "total_played": 1}
-                }
-            )
+            # Update server profit (negative because server loses)
+            profit = winnings - bet_amount
+            servers_db.update_server_profit(ctx, ctx.guild.id, -profit, game="blackjack")
 
-            # Update server stats - casino loses
-            server_db.update_server_profit(ctx, ctx.guild.id, -(win_amount - bet_amount), game="blackjack")
+        elif result_type == "push":
+            # Return the original bet
+            winnings = bet_amount
+            db.update_balance(ctx.author.id, winnings, currency_used, "$inc")
 
-            # Add to server history
-            server_history_entry = {
-                "type": "win",
+            # Add push to history
+            push_entry = {
+                "type": "push",
                 "game": "blackjack",
-                "user_id": user_id,
-                "user_name": ctx.author.name,
-                "bet": bet_amount,
-                "amount": win_amount,
-                "multiplier": multiplier,
-                "timestamp": timestamp
-            }
-            server_db.update_history(ctx.guild.id, server_history_entry)
-
-        elif result == "loss":
-            # Player loses - already deducted bet when starting game
-            history_entry = {
-                "type": "loss",
-                "game": "blackjack",
-                "amount": bet_amount,
-                "multiplier": 0,
-                "timestamp": timestamp
-            }
-
-            user_db.collection.update_one(
-                {"discord_id": user_id},
-                {
-                    "$push": {"history": {"$each": [history_entry], "$slice": -100}},
-                    "$inc": {"total_spent": bet_amount, "total_lost": 1, "total_played": 1}
-                }
-            )
-
-            # Update server stats - casino wins
-            server_db.update_server_profit(ctx, ctx.guild.id, bet_amount, game="blackjack")
-
-            # Add to server history
-            server_history_entry = {
-                "type": "loss",
-                "game": "blackjack",
-                "user_id": user_id,
-                "user_name": ctx.author.name,
                 "bet": bet_amount,
                 "amount": bet_amount,
-                "multiplier": 0,
-                "timestamp": timestamp
+                "timestamp": int(time.time())
             }
-            server_db.update_history(ctx.guild.id, server_history_entry)
+            db.update_history(ctx.author.id, push_entry)
 
+            # No server profit change on push
+            servers_db.update_server_profit(ctx, ctx.guild.id, 0, game="blackjack")
 
+        else:  # loss
+            winnings = 0
+            # Add loss to history
+            loss_entry = {
+                "type": "loss",
+                "game": "blackjack",
+                "bet": bet_amount,
+                "amount": bet_amount,
+                "timestamp": int(time.time())
+            }
+            db.update_history(ctx.author.id, loss_entry)
+
+            # User already lost the bet, no need to deduct again
+            # Update server profit (positive because server wins)
+            servers_db.update_server_profit(ctx, ctx.guild.id, bet_amount, game="blackjack")
 
 def setup(bot):
     bot.add_cog(Blackjack(bot))

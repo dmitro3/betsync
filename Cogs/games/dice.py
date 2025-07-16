@@ -191,13 +191,21 @@ class DiceCog(commands.Cog):
                 db = Users()
                 db.update_balance(ctx.author.id, winnings, "credits", "$inc")
 
+                # Add win to history
+                win_entry = {
+                    "type": "win",
+                    "game": "dice",
+                    "bet": total_bet,
+                    "amount": winnings,
+                    "multiplier": multiplier,
+                    "timestamp": int(time.time())
+                }
+                db.update_history(ctx.author.id, win_entry)
+
                 # Update server profit (negative value because server loses when player wins)
                 servers_db = Servers()
                 server_profit = -profit  # Server loses money when player wins
                 servers_db.update_server_profit(ctx, ctx.guild.id, server_profit, game="dice")
-
-                # Add to history
-                
 
             else:
                 result_embed = discord.Embed(
@@ -215,7 +223,15 @@ class DiceCog(commands.Cog):
                 db = Users()
                 servers_db = Servers()
 
-                
+                # Add loss to history
+                loss_entry = {
+                    "type": "loss",
+                    "game": "dice",
+                    "bet": total_bet,
+                    "amount": total_bet,
+                    "timestamp": int(time.time())
+                }
+                db.update_history(ctx.author.id, loss_entry)
 
                 # Update server profit
                 servers_db.update_server_profit(ctx, ctx.guild.id, total_bet, game="dice")
