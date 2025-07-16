@@ -45,7 +45,7 @@ ALCHEMY_API_URL = f"https://solana-mainnet.g.alchemy.com/v2/{ALCHEMY_API}" if AL
 RPC_URL = ALCHEMY_API_URL
 CHECK_DEPOSIT_COOLDOWN = 15
 EMBED_TIMEOUT = 600
-SOL_DERIVATION_PATH_ACCOUNT_TEMPLATE = "m/44'/501'/{}'/0'"
+SOL_DERIVATION_PATH_ACCOUNT_TEMPLATE = "m/44'/501'/0'/0'/{}"  # All addresses under account 0
 
 def generate_qr_code(address: str, username: str):
     """Generates a styled QR code image with text for Solana."""
@@ -332,7 +332,7 @@ class SolDeposit(commands.Cog):
         await self.solana_client.close()
 
     async def _generate_sol_address(self, user_id: int) -> tuple[str | None, str | None]:
-        """Generate a unique SOL deposit address for the user."""
+        """Generate a unique SOL deposit address for the user under account 0."""
         try:
             if not PHANTOM_SEED:
                 return None, "PHANTOM_SEED environment variable is not configured."
@@ -344,19 +344,19 @@ class SolDeposit(commands.Cog):
                 print(f"{Fore.GREEN}[+] Using existing SOL address for user {user_id}: {existing_address}{Style.RESET_ALL}")
                 return existing_address, None
 
-            # Always use account 0 (first account) to consolidate funds to main phantom wallet
+            # Generate unique address under account 0
             seed_bytes = Bip39SeedGenerator(PHANTOM_SEED).Generate()
             bip44_mst_ctx = Bip44.FromSeed(seed_bytes, Bip44Coins.SOLANA)
 
-            # Use unique derivation path for each user but all under account 0
-            # This creates unique addresses while keeping funds in the same wallet
+            # Get the next available address index
             highest_index_user = self.users_db.collection.find_one(
                 {"sol_address_index": {"$exists": True}},
                 sort=[("sol_address_index", -1)]
             )
             next_index = highest_index_user['sol_address_index'] + 1 if highest_index_user else 0
 
-            # Generate address using account 0 but unique address index
+            # Generate address under account 0, using address index for uniqueness
+            # Path: m/44'/501'/0'/0/{address_index}
             deposit_address = bip44_mst_ctx.Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(next_index).PublicKey().ToAddress()
 
             # Store in database
@@ -377,38 +377,13 @@ class SolDeposit(commands.Cog):
             if result.matched_count == 0 and not result.upserted_id:
                 return None, "Failed to store address info"
 
-            print(f"{Fore.GREEN}[+] Generated new SOL address for user {user_id}: {deposit_address} (index: {next_index}){Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[+] Generated new SOL address for user {user_id}: {deposit_address} (index: {next_index}) - All funds go to account 0{Style.RESET_ALL}")
             return deposit_address, None
 
         except Exception as e:
             print(f"{Fore.RED}[!] Error generating SOL address: {e}{Style.RESET_ALL}")
             traceback.print_exc()
             return None, f"Failed to generate deposit address: {e}"
-
-    async def _check_alchemy_transactions(self, address: str) -> list:
-        """Check for transactions using Alchemy RPC."""
-        try:
-            pubkey_address = Pubkey.from_string(address)
-            signatures_response = await self.solana_client.get_signatures_for_address(
-                pubkey_address,
-                limit=20,
-                commitment=Finalized
-            )
-
-            if signatures_response and signatures_response.value:
-                # Convert RPC format to transaction list
-                transactions = []
-                for sig_info in signatures_response.value:
-                    if not sig_info.err:  # Only successful transactions
-                        transactions.append({
-                            'txHash': str(sig_info.signature),
-                            'blockTime': sig_info.block_time
-                        })
-                return transactions
-            return []
-        except Exception as e:
-            print(f"{Fore.RED}[!] Error checking Alchemy transactions: {e}{Style.RESET_ALL}")
-            return []
 
     async def _check_for_deposits(self, user_id: int, address: str) -> tuple[str, dict]:
         """Check for deposits to the address and credit user's wallet."""
@@ -420,57 +395,71 @@ class SolDeposit(commands.Cog):
             processed_txids = set(user_data.get('processed_sol_txids', []))
             processed_deposits = []
 
-            # Use Alchemy API through RPC
-            transactions = await self._check_alchemy_transactions(address)
+            # Get address pubkey
+            try:
+                pubkey_address = Pubkey.from_string(address)
+            except Exception as e:
+                return "error", {"error": f"Invalid address format: {e}"}
 
-            if not transactions:
-                return "no_new", {}
+            # Get recent transactions for this address
+            try:
+                signatures_response = await self.solana_client.get_signatures_for_address(
+                    pubkey_address,
+                    limit=50,
+                    commitment=Finalized
+                )
 
-            # Process transactions
-            for tx in transactions:
-                tx_hash = tx.get('txHash')
-                if not tx_hash or tx_hash in processed_txids:
-                    continue
+                if not signatures_response or not signatures_response.value:
+                    return "no_new", {}
 
-                try:
-                    # Get transaction details - convert string to Signature properly
-                    from solders.signature import Signature
-                    signature = Signature.from_string(tx_hash)
-                    tx_detail_response = await self.solana_client.get_transaction(
-                        signature,
-                        encoding="jsonParsed",
-                        max_supported_transaction_version=0,
-                        commitment=Finalized
-                    )
+                # Process each transaction
+                for sig_info in signatures_response.value:
+                    tx_hash = str(sig_info.signature)
 
-                    if not tx_detail_response or not tx_detail_response.value:
+                    # Skip if already processed or transaction failed
+                    if tx_hash in processed_txids or sig_info.err:
                         continue
 
-                    tx_data = tx_detail_response.value
-                    if not tx_data or not tx_data.transaction or not tx_data.transaction.meta:
-                        continue
-
-                    # Check for errors
-                    if tx_data.transaction.meta.err:
-                        # Mark as processed to skip in future
-                        self.users_db.collection.update_one(
-                            {"discord_id": user_id},
-                            {"$addToSet": {"processed_sol_txids": tx_hash}}
+                    try:
+                        # Get transaction details
+                        from solders.signature import Signature
+                        signature = Signature.from_string(tx_hash)
+                        tx_detail_response = await self.solana_client.get_transaction(
+                            signature,
+                            encoding="jsonParsed",
+                            max_supported_transaction_version=0,
+                            commitment=Finalized
                         )
-                        continue
 
-                    # Calculate SOL received
-                    lamports_received = 0
-                    target_pubkey_str = address
+                        if not tx_detail_response or not tx_detail_response.value:
+                            # Mark as processed to avoid checking again
+                            self.users_db.collection.update_one(
+                                {"discord_id": user_id},
+                                {"$addToSet": {"processed_sol_txids": tx_hash}}
+                            )
+                            continue
 
-                    if tx_data.transaction and tx_data.transaction.meta and tx_data.transaction.message:
+                        tx_data = tx_detail_response.value
+
+                        # Skip if transaction failed
+                        if not tx_data.transaction or not tx_data.transaction.meta or tx_data.transaction.meta.err:
+                            self.users_db.collection.update_one(
+                                {"discord_id": user_id},
+                                {"$addToSet": {"processed_sol_txids": tx_hash}}
+                            )
+                            continue
+
+                        # Calculate SOL received
+                        lamports_received = 0
+                        target_pubkey_str = address
+
                         pre_balances = tx_data.transaction.meta.pre_balances
                         post_balances = tx_data.transaction.meta.post_balances
                         account_keys = tx_data.transaction.message.account_keys
 
+                        # Find balance change for our address
                         for i, key in enumerate(account_keys):
                             if i < len(pre_balances) and i < len(post_balances):
-                                # Handle both string and pubkey object types
                                 key_str = str(key.pubkey) if hasattr(key, 'pubkey') else str(key)
                                 if key_str == target_pubkey_str:
                                     balance_change = post_balances[i] - pre_balances[i]
@@ -478,146 +467,62 @@ class SolDeposit(commands.Cog):
                                         lamports_received = balance_change
                                         break
 
-                    if lamports_received <= 0:
-                        # Mark as processed to skip in future
+                        if lamports_received <= 0:
+                            # Mark as processed to skip in future
+                            self.users_db.collection.update_one(
+                                {"discord_id": user_id},
+                                {"$addToSet": {"processed_sol_txids": tx_hash}}
+                            )
+                            continue
+
+                        # Convert lamports to SOL
+                        amount_sol = lamports_received / SOL_LAMPORTS
+
+                        # Update user's SOL wallet balance
+                        update_result = self.users_db.collection.update_one(
+                            {"discord_id": user_id},
+                            {"$inc": {"wallet.SOL": amount_sol}}
+                        )
+
+                        if update_result.matched_count == 0:
+                            print(f"{Fore.RED}[!] Failed to update wallet for user {user_id}{Style.RESET_ALL}")
+                            continue
+
+                        # Mark transaction as processed
+                        self.users_db.collection.update_one(
+                            {"discord_id": user_id},
+                            {"$addToSet": {"processed_sol_txids": tx_hash}}
+                        )
+
+                        processed_deposits.append({
+                            "amount_crypto": amount_sol,
+                            "txid": tx_hash
+                        })
+
+                        print(f"{Fore.GREEN}[+] Processed SOL deposit: {amount_sol:.6f} SOL for user {user_id} (TX: {tx_hash}){Style.RESET_ALL}")
+
+                    except Exception as e:
+                        print(f"{Fore.RED}[!] Error processing transaction {tx_hash}: {e}{Style.RESET_ALL}")
+                        # Mark as processed to avoid infinite retries
                         self.users_db.collection.update_one(
                             {"discord_id": user_id},
                             {"$addToSet": {"processed_sol_txids": tx_hash}}
                         )
                         continue
 
-                    # Convert lamports to SOL
-                    amount_sol = lamports_received / SOL_LAMPORTS
+                if processed_deposits:
+                    return "success", {"deposits": processed_deposits}
+                else:
+                    return "no_new", {}
 
-                    # Update user's SOL wallet balance
-                    update_result = self.users_db.collection.update_one(
-                        {"discord_id": user_id},
-                        {"$inc": {"wallet.SOL": amount_sol}}
-                    )
-
-                    if update_result.matched_count == 0:
-                        print(f"{Fore.RED}[!] Failed to update wallet for user {user_id}{Style.RESET_ALL}")
-                        continue
-
-                    # Mark transaction as processed
-                    self.users_db.collection.update_one(
-                        {"discord_id": user_id},
-                        {"$addToSet": {"processed_sol_txids": tx_hash}}
-                    )
-
-                    # Transfer funds to main wallet (account 0) if this address is not account 0
-                    try:
-                        await self._transfer_to_main_wallet(address, amount_sol)
-                    except Exception as transfer_error:
-                        print(f"{Fore.YELLOW}[!] Warning: Could not transfer funds to main wallet: {transfer_error}{Style.RESET_ALL}")
-
-                    processed_deposits.append({
-                        "amount_crypto": amount_sol,
-                        "txid": tx_hash
-                    })
-
-                    print(f"{Fore.GREEN}[+] Processed SOL deposit: {amount_sol:.6f} SOL for user {user_id}{Style.RESET_ALL}")
-
-                except Exception as e:
-                    print(f"{Fore.RED}[!] Error processing transaction {tx_hash}: {e}{Style.RESET_ALL}")
-                    continue
-
-            if processed_deposits:
-                return "success", {"deposits": processed_deposits}
-            else:
-                return "no_new", {}
+            except Exception as e:
+                print(f"{Fore.RED}[!] Error checking Solana RPC: {e}{Style.RESET_ALL}")
+                return "error", {"error": f"RPC connection error: {e}"}
 
         except Exception as e:
             print(f"{Fore.RED}[!] Error in _check_for_deposits: {e}{Style.RESET_ALL}")
             traceback.print_exc()
             return "error", {"error": f"An unexpected error occurred: {e}"}
-
-    async def _transfer_to_main_wallet(self, from_address: str, amount_sol: float):
-        """Transfer funds from deposit address to main wallet (account 0)."""
-        try:
-            from solana.transaction import Transaction
-            from solders.system_program import TransferParams, transfer
-            from solders.pubkey import Pubkey
-
-            # Skip if this is already the main wallet address
-            if not MAINWALLET_SOL:
-                print(f"{Fore.YELLOW}[!] MAINWALLET_SOL not configured, skipping transfer{Style.RESET_ALL}")
-                return
-
-            main_wallet_pubkey = Pubkey.from_string(MAINWALLET_SOL)
-            from_pubkey = Pubkey.from_string(from_address)
-
-            # Don't transfer if it's already the main wallet
-            if str(from_pubkey) == str(main_wallet_pubkey):
-                return
-
-            # Get the private key for the from_address
-            seed_bytes = Bip39SeedGenerator(PHANTOM_SEED).Generate()
-            bip44_mst_ctx = Bip44.FromSeed(seed_bytes, Bip44Coins.SOLANA)
-
-            # Find the address index for this address
-            user_data = self.users_db.collection.find_one({"sol_address": from_address})
-            if not user_data or 'sol_address_index' not in user_data:
-                print(f"{Fore.YELLOW}[!] Could not find address index for {from_address}{Style.RESET_ALL}")
-                return
-
-            address_index = user_data['sol_address_index']
-            from_keypair = bip44_mst_ctx.Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(address_index).PrivateKey().Raw().ToBytes()
-            from_keypair_obj = Keypair.from_bytes(from_keypair)
-
-            # Get account balance
-            balance_response = await self.solana_client.get_balance(from_pubkey, commitment=Finalized)
-            if not balance_response or not balance_response.value:
-                return
-
-            current_balance = balance_response.value
-
-            # Calculate transfer amount (leave some for transaction fees)
-            transfer_amount = current_balance - 5000  # Leave 0.000005 SOL for fees
-
-            if transfer_amount <= 0:
-                print(f"{Fore.YELLOW}[!] Insufficient balance for transfer from {from_address}{Style.RESET_ALL}")
-                return
-
-            # Create transfer instruction
-            transfer_instruction = transfer(
-                TransferParams(
-                    from_pubkey=from_pubkey,
-                    to_pubkey=main_wallet_pubkey,
-                    lamports=transfer_amount
-                )
-            )
-
-            # Create and send transaction
-            transaction = Transaction()
-            transaction.add(transfer_instruction)
-
-            # Get recent blockhash
-            blockhash_response = await self.solana_client.get_latest_blockhash(commitment=Finalized)
-            if not blockhash_response or not blockhash_response.value:
-                print(f"{Fore.RED}[!] Could not get recent blockhash{Style.RESET_ALL}")
-                return
-
-            transaction.recent_blockhash = blockhash_response.value.blockhash
-            transaction.fee_payer = from_pubkey
-
-            # Sign and send transaction
-            transaction.sign(from_keypair_obj)
-
-            send_response = await self.solana_client.send_transaction(
-                transaction,
-                from_keypair_obj,
-                opts={"skip_confirmation": False, "preflight_commitment": Finalized}
-            )
-
-            if send_response and send_response.value:
-                print(f"{Fore.GREEN}[+] Successfully transferred {transfer_amount/SOL_LAMPORTS:.6f} SOL to main wallet. TX: {send_response.value}{Style.RESET_ALL}")
-            else:
-                print(f"{Fore.RED}[!] Failed to send transfer transaction{Style.RESET_ALL}")
-
-        except Exception as e:
-            print(f"{Fore.RED}[!] Error in fund transfer: {e}{Style.RESET_ALL}")
-            traceback.print_exc()
 
     async def _show_deposit_history(self, user_id: int) -> discord.Embed:
         """Show user's SOL deposit history."""
@@ -699,11 +604,12 @@ class SolDeposit(commands.Cog):
         embed = discord.Embed(
             title=f"<:sol:1340981839497793556> Your SOL Deposit Address",
             description=(
-                f"Send only **SOL** to the address below. Deposits will be credited to your SOL wallet balance after confirmation.\n\n"
+                f"Send only **SOL** to the address below. All deposits automatically appear in your account.\n\n"
                 f"**Address:**\n`{address}`\n\n"
                 f"**Network:** Solana (Mainnet)\n"
                 f"**Minimum Deposit:** None\n"
-                f"**Confirmation:** Finalized status required"
+                f"**Confirmation:** Finalized status required\n"
+                f"**Note:** Funds go directly to account 0 for easy management"
             ),
             color=discord.Color.purple()
         )
