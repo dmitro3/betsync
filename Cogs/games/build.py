@@ -446,7 +446,7 @@ class BuildCog(commands.Cog):
         self.bot = bot
         self.ongoing_games = {}
 
-    @commands.command(aliases=["builder", "tower", "construct"])
+    @commands.command(aliases=["builder", "construct"])
     async def build(self, ctx, bet_amount: str = None):
         """Build a tower by choosing blocks with different risk levels!"""
         if not bet_amount:
