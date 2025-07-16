@@ -80,7 +80,7 @@ class Guide(commands.Cog):
         items_per_page = 8
         for category, commands in categorized.items():
             command_list = list(commands.items())
-            
+
             # Ensure every category has at least one page
             if not command_list:
                 embed = discord.Embed(
@@ -90,23 +90,23 @@ class Guide(commands.Cog):
                 )
                 embeds[category].append(embed)
                 continue
-                
+
             for i in range(0, len(command_list), items_per_page):
                 page_commands = command_list[i:i+items_per_page]
-                
+
                 embed = discord.Embed(
                     title=f":information_source: | {category.capitalize()} Commands",
                     description=f"Use the dropdown to switch categories\nTotal: {len(command_list)} commands",
                     color=0x00FFAE
                 )
-                
+
                 for cmd, desc in page_commands:
                     embed.add_field(
                         name=f"`.{cmd}`",
                         value=desc,
                         inline=False
                     )
-                
+
                 embed.set_footer(text=f"Page {i//items_per_page + 1}/{(len(command_list)+items_per_page-1)//items_per_page}")
                 embeds[category].append(embed)
 
@@ -117,14 +117,14 @@ class Guide(commands.Cog):
                 self.embeds = embeds
                 self.current_category = initial_category
                 self.current_page = 0
-                
+
                 # Add category dropdown
                 self.add_item(CategorySelect(embeds))
-                
+
                 # Add pagination buttons if needed
                 if len(embeds[initial_category]) > 1:
                     self.add_pagination_buttons()
-            
+
             def add_pagination_buttons(self):
                 # Previous button
                 prev_button = discord.ui.Button(
@@ -134,7 +134,7 @@ class Guide(commands.Cog):
                 )
                 prev_button.callback = self.prev_page
                 self.add_item(prev_button)
-                
+
                 # Next button
                 next_button = discord.ui.Button(
                     label="▶",
@@ -143,15 +143,15 @@ class Guide(commands.Cog):
                 )
                 next_button.callback = self.next_page
                 self.add_item(next_button)
-            
+
             async def prev_page(self, interaction: discord.Interaction):
                 self.current_page = max(0, self.current_page - 1)
                 await self.update_view(interaction)
-            
+
             async def next_page(self, interaction: discord.Interaction):
                 self.current_page = min(len(self.embeds[self.current_category]) - 1, self.current_page + 1)
                 await self.update_view(interaction)
-            
+
             async def update_view(self, interaction):
                 # Update buttons state
                 for item in self.children:
@@ -160,119 +160,84 @@ class Guide(commands.Cog):
                             item.disabled = self.current_page == 0
                         elif item.label == "▶":
                             item.disabled = self.current_page == len(self.embeds[self.current_category]) - 1
-                
+
                 await interaction.response.edit_message(
                     embed=self.embeds[self.current_category][self.current_page],
                     view=self
                 )
-        
+
         # Send initial embed with combined view
         view = HelpView(embeds)
         await ctx.reply(embed=embeds["all"][0], view=view)
 
     @commands.command()
-    @commands.cooldown(1, 86400, commands.BucketType.user)  # 24-hour cooldown
-    async def modmail(self, ctx):
-        """Send a message to the bot administrators"""
-        # First, send instructions to the user
-        embed = discord.Embed(
-            title="📧 ModMail System",
-            description="Please check your DMs to continue with the ModMail process.",
-            color=0x00FFAE
-        )
-        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-        await ctx.reply(embed=embed)
+    async def support(self, ctx):
+        """Get support from the bot administrators"""
+        # Check if command is used in the main server
+        main_server_id = 1326527688105529405
 
-        try:
-            # Send DM to user asking for their message
-            dm_embed = discord.Embed(
-                title="📧 ModMail System",
-                description="Please type your message below. This will be sent to the bot administrators.\n\nYou have 200 seconds to reply.",
-                color=0x00FFAE
-            )
-            dm_embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-            dm = await ctx.author.send(embed=dm_embed)
-
-            # Wait for user's response
-            def check(m):
-                return m.author == ctx.author and m.channel == dm.channel and not m.content.startswith('.') # Changed prefix check
-
+        if ctx.guild.id != main_server_id:
+            # User is not in main server, send invite
             try:
-                # Wait for response with timeout
-                response = await self.bot.wait_for('message', check=check, timeout=200)
-                message_content = response.content
+                # Get the main server
+                main_server = self.bot.get_guild(main_server_id)
+                if main_server:
+                    # Create invite to main server
+                    invite = await main_server.text_channels[0].create_invite(max_age=3600, max_uses=1)
 
-                # Load admin IDs from file
-                admin_ids = []
-                try:
-                    with open("admins.txt", "r") as f:
-                        for line in f:
-                            line = line.strip()
-                            if line and line.isdigit():
-                                admin_ids.append(int(line))
-                except Exception as e:
-                    await ctx.author.send(f"Error processing ModMail: {e}")
-                    return
-
-                # Create embed for admins
-                admin_embed = discord.Embed(
-                    title="📨 New ModMail",
-                    description=f"**From:** {ctx.author.mention} (`{ctx.author.id}`)\n**Server:** {ctx.guild.name} (`{ctx.guild.id}`)\n\n**Message:**\n{message_content}",
-                    color=0xFF9900,
-                    timestamp=ctx.message.created_at
-                )
-                admin_embed.set_footer(text=f"User ID: {ctx.author.id}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-
-                # Send message to all admins
-                sent_count = 0
-                for admin_id in admin_ids:
-                    try:
-                        admin = await self.bot.fetch_user(admin_id)
-                        if admin:
-                            await admin.send(embed=admin_embed)
-                            sent_count += 1
-                    except Exception as e:
-                        print(f"Failed to send ModMail to admin {admin_id}: {e}")
-
-                # Confirm to user
-                if sent_count > 0:
-                    confirm_embed = discord.Embed(
-                        title="✅ ModMail Sent",
-                        description="Your message has been sent to the administrators. Please wait patiently for a response.",
-                        color=0x00FF00
-                    )
-                    confirm_embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-                    await ctx.author.send(embed=confirm_embed)
-                else:
-                    error_embed = discord.Embed(
-                        title="❌ ModMail Failed",
-                        description="Failed to send your message to any administrators. Please try again later or contact support.",
+                    # Create embed with join button
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Join Main Server Required",
+                        description="You need to join our main server first to access support.",
                         color=0xFF0000
                     )
-                    error_embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-                    await ctx.author.send(embed=error_embed)
 
-            except asyncio.TimeoutError:
-                timeout_embed = discord.Embed(
-                    title="⏰ ModMail Timed Out",
-                    description="You did not provide a message within the time limit. Please use `.modmail` again if you still need to contact administrators.", # Changed prefix
+                    # Create view with join button
+                    view = discord.ui.View()
+                    join_button = discord.ui.Button(
+                        label="Join Main Server",
+                        style=discord.ButtonStyle.link,
+                        url=invite.url,
+                        emoji="🚀"
+                    )
+                    view.add_item(join_button)
+
+                    embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+                    await ctx.reply(embed=embed, view=view)
+                else:
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Error",
+                        description="Unable to access main server. Please contact an administrator.",
+                        color=0xFF0000
+                    )
+                    await ctx.reply(embed=embed)
+            except Exception as e:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Error",
+                    description="Unable to create invite. Please manually join the main server.",
                     color=0xFF0000
                 )
-                timeout_embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-                await ctx.author.send(embed=timeout_embed)
-
-        except discord.Forbidden:
-            # User has DMs closed
-            error_embed = discord.Embed(
-                title="❌ ModMail Failed",
-                description="I couldn't send you a DM. Please enable DMs from server members and try again.",
-                color=0xFF0000
+                await ctx.reply(embed=embed)
+        else:
+            # User is in main server, show support channel
+            embed = discord.Embed(
+                title=":information_source: | Support",
+                description="Need help? Create a support ticket in our dedicated support channel!",
+                color=0x00FFAE
             )
-            error_embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-            await ctx.reply(embed=error_embed)
-            self.modmail.reset_cooldown(ctx)
 
-        # Removed redundant await ctx.reply(embed=embed) from original modmail
+            # Create view with support channel button
+            view = discord.ui.View()
+            support_button = discord.ui.Button(
+                label="Create Support Ticket",
+                style=discord.ButtonStyle.link,
+                url="https://discord.com/channels/1326527688105529405/1354110762330750996",
+                emoji="🎫"
+            )
+            view.add_item(support_button)
+
+            embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+            await ctx.reply(embed=embed, view=view)
 
     @commands.command()
     async def guide(self, ctx):
@@ -299,32 +264,32 @@ class Guide(commands.Cog):
         # Get game descriptions from Start cog
         start_cog = self.bot.get_cog("Start")
         game_descriptions = start_cog.game_descriptions if start_cog else {}
-        
+
         # Build games embed with pagination
         embeds = []
         games_per_page = 8
         game_list = list(game_descriptions.items())
-        
+
         for i in range(0, len(game_list), games_per_page):
             page_games = game_list[i:i+games_per_page]
-            
+
             embed = discord.Embed(
                 title="🎮 BetSync Casino Games",
                 description=f"Here are all {len(game_list)} available games! Use `.game_name` to play any game.",
                 color=0x00FFAE
             )
-            
+
             for game_name, description in page_games:
                 embed.add_field(
                     name=f"🎲 `.{game_name}`",
                     value=description,
                     inline=False
                 )
-            
+
             embed.set_footer(text=f"Page {i//games_per_page + 1}/{(len(game_list)+games_per_page-1)//games_per_page} • BetSync Casino")
             embed.set_thumbnail(url=self.bot.user.avatar.url)
             embeds.append(embed)
-        
+
         # Use pagination if more than one page
         if len(embeds) > 1:
             view = GamePaginator(embeds)
