@@ -555,14 +555,11 @@ class LtcDeposit(commands.Cog):
 
                 # --- Confirmed deposit found! ---
                 amount_crypto = round(amount_received_satoshi / LTC_SATOSHIS, 8)
-                # Convert LTC to points using conversion rate
-                points_credited = amount_crypto / LTC_CONVERSION_RATE
 
                 # --- Database Update ---
                 balance_before_ltc = user_data.get("wallet", {}).get("LTC", 0) # Get LTC balance before
-                balance_before_points = user_data.get("points", 0) # Get points balance before
 
-                # 1. Increment wallet.LTC balance
+                # Only increment wallet.LTC balance - no points added to main balance
                 update_result_wallet = self.users_db.collection.update_one(
                     {"discord_id": user_id},
                     {"$inc": {"wallet.LTC": amount_crypto}}
@@ -571,16 +568,6 @@ class LtcDeposit(commands.Cog):
                      print(f"{Fore.RED}[!] Failed to update wallet.LTC for user {user_id} for txid {txid}. Aborting processing.{Style.RESET_ALL}")
                      continue # Skip this transaction
                 print(f"{Fore.GREEN}[+] Updated wallet.LTC for user {user_id} by {amount_crypto:.8f} LTC for txid {txid}{Style.RESET_ALL}")
-
-                # 2. Add points to user's main balance
-                update_result_points = self.users_db.collection.update_one(
-                    {"discord_id": user_id},
-                    {"$inc": {"points": points_credited}}
-                )
-                if not update_result_points or update_result_points.matched_count == 0:
-                     print(f"{Fore.RED}[!] Failed to update points for user {user_id} for txid {txid}. Aborting processing.{Style.RESET_ALL}")
-                     continue # Skip this transaction
-                print(f"{Fore.GREEN}[+] Updated points for user {user_id} by {points_credited:.2f} points for txid {txid}{Style.RESET_ALL}")
 
                 # 2. Increment total deposit amount (USD value for stats tracking)
                 ltc_price = await get_crypto_price('litecoin')
@@ -599,7 +586,6 @@ class LtcDeposit(commands.Cog):
                     "type": "ltc_deposit",
                     "amount_crypto": amount_crypto,
                     "currency": "LTC",
-                    "points_credited": points_credited,
                     "usd_value": usd_value,
                     "txid": txid,
                     "address": address,
@@ -622,7 +608,6 @@ class LtcDeposit(commands.Cog):
 
                 # --- Notification ---
                 balance_after_ltc = balance_before_ltc + amount_crypto
-                balance_after_points = balance_before_points + points_credited
                 user = self.bot.get_user(user_id)
                 if not user:
                     try:
@@ -638,10 +623,9 @@ class LtcDeposit(commands.Cog):
                         username=username,
                         amount_crypto=amount_crypto,
                         currency="LTC",
-                        points_credited=points_credited,  # Include points credited
                         txid=txid,
-                        balance_before=balance_before_points, # Pass points balance before
-                        balance_after=balance_after_points,   # Pass points balance after
+                        balance_before=balance_before_ltc,
+                        balance_after=balance_after_ltc,
                         webhook_url=DEPOSIT_WEBHOOK_URL
                     ))
 
@@ -652,7 +636,6 @@ class LtcDeposit(commands.Cog):
                 # Return success details for the *first* successful deposit found in this check
                 return "success", {
                     "amount_crypto": amount_crypto,
-                    "points_credited": points_credited,
                     "txid": txid
                 }
 
