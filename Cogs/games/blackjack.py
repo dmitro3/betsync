@@ -1,4 +1,3 @@
-# Adding history entries for blackjack games and updating the handle_game_end function.
 import discord
 import random
 import os
@@ -8,7 +7,6 @@ from PIL import Image, ImageDraw, ImageFont
 from discord.ext import commands
 from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
-import time
 
 # Card values
 CARD_VALUES = {
@@ -172,7 +170,7 @@ class BlackjackView(discord.ui.View):
             dealer_first_card = self.dealer_cards[0]
             dealer_first_card_text = f"{dealer_first_card[0]}{['♥', '♦', '♣', '♠'][['hearts', 'diamonds', 'clubs', 'spades'].index(dealer_first_card[1])]}"
             dealer_first_value = CARD_VALUES[dealer_first_card[0]]
-
+            
             embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
             embed.add_field(name="Dealer's Hand", value=f"{dealer_first_card_text} ?\nShowing: {dealer_first_value}", inline=True)
             embed.set_image(url="attachment://blackjack_game.png")
@@ -602,7 +600,7 @@ class Blackjack(commands.Cog):
                 dealer_first_card = view.dealer_cards[0]
                 dealer_first_card_text = f"{dealer_first_card[0]}{['♥', '♦', '♣', '♠'][['hearts', 'diamonds', 'clubs', 'spades'].index(dealer_first_card[1])]}"
                 dealer_first_value = CARD_VALUES[dealer_first_card[0]]
-
+                
                 embed.add_field(name="Your Hand", value=f"{player_cards_text}\nTotal: {player_value}", inline=True)
                 embed.add_field(name="Dealer's Hand", value=f"{dealer_first_card_text} ?\nShowing: {dealer_first_value}", inline=True)
                 embed.set_image(url="attachment://blackjack_game.png")
@@ -774,4 +772,231 @@ class Blackjack(commands.Cog):
                     card_img = card_img.resize((card_width, card_height))
 
                     # Create white background for card with subtle shadow effect
-                    card_bg = Image
+                    card_bg = Image.new('RGB', (card_width, card_height), (255, 255, 255))
+                    card_bg.paste(card_img, (0, 0), card_img)
+
+                    # Add card to main image
+                    image.paste(card_bg, (x, y_position))
+
+                except Exception as e:
+                    # Fallback to drawing basic card if image loading fails
+                    # Draw card with rounded corners
+                    draw.rounded_rectangle(
+                        (x, y_position, x + card_width, y_position + card_height),
+                        radius=10,
+                        fill=(255, 255, 255),
+                        outline=(220, 220, 220)
+                    )
+
+                    # Draw rank and suit
+                    rank = card[0]
+                    suit = card[1]
+
+                    # Determine color based on suit
+                    text_color = (0, 0, 0)
+                    if suit in ['hearts', 'diamonds']:
+                        text_color = (220, 30, 30)
+
+                    # Get suit symbol
+                    suit_symbol = "♠"
+                    if suit == 'hearts':
+                        suit_symbol = "♥"
+                    elif suit == 'diamonds':
+                        suit_symbol = "♦"
+                    elif suit == 'clubs':
+                        suit_symbol = "♣"
+
+                    # Draw large symbol in center
+                    draw.text(
+                        (x + (card_width // 2), y_position + (card_height // 2)),
+                        suit_symbol,
+                        font=title_font,
+                        fill=text_color,
+                        anchor="mm"
+                    )
+
+                    # Draw rank at top-left
+                    draw.text(
+                        (x + 10, y_position + 10),
+                        rank,
+                        font=title_font,
+                        fill=text_color
+                    )
+
+                    # Draw small suit under rank
+                    draw.text(
+                        (x + 10, y_position + 40),
+                        suit_symbol,
+                        font=subtitle_font,
+                        fill=text_color
+                    )
+
+                    # Draw inverted rank and suit at bottom-right
+                    draw.text(
+                        (x + card_width - 25, y_position + card_height - 40),
+                        rank,
+                        font=title_font,
+                        fill=text_color
+                    )
+                    draw.text(
+                        (x + card_width - 25, y_position + card_height - 70),
+                        suit_symbol,
+                        font=subtitle_font,
+                        fill=text_color
+                    )
+
+        # Draw dealer's hand at top (moved up to avoid overlapping with banner)
+        draw_hand(dealer_cards, 70, True)
+
+        # Draw player's hand at bottom
+        draw_hand(player_cards, 400)
+
+        # Load the background image
+        try:
+            background_image = Image.open("assests/bjbackground.jpg").convert('RGB')
+            background_image = background_image.resize((width, height))
+            image = background_image.copy()
+            image.paste(image, (0, 0), image)
+            draw = ImageDraw.Draw(image)
+        except:
+            pass
+
+        # Save to bytes
+        img_byte_array = io.BytesIO()
+        image.save(img_byte_array, format="PNG")
+        img_byte_array.seek(0)
+
+        return img_byte_array
+
+    def create_play_again_view(self, user_id, bet_amount, currency_used):
+        """Create a view with a play again button"""
+        view = discord.ui.View(timeout=60)
+
+        play_again_button = discord.ui.Button(
+            style=discord.ButtonStyle.success,
+            label="Play Again",
+            emoji="♠️",
+            custom_id=f"blackjack_again_{user_id}"
+        )
+
+        async def play_again_callback(interaction):
+            if interaction.user.id != user_id:
+                return await interaction.response.send_message("This is not your game!", ephemeral=True)
+
+            # Start a new game with same bet amount and currency
+            await interaction.response.defer()
+
+            # Get the command from the bot
+            bet_command = self.bot.get_command('blackjack')
+            if bet_command:
+                # Create a new context
+                new_ctx = await self.bot.get_context(interaction.message)
+                new_ctx.author = interaction.user
+
+                # Run the command with the same bet amount and currency
+                await bet_command(new_ctx, str(bet_amount))
+
+        play_again_button.callback = play_again_callback
+        view.add_item(play_again_button)
+
+        return view
+
+    async def handle_game_end(self, ctx, bet_amount, currency_used, result, player_cards, dealer_cards):
+        """Handle game end in the database and update statistics"""
+        user_id = ctx.author.id
+
+        # Remove game from ongoing games
+        if user_id in self.ongoing_games:
+            del self.ongoing_games[user_id]
+
+        # Get database instances
+        user_db = Users()
+        server_db = Servers()
+
+        # Calculate win amount
+        win_amount = 0
+        if result == "win":
+            win_amount = bet_amount * 1.98
+        elif result == "blackjack":
+            win_amount = bet_amount * 1.5
+
+        # Timestamp for history entries
+        timestamp = int(datetime.datetime.now().timestamp())
+
+        if result == "win" or result == "blackjack" or result == "push":
+            # Player wins - add winnings to balance
+            user_db.update_balance(user_id, win_amount, "credits", "$inc")
+
+            # Add win to history
+            multiplier = 1.5 if result == "blackjack" else 1.98
+            history_entry = {
+                "type": "win",
+                "game": "blackjack",
+                "amount": win_amount,
+                "bet": bet_amount,
+                "multiplier": multiplier,
+                "timestamp": timestamp
+            }
+
+            user_db.collection.update_one(
+                {"discord_id": user_id},
+                {
+                    "$push": {"history": {"$each": [history_entry], "$slice": -100}},
+                    "$inc": {"total_earned": win_amount, "total_won": 1, "total_played": 1}
+                }
+            )
+
+            # Update server stats - casino loses
+            server_db.update_server_profit(ctx, ctx.guild.id, -(win_amount - bet_amount), game="blackjack")
+
+            # Add to server history
+            server_history_entry = {
+                "type": "win",
+                "game": "blackjack",
+                "user_id": user_id,
+                "user_name": ctx.author.name,
+                "bet": bet_amount,
+                "amount": win_amount,
+                "multiplier": multiplier,
+                "timestamp": timestamp
+            }
+            server_db.update_history(ctx.guild.id, server_history_entry)
+
+        elif result == "loss":
+            # Player loses - already deducted bet when starting game
+            history_entry = {
+                "type": "loss",
+                "game": "blackjack",
+                "amount": bet_amount,
+                "multiplier": 0,
+                "timestamp": timestamp
+            }
+
+            user_db.collection.update_one(
+                {"discord_id": user_id},
+                {
+                    "$push": {"history": {"$each": [history_entry], "$slice": -100}},
+                    "$inc": {"total_spent": bet_amount, "total_lost": 1, "total_played": 1}
+                }
+            )
+
+            # Update server stats - casino wins
+            server_db.update_server_profit(ctx, ctx.guild.id, bet_amount, game="blackjack")
+
+            # Add to server history
+            server_history_entry = {
+                "type": "loss",
+                "game": "blackjack",
+                "user_id": user_id,
+                "user_name": ctx.author.name,
+                "bet": bet_amount,
+                "amount": bet_amount,
+                "multiplier": 0,
+                "timestamp": timestamp
+            }
+            server_db.update_history(ctx.guild.id, server_history_entry)
+
+
+
+def setup(bot):
+    bot.add_cog(Blackjack(bot))

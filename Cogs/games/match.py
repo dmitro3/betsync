@@ -329,17 +329,6 @@ class Match(commands.Cog):
             if winnings > 0:
                 db.update_balance(match_game.user_id, winnings)
 
-                # Add to user history
-                history_entry = {
-                    "type": "win",
-                    "game": "match",
-                    "amount": winnings,
-                    "bet": match_game.bet_amount,
-                    "multiplier": matched_multiplier,
-                    "timestamp": int(time.time())
-                }
-                db.update_history(match_game.user_id, history_entry)
-
                 # Adjust profit ratio for house edge calculations
                 profit = match_game.bet_amount - winnings
                 from Cogs.utils.mongo import Servers
@@ -365,17 +354,6 @@ class Match(commands.Cog):
             )
 
             
-
-        # Add to user history for loss
-            history_entry = {
-                "type": "loss",
-                "game": "match",
-                "amount": match_game.bet_amount,
-                "bet": match_game.bet_amount,
-                "multiplier": 0,
-                "timestamp": int(time.time())
-            }
-            db.update_history(match_game.user_id, history_entry)
 
         # No balance field needed
 

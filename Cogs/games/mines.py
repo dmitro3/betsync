@@ -353,42 +353,31 @@ class MinesTileView(discord.ui.View):
         # Add credits to user (always give credits for winnings)
         db.update_balance(ctx.author.id, winnings)
         server_db = Servers()
-
+            
 
             # Update server profit (negative value because server loses when player wins)
         profit = winnings - self.bet_amount
         server_db.update_server_profit(ctx, ctx.guild.id, -profit, game="mines")
 
         # Update user stats
-
+        
 
     async def process_loss(self, ctx):
         """Process loss for the player"""
         # Get database connection
         db = Users()
 
-        # Add to user history
-        history_entry = {
-            "type": "loss",
-            "game": "mines",
-            "amount": self.bet_amount,
-            "bet": self.bet_amount,
-            "multiplier": 0,
-            "mines_count": self.mines_count,
-            "tiles_revealed": len(self.revealed_tiles),
-            "timestamp": int(time.time())
-        }
-        db.update_history(self.ctx.author.id, history_entry)
+        
 
         # Update server history
         server_db = Servers()
         server_data = server_db.fetch_server(ctx.guild.id)
 
         if server_data:
-
+            
             server_db.update_server_profit(ctx, ctx.guild.id, self.bet_amount, game="mines")
 
-
+        
 
     async def on_timeout(self):
         """Handle timeout - auto cash out if player has revealed tiles"""
@@ -552,7 +541,7 @@ class MinesCog(commands.Cog):
         # Process bet amount with error handling
 
 
-
+        
 
         # Set default mines count
         if mines_count is None:
@@ -585,7 +574,7 @@ class MinesCog(commands.Cog):
 
         # Record game stats
         db = Users()
-
+        
 
         # Create game view
         game_view = MinesTileView(self, ctx, total_bet, mines_count)

@@ -417,9 +417,7 @@ class SlotsCog(commands.Cog):
                 "game": "slots",
                 "amount": total_winnings if total_winnings > 0 else total_bet,
                 "bet": total_bet,
-                "multiplier": total_winnings / total_bet if total_bet > 0 else 0,
                 "spins": spins,
-                "winning_combinations": sum(len(r['combinations']) for r in all_results),
                 "timestamp": int(time.time())
             }
             db.update_history(ctx.author.id, history_entry)
