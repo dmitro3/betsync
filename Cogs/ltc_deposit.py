@@ -623,6 +623,7 @@ class LtcDeposit(commands.Cog):
                         username=username,
                         amount_crypto=amount_crypto,
                         currency="LTC",
+                        points_credited=0,  # LTC deposits don't credit points, they go directly to wallet
                         txid=txid,
                         balance_before=balance_before_ltc,
                         balance_after=balance_after_ltc,
