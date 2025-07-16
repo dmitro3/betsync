@@ -187,13 +187,13 @@ class DepositView(discord.ui.View):
             await interaction.response.send_message(f"Please wait {remaining:.1f} more seconds before checking again.", ephemeral=True)
             return
 
-        # Check if user's primary currency is set to LTC
-        user_data = self.cog.users_db.fetch_user(self.user_id)
-        if not user_data:
+        # Check if user's primary currency is set to LTC (fetch fresh data)
+        fresh_user_data = self.cog.users_db.fetch_user(self.user_id)
+        if not fresh_user_data:
             await interaction.response.send_message("Error: User data not found.", ephemeral=True)
             return
             
-        primary_currency = user_data.get('primary_currency', '').upper()
+        primary_currency = fresh_user_data.get('primary_currency', fresh_user_data.get('primary_coin', '')).upper()
         if primary_currency != 'LTC':
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Wrong Primary Currency",
