@@ -504,6 +504,7 @@ class BtcDeposit(commands.Cog):
                         username=username,
                         amount_crypto=amount_crypto,
                         currency="BTC",
+                        points_credited=0,  # BTC deposits don't credit points, they go directly to wallet
                         txid=txid,
                         balance_before=balance_before_btc,
                         balance_after=balance_after_btc,
