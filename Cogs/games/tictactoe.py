@@ -17,12 +17,7 @@ class TicTacToeAI:
 
     def get_best_move(self, board):
         """Get the best move based on difficulty"""
-        if self.difficulty == "easy":
-            return self._get_random_move(board)
-        elif self.difficulty == "medium":
-            return self._get_medium_move(board)
-        else:  # hard
-            return self._get_hard_move(board)
+        return self._get_hard_move(board)
 
     def _get_random_move(self, board):
         """Random move for easy difficulty"""
@@ -131,17 +126,17 @@ class TicTacToeButton(discord.ui.Button):
         await self.game.make_move(interaction, self.x, self.y)
 
 class TicTacToeGame:
-    def __init__(self, cog, ctx, player, bet_amount, difficulty):
+    def __init__(self, cog, ctx, player, bet_amount):
         self.cog = cog
         self.ctx = ctx
         self.player = player
         self.bet_amount = bet_amount
-        self.difficulty = difficulty
+        self.difficulty = "hard"
         self.board = [[None, None, None], [None, None, None], [None, None, None]]
         self.current_player = "player"  # Player always starts
         self.game_over = False
         self.winner = None
-        self.ai = TicTacToeAI(difficulty)
+        self.ai = TicTacToeAI(self.difficulty)
         self.message = None
         self.view = None
         self.timeout_task = None
@@ -174,7 +169,6 @@ class TicTacToeGame:
             title="🎮 Tic Tac Toe vs AI",
             description=(
                 f"**{self.player.display_name}** (❌) vs **AI Bot** (⭕)\n\n"
-                f"**Difficulty:** {self.difficulty.title()}\n"
                 f"**Bet Amount:** {self.bet_amount:.2f} points\n"
                 f"**Win Multiplier:** 1.92x\n\n"
                 f"**Your turn!** Click a button to make your move."
@@ -208,7 +202,6 @@ class TicTacToeGame:
             title="🎮 Tic Tac Toe vs AI",
             description=(
                 f"**{self.player.display_name}** (❌) vs **AI Bot** (⭕)\n\n"
-                f"**Difficulty:** {self.difficulty.title()}\n"
                 f"**Bet Amount:** {self.bet_amount:.2f} points\n"
                 f"**Win Multiplier:** 1.92x\n\n"
                 f"**AI is thinking...** 🤖"
@@ -246,7 +239,6 @@ class TicTacToeGame:
             title="🎮 Tic Tac Toe vs AI",
             description=(
                 f"**{self.player.display_name}** (❌) vs **AI Bot** (⭕)\n\n"
-                f"**Difficulty:** {self.difficulty.title()}\n"
                 f"**Bet Amount:** {self.bet_amount:.2f} points\n"
                 f"**Win Multiplier:** 1.92x\n\n"
                 f"**Your turn!** Click a button to make your move."
@@ -312,7 +304,6 @@ class TicTacToeGame:
                 description=(
                     f"**{self.player.display_name}** defeated the AI!\n\n"
                     f"**Winnings:** {winnings:.2f} points (1.92x)\n"
-                    f"**Difficulty:** {self.difficulty.title()}"
                 ),
                 color=0x00FF00
             )
@@ -331,9 +322,8 @@ class TicTacToeGame:
                 title="<:no:1344252518305234987> | Defeat!",
                 description=(
                     f"**AI Bot** defeated **{self.player.display_name}**!\n\n"
-                    f"**Lost:** {self.bet_amount:.2f} points\n"
-                    f"**Difficulty:** {self.difficulty.title()}\n\n"
-                    f"Try again with a different difficulty!"
+                    f"**Lost:** {self.bet_amount:.2f} points\n\n"
+                    f"Try again!"
                 ),
                 color=0xFF0000
             )
@@ -356,7 +346,6 @@ class TicTacToeGame:
                 description=(
                     f"**{self.player.display_name}** and **AI Bot** tied!\n\n"
                     f"**Refunded:** {self.bet_amount:.2f} points\n"
-                    f"**Difficulty:** {self.difficulty.title()}"
                 ),
                 color=0xFFD700
             )
@@ -427,7 +416,7 @@ class TicTacToeCog(commands.Cog):
         self.bot = bot
 
     @commands.command(aliases=["ttt"])
-    async def tictactoe(self, ctx, bet_amount: str = None, difficulty: str = None):
+    async def tictactoe(self, ctx, bet_amount: str = None):
         """Play Tic Tac Toe against an AI opponent!"""
 
         # Show help if no arguments
@@ -436,14 +425,9 @@ class TicTacToeCog(commands.Cog):
                 title=":information_source: | How to Play Tic Tac Toe",
                 description=(
                     "Challenge our AI bot to a game of Tic Tac Toe!\n\n"
-                    "**Usage:** `!tictactoe <amount> [difficulty]`\n"
+                    "**Usage:** `!tictactoe <amount>`\n"
                     "**Examples:** \n"
-                    "• `!tictactoe 10` - Play with 10 points on hard difficulty\n"
-                    "• `!tictactoe 25 easy` - Play with 25 points on easy difficulty\n\n"
-                    "**Difficulties:**\n"
-                    "• `easy` - AI makes random moves\n"
-                    "• `medium` - AI plays strategically 70% of the time\n"
-                    "• `hard` - AI plays optimally (default)\n\n"
+                    "• `!tictactoe 10` - Play with 10 points on hard difficulty\n\n"
                     "**Rewards:**\n"
                     "• Win: **1.92x** your bet\n"
                     "• Draw: Full refund\n"
@@ -451,24 +435,25 @@ class TicTacToeCog(commands.Cog):
                     "**Tips:**\n"
                     "• You play as ❌ and go first\n"
                     "• Hard difficulty is very challenging!\n"
-                    "• Try different difficulties to find your sweet spot"
                 ),
                 color=0x00FFAE
             )
             embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
             return await ctx.reply(embed=embed)
 
-        # Validate difficulty
-        if difficulty and difficulty.lower() not in ["easy", "medium", "hard"]:
+        # Parse bet amount
+        try:
+            bet_amount_float = float(bet_amount)
+            if bet_amount_float <= 0:
+                raise ValueError("Bet must be positive")
+        except ValueError:
             embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Difficulty",
-                description="Available difficulties: `easy`, `medium`, `hard`",
+                title="<:no:1344252518305234987> | Invalid Bet Amount",
+                description="Please enter a valid positive number for your bet.",
                 color=0xFF0000
             )
             embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
             return await ctx.reply(embed=embed)
-
-        difficulty = difficulty.lower() if difficulty else "hard"
 
         # Show loading message
         loading_emoji = emoji()["loading"]
@@ -489,21 +474,6 @@ class TicTacToeCog(commands.Cog):
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Account Required",
                 description="You need an account to play. Please wait for auto-registration.",
-                color=0xFF0000
-            )
-            embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
-            return await ctx.reply(embed=embed)
-
-        # Parse bet amount
-        try:
-            bet_amount_float = float(bet_amount)
-            if bet_amount_float <= 0:
-                raise ValueError("Bet must be positive")
-        except ValueError:
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Bet Amount",
-                description="Please enter a valid positive number for your bet.",
                 color=0xFF0000
             )
             embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
@@ -548,7 +518,7 @@ class TicTacToeCog(commands.Cog):
         await loading_message.delete()
 
         # Create and start game
-        game = TicTacToeGame(self, ctx, ctx.author, bet_amount_float, difficulty)
+        game = TicTacToeGame(self, ctx, ctx.author, bet_amount_float)
         await game.start_game()
 
 def setup(bot):
