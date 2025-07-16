@@ -1,3 +1,4 @@
+
 import discord
 import asyncio
 import random
@@ -20,12 +21,12 @@ class WheelSelectionView(discord.ui.View):
     async def spin_wheel(self, button, interaction: discord.Interaction):
         if interaction.user.id != self.ctx.author.id:
             return await interaction.response.send_message("This is not your game!", ephemeral=True)
-
+        
         # Disable button to prevent multiple clicks
         button.disabled = True
         await interaction.response.defer()
         await interaction.message.edit(view=self)
-
+        
         # Start the wheel spin instantly
         await self.cog.start_wheel_spin(self.ctx, interaction, self.bet_amount, self.spins, self.game_id)
 
@@ -37,7 +38,7 @@ class WheelSelectionView(discord.ui.View):
         if self.message:
             try:
                 await self.message.edit(view=self)
-
+                
                 # Remove from ongoing games
                 if self.game_id in self.cog.ongoing_games:
                     del self.cog.ongoing_games[self.game_id]
@@ -138,20 +139,20 @@ class WheelCog(commands.Cog):
                     "**🚀 Quick Start:**\n"
                     "> `!wheel <amount> [spins]`\n"
                     "> `!wheel 100 5` - Spin 5 times instantly!\n\n"
-
+                    
                     "**🎨 Wheel Zones & Multipliers:**\n"
                     "> ⚫ **BUST** - 0x (45% chance) - Game over!\n"
                     "> 🟡 **BRONZE** - 1.8x (28% chance) - Nice win!\n"
                     "> 🔴 **SILVER** - 2.5x (18% chance) - Great win!\n"
                     "> 🔵 **GOLD** - 4x (7% chance) - Amazing win!\n"
                     "> 🟢 **DIAMOND** - 8x (2% chance) - JACKPOT!\n\n"
-
+                    
                     "**⚡ Features:**\n"
                     "> • Instant results - no waiting!\n"
                     "> • Multi-spin capability (max 15)\n"
                     "> • Quick action buttons\n"
                     "> • Progressive excitement\n\n"
-
+                    
                     "```diff\n"
                     "+ Ready for instant fortune? Let's spin! 🎰\n"
                     "```"
@@ -191,24 +192,24 @@ class WheelCog(commands.Cog):
 
         # Process bet amount using currency_helper
         from Cogs.utils.currency_helper import process_bet_amount
-
+        
         # Process the bet amount for all spins
         success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
-
+        
         # If processing failed, return the error
         if not success:
             await loading_message.delete() 
             return await ctx.reply(embed=error_embed)
-
+            
         # Extract needed values from bet_info
         tokens_used = bet_info["tokens_used"]
         total_bet = bet_info["total_bet_amount"]
         bet_amount_value = total_bet
-
+        
         # Verify user has enough for all spins
         db = Users()
         user_data = db.fetch_user(ctx.author.id)
-
+        
         if user_data == False:
             await loading_message.delete()
             embed = discord.Embed(
@@ -221,7 +222,7 @@ class WheelCog(commands.Cog):
         # Generate unique game ID
         import uuid
         game_id = str(uuid.uuid4())
-
+            
         # Mark game as ongoing
         self.ongoing_games[game_id] = {
             "user_id": ctx.author.id,
@@ -292,7 +293,7 @@ class WheelCog(commands.Cog):
         """Show the final wheel results with exciting presentation"""
         # Determine overall result
         net_profit = total_winnings - total_bet_amount
-
+        
         # Create result embed with excitement levels
         if total_winnings > 0:
             if net_profit >= total_bet_amount * 5:  # 5x+ profit
@@ -333,7 +334,7 @@ class WheelCog(commands.Cog):
             wins_count = 0
             diamond_hits = 0
             gold_hits = 0
-
+            
             # Group results by color for cleaner display
             color_counts = {}
             for result in spin_results:
@@ -365,7 +366,7 @@ class WheelCog(commands.Cog):
                         excitement = " 🏆⚡"
                     elif data['name'] == "SILVER":
                         excitement = " 🥈🔥"
-
+                    
                     results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']}x - {data['total_winnings']:.2f} pts{excitement}\n"
 
             special_hits = ""
@@ -389,7 +390,7 @@ class WheelCog(commands.Cog):
                 excitement_level = " 🏆⚡ AMAZING! ⚡🏆"
             elif main_result['name'] == "SILVER":
                 excitement_level = " 🥈🔥 GREAT! 🔥🥈"
-
+            
             embed.add_field(
                 name="🎯 Result",
                 value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']}x{excitement_level}",

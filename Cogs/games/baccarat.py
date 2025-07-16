@@ -315,34 +315,19 @@ class BaccaratGame(commands.Cog):
                 # Player wins - add winnings to balance
                 user_db.update_balance(ctx.author.id, win_amount, "points", "$inc")
                 
-                # Add win to history
-                win_entry = {
-                    "type": "win",
-                    "game": "baccarat", 
-                    "bet": total_bet,
-                    "amount": win_amount,
-                    "multiplier": win_multiplier,
-                    "timestamp": timestamp
-                }
-                user_db.update_history(ctx.author.id, win_entry)
+
                 
                 # Update server stats - casino loses
                 server_db.update_server_profit(ctx, ctx.guild.id, -(win_amount - total_bet), game="baccarat")
                 
                 
             else:
-                # Add loss to history
-                loss_entry = {
-                    "type": "loss",
-                    "game": "baccarat",
-                    "bet": total_bet,
-                    "amount": total_bet,
-                    "timestamp": timestamp
-                }
-                user_db.update_history(ctx.author.id, loss_entry)
                 
                 # Update server stats - casino wins
                 server_db.update_server_profit(ctx, ctx.guild.id, total_bet, game="baccarat")
+                
+                
+            #user_db.save(ctx.author.id)
             # Remove game from ongoing games
             if ctx.author.id in self.ongoing_games:
                 del self.ongoing_games[ctx.author.id]

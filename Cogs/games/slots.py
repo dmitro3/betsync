@@ -415,10 +415,6 @@ class SlotsCog(commands.Cog):
             history_entry = {
                 "type": "win" if total_winnings > 0 else "loss",
                 "game": "slots",
-                "bet": total_bet,
-                "amount": total_winnings if total_winnings > 0 else total_bet,
-                "multiplier": round(total_winnings / total_bet, 2) if total_winnings > 0 else 0,
-                "timestamp": int(time.time())
                 "amount": total_winnings if total_winnings > 0 else total_bet,
                 "bet": total_bet,
                 "spins": spins,
