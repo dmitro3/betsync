@@ -455,7 +455,20 @@ class SolDeposit(commands.Cog):
 
                         pre_balances = tx_data.transaction.meta.pre_balances
                         post_balances = tx_data.transaction.meta.post_balances
-                        account_keys = tx_data.transaction.message.account_keys
+                        
+                        # Handle different transaction structures
+                        account_keys = []
+                        if hasattr(tx_data.transaction, 'message') and tx_data.transaction.message:
+                            account_keys = tx_data.transaction.message.account_keys
+                        elif hasattr(tx_data, 'transaction') and hasattr(tx_data.transaction, 'message'):
+                            # Try alternative access pattern
+                            try:
+                                account_keys = tx_data.transaction.message.account_keys
+                            except AttributeError:
+                                # If message doesn't exist, try to get from meta
+                                if hasattr(tx_data.transaction.meta, 'loaded_addresses'):
+                                    account_keys = getattr(tx_data.transaction.meta, 'loaded_addresses', {}).get('writable', [])
+                                    account_keys.extend(getattr(tx_data.transaction.meta, 'loaded_addresses', {}).get('readonly', []))
 
                         # Find balance change for our address
                         for i, key in enumerate(account_keys):
@@ -466,6 +479,26 @@ class SolDeposit(commands.Cog):
                                     if balance_change > 0:
                                         lamports_received = balance_change
                                         break
+                        
+                        # If we couldn't find the address in account_keys, check post_token_balances
+                        if lamports_received == 0:
+                            # Alternative method: check if any balance change happened for our address
+                            # by looking at post_token_balances or by examining the transaction more carefully
+                            try:
+                                # Check if this is a simple SOL transfer by examining instruction data
+                                if hasattr(tx_data.transaction, 'message') and hasattr(tx_data.transaction.message, 'instructions'):
+                                    instructions = tx_data.transaction.message.instructions
+                                    for instruction in instructions:
+                                        # SOL transfer typically has program_id as System Program
+                                        if hasattr(instruction, 'program_id') and str(instruction.program_id) == "11111111111111111111111111111112":
+                                            # This is likely a SOL transfer, check if our address received funds
+                                            for i, balance_change in enumerate(zip(pre_balances, post_balances)):
+                                                pre_bal, post_bal = balance_change
+                                                if post_bal > pre_bal:
+                                                    lamports_received = post_bal - pre_bal
+                                                    break
+                            except Exception as inner_e:
+                                print(f"{Fore.YELLOW}[!] Could not process instruction data: {inner_e}{Style.RESET_ALL}")
 
                         if lamports_received <= 0:
                             # Mark as processed to skip in future
