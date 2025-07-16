@@ -296,42 +296,71 @@ class SlotsCog(commands.Cog):
             )
             return await ctx.reply(embed=embed)
 
-        # Validate and process bet for all spins
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
-        if not success:
-            await loading_message.delete()
-            return await ctx.reply(embed=error_embed)
+        # For multiple spins, we need to handle the bet differently
+        if spins > 1:
+            # For multiple spins, validate bet amount manually
+            try:
+                if bet_amount.lower() in ["all", "max"]:
+                    bet_per_spin = user_data.get("points", 0) // spins
+                    if bet_per_spin <= 0:
+                        await loading_message.delete()
+                        embed = discord.Embed(
+                            title="<:no:1344252518305234987> | Insufficient Balance",
+                            description="You don't have enough points for even one spin.",
+                            color=0xFF0000
+                        )
+                        return await ctx.reply(embed=embed)
+                else:
+                    bet_per_spin = float(bet_amount)
+            except ValueError:
+                await loading_message.delete()
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Invalid Amount",
+                    description="Please enter a valid number or 'all'.",
+                    color=0xFF0000
+                )
+                return await ctx.reply(embed=embed)
 
-        total_bet = bet_info["total_bet_amount"] * spins
-        bet_per_spin = bet_info["total_bet_amount"]
-        tokens_used = bet_info["tokens_used"]
+            total_bet = bet_per_spin * spins
+            tokens_used = 0
 
-        # Check if user has enough for all spins
-        current_balance = user_data.get("points", 0)
-        if current_balance < total_bet:
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Insufficient Balance",
-                description=f"You need `{total_bet:.0f}` points for {spins} spins but only have `{current_balance:.0f}` points.",
-                color=0xFF0000
-            )
-            return await ctx.reply(embed=embed)
+            # Check if user has enough for all spins
+            current_balance = user_data.get("points", 0)
+            if current_balance < total_bet:
+                await loading_message.delete()
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Insufficient Balance",
+                    description=f"You need `{total_bet:.0f}` points for {spins} spins but only have `{current_balance:.0f}` points.",
+                    color=0xFF0000
+                )
+                return await ctx.reply(embed=embed)
 
-        # Deduct total bet amount upfront and verify the transaction
-        result = db.update_balance(ctx.author.id, -total_bet, "points", "$inc")
-        
-        # Double-check that balance didn't go negative
-        updated_user_data = db.fetch_user(ctx.author.id)
-        if updated_user_data.get("points", 0) < 0:
-            # Refund the bet and show error
-            db.update_balance(ctx.author.id, total_bet, "points", "$inc")
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Transaction Failed",
-                description="Transaction failed due to insufficient balance. Please try again.",
-                color=0xFF0000
-            )
-            return await ctx.reply(embed=embed)
+            # Deduct total bet amount upfront for multiple spins
+            result = db.update_balance(ctx.author.id, -total_bet, "points", "$inc")
+        else:
+            # For single spin, use process_bet_amount (which already deducts the bet)
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
+            if not success:
+                await loading_message.delete()
+                return await ctx.reply(embed=error_embed)
+
+            total_bet = bet_info["total_bet_amount"]
+            bet_per_spin = bet_info["total_bet_amount"]
+            tokens_used = bet_info["tokens_used"]
+
+        # Double-check that balance didn't go negative (only for multiple spins)
+        if spins > 1:
+            updated_user_data = db.fetch_user(ctx.author.id)
+            if updated_user_data.get("points", 0) < 0:
+                # Refund the bet and show error
+                db.update_balance(ctx.author.id, total_bet, "points", "$inc")
+                await loading_message.delete()
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Transaction Failed",
+                    description="Transaction failed due to insufficient balance. Please try again.",
+                    color=0xFF0000
+                )
+                return await ctx.reply(embed=embed)
 
         # Mark game as ongoing
         self.ongoing_games[ctx.author.id] = {
