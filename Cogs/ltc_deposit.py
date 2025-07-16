@@ -187,6 +187,23 @@ class DepositView(discord.ui.View):
             await interaction.response.send_message(f"Please wait {remaining:.1f} more seconds before checking again.", ephemeral=True)
             return
 
+        # Check if user's primary currency is set to LTC
+        user_data = self.cog.users_db.fetch_user(self.user_id)
+        if not user_data:
+            await interaction.response.send_message("Error: User data not found.", ephemeral=True)
+            return
+            
+        primary_currency = user_data.get('primary_currency', '').upper()
+        if primary_currency != 'LTC':
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Wrong Primary Currency",
+                description=f"You must set your primary currency to **LTC** to claim Litecoin deposits.\n\nCurrent primary currency: **{primary_currency or 'Not Set'}**\n\nUse the balance command to change your primary currency.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text="BetSync Casino")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
         self.cog.button_cooldowns[cooldown_key] = now
         # Defer response immediately before the check
         await interaction.response.defer(ephemeral=True) # Defer ephemerally for pending/no_new/error
