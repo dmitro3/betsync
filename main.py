@@ -89,11 +89,11 @@ async def on_guild_join(guild):
         }
         resp = db.new_server(dump)
         if resp:
-            #print(f"{Fore.GREEN}[+] {Fore.WHITE}New Server Registered: {Fore.GREEN}{guild.name} ({guild.id}){Fore.WHITE}")
+            print(f"{Fore.GREEN}[+] {Fore.WHITE}New Server Registered: {Fore.GREEN}{guild.name} ({guild.id}){Fore.WHITE}")
             rn = datetime.datetime.now().strftime("%X")
             print(f"{Back.CYAN}  {Style.DIM}{guild.id}{Style.RESET_ALL}{Back.RESET}{Fore.CYAN}{Fore.WHITE}    {Fore.LIGHTWHITE_EX}{rn}{Fore.WHITE}    {Style.BRIGHT}{Fore.GREEN}{dump} ({resp}){Fore.WHITE}{Style.RESET_ALL}  {Fore.MAGENTA}{guild.name}, new_sv{Fore.WHITE}")
     except Exception as e:
-        pass #print(f"{Fore.RED}[!] {Fore.WHITE}Error registering server: {Fore.RED}{e}")
+        print(f"{Fore.RED}[!] {Fore.WHITE}Error registering server: {Fore.RED}{e}")
 
 @bot.event
 async def on_command(ctx):
