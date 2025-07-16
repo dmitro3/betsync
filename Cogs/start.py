@@ -105,7 +105,7 @@ class Start(commands.Cog):
             "race": "🏎️ Bet on racing cars",
             "match": "🎯 Memory matching game",
             "pump": "📈 Predict market pumps and dumps",
-            "tictactoe": "❌ Classic tic-tac-toe with betting",
+            "build": "🏗️ Build towers with risk-based blocks",
             "crosstheroad": "🚗 Navigate traffic and earn multipliers",
             "cases": "📦 Open mystery cases for rewards",
             "carddraw": "🎴 Draw cards and build winning hands",
