@@ -249,6 +249,17 @@ class Fetches(commands.Cog):
                 await ctx.reply(f"**Invalid currency. Supported currencies: {', '.join(crypto_values.keys())}**")
                 return
             
+            # Check if currency is disabled
+            if currency in ["ETH", "USDT"]:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Currency Coming Soon",
+                    description=f"**{currency}** will be available as a primary currency soon!\n\nPlease use a different currency for now.",
+                    color=0xFF0000
+                )
+                embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+                await ctx.reply(embed=embed)
+                return
+            
             #Calculate how much of the specified currency the user has based on points
             currency_rate = crypto_values.get(currency, 0)
             currency_value = points * currency_rate
@@ -1012,13 +1023,24 @@ class Fetches(commands.Cog):
             if currency_upper in currency_names:
                 new_currency = currency_names[currency_upper]
 
+                # Check if currency is disabled
+                if new_currency in ["ETH", "USDT"]:
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Currency Coming Soon",
+                        description=f"{emoji_map.get(new_currency, '')} **{new_currency}** will be available as a primary currency soon!\n\nPlease use a different currency for now.",
+                        color=0xFF0000
+                    )
+                    embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+                    await ctx.reply(embed=embed)
+                    return
+
                 # Update primary currency
                 await self.update_primary_currency(ctx, db, new_currency, emoji_map)
                 return
             else:
                 embed = discord.Embed(
                     title="<:no:1344252518305234987> | Invalid Currency",
-                    description=f"Invalid currency `{currency}`. Supported currencies: BTC, LTC, ETH, USDT, SOL",
+                    description=f"Invalid currency `{currency}`. Supported currencies: BTC, LTC, SOL",
                     color=0xFF0000
                 )
                 await ctx.reply(embed=embed)
@@ -1132,13 +1154,13 @@ class CurrencyDropdownView(discord.ui.View):
             ),
             discord.SelectOption(
                 label="Ethereum (ETH)",
-                description="1 point = 0.000010 ETH",
+                description="Coming Soon",
                 value="ETH",
                 emoji="<:eth:1340981832799485985>"
             ),
             discord.SelectOption(
                 label="Tether (USDT)",
-                description="1 point = 0.0212 USDT",
+                description="Coming Soon",
                 value="USDT",
                 emoji="<:usdt:1340981835563401217>"
             ),
@@ -1153,12 +1175,21 @@ class CurrencyDropdownView(discord.ui.View):
     async def currency_select(self, select, interaction):
         selected_currency = select.values[0]
 
+        # Check if currency is disabled
+        if selected_currency in ["ETH", "USDT"]:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Currency Coming Soon",
+                description=f"{self.emoji_map.get(selected_currency, '')} **{selected_currency}** will be available as a primary currency soon!\n\nPlease select a different currency for now.",
+                color=0xFF0000
+            )
+            embed.set_footer(text="BetSync Casino", icon_url=interaction.client.user.avatar.url)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
         # Update primary currency
         crypto_values = {
             "BTC": 0.00000024,
             "LTC": 0.00023,
-            "ETH": 0.000010,
-            "USDT": 0.0212,
             "SOL": 0.0001442
         }
 
