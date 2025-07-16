@@ -7,6 +7,36 @@ from Cogs.utils.mongo import Users
 from Cogs.utils.emojis import emoji
 import json
 
+class PlayAgainView(discord.ui.View):
+    def __init__(self, cog, ctx, bet_amount, timeout=15):
+        super().__init__(timeout=timeout)
+        self.cog = cog
+        self.ctx = ctx
+        self.bet_amount = bet_amount
+        self.message = None
+
+    @discord.ui.button(label="Play Again", style=discord.ButtonStyle.primary, emoji="🔄")
+    async def play_again(self, button, interaction: discord.Interaction):
+        if interaction.user.id != self.ctx.author.id:
+            return await interaction.response.send_message("This is not your game!", ephemeral=True)
+
+        # Disable button to prevent multiple clicks
+        button.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        # Start a new game with the same bet amount
+        await interaction.followup.send("Starting a new game...", ephemeral=True)
+        await self.cog.tictactoe(self.ctx, str(self.bet_amount))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+
+        try:
+            await self.message.edit(view=self)
+        except:
+            pass
+
 class TicTacToeAI:
     """AI opponent with different difficulty levels"""
 
@@ -378,8 +408,12 @@ class TicTacToeGame:
         for item in final_view.children:
             item.disabled = True
 
-        embed.set_footer(text="BetSync Casino • Play again with !tictactoe", icon_url=self.cog.bot.user.avatar.url)
-        await self.message.edit(embed=embed, view=final_view)
+        # Create play again view
+        play_again_view = PlayAgainView(self.cog, self.ctx, self.bet_amount, timeout=15)
+        embed.set_footer(text="BetSync Casino", icon_url=self.cog.bot.user.avatar.url)
+        
+        await self.message.edit(embed=embed, view=play_again_view)
+        play_again_view.message = self.message
 
     async def handle_timeout(self):
         """Handle game timeout"""
@@ -426,15 +460,12 @@ class TicTacToeCog(commands.Cog):
                 description=(
                     "Challenge our AI bot to a game of Tic Tac Toe!\n\n"
                     "**Usage:** `!tictactoe <amount>`\n"
-                    "**Examples:** \n"
-                    "• `!tictactoe 10` - Play with 10 points on hard difficulty\n\n"
+                    "**Example:** `!tictactoe 10`\n\n"
                     "**Rewards:**\n"
                     "• Win: **1.92x** your bet\n"
                     "• Draw: Full refund\n"
                     "• Loss: Lose your bet\n\n"
-                    "**Tips:**\n"
-                    "• You play as ❌ and go first\n"
-                    "• Hard difficulty is very challenging!\n"
+                    "You play as ❌ and go first!"
                 ),
                 color=0x00FFAE
             )
