@@ -175,12 +175,34 @@ class LimboGame:
                 # Add winnings to remaining funds
                 remaining_funds += winnings
 
-                
+                # Add to win history
+                win_entry = {
+                    "type": "win",
+                    "game": "limbo",
+                    "amount": winnings,
+                    "bet": self.bet_amount,
+                    "multiplier": self.target_multiplier,
+                    "rolled_multiplier": rounded_multiplier,
+                    "timestamp": current_timestamp
+                }
+                win_entries.append(win_entry)
+
             else:
                 losses += 1
                 self.total_profit -= self.bet_amount
 
                 # Add to loss history
+                loss_entry = {
+                    "type": "loss",
+                    "game": "limbo",
+                    "amount": self.bet_amount,
+                    "bet": self.bet_amount,
+                    "multiplier": 0,
+                    "target_multiplier": self.target_multiplier,
+                    "rolled_multiplier": rounded_multiplier,
+                    "timestamp": current_timestamp
+                }
+                loss_entries.append(loss_entry)
 
         # Bulk update database
         # Credit user with total winnings
@@ -188,7 +210,7 @@ class LimboGame:
         if total_winnings > 0:
             db.update_balance(self.user_id, total_winnings)
 
-        
+
 
             # Calculate server profit/loss
             server_profit = losses * self.bet_amount - wins * (self.bet_amount * self.target_multiplier - self.bet_amount)
@@ -243,7 +265,7 @@ class LimboGame:
                     # Auto determine what to use
                     if self.bet_amount <= tokens_balance:
                         tokens_used = self.bet_amount
-                    
+
                     else:
                         # Not enough funds to continue
                         embed = self.create_embed()
@@ -292,11 +314,21 @@ class LimboGame:
                     # Credit the user with winnings
                     db.update_balance(self.user_id, winnings)
 
-                    
+                    # Add to win history
+                    win_entry = {
+                        "type": "win",
+                        "game": "limbo",
+                        "amount": winnings,
+                        "bet": self.bet_amount,
+                        "multiplier": self.target_multiplier,
+                        "rolled_multiplier": rounded_multiplier,
+                        "timestamp": int(time.time())
+                    }
+                    #win_entries.append(win_entry) # This is auto mode, so no win_entries list
 
                     # Update server history
                     server_db = Servers()
-                    
+
 
                     # Update server profit (user won)
                     loss = winnings - self.bet_amount
@@ -304,17 +336,30 @@ class LimboGame:
                 else:
                     self.total_profit -= self.bet_amount
 
+                    # Add to loss history
+                    loss_entry = {
+                        "type": "loss",
+                        "game": "limbo",
+                        "amount": self.bet_amount,
+                        "bet": self.bet_amount,
+                        "multiplier": 0,
+                        "target_multiplier": self.target_multiplier,
+                        "rolled_multiplier": rounded_multiplier,
+                        "timestamp": int(time.time())
+                    }
+                    #loss_entries.append(loss_entry) # This is auto mode, so no loss_entries list
+
                     # Update server history
                     server_db = Servers()
                     server_data = server_db.fetch_server(self.ctx.guild.id)
 
                     if server_data:
-                        
+
 
                         # Update server profit (user lost)
                         server_db.update_server_profit(self.ctx, self.ctx.guild.id, self.bet_amount, game="limbo")
 
-                    
+
 
                 # Update display
                 embed = self.create_embed()
@@ -405,7 +450,7 @@ class LimboGame:
         # Colors
         white_color = (255, 255, 255)
         grey_color = (150, 150, 150)
-        
+
         # Determine multiplier color based on value and win/loss
         if multiplier >= 10.0:
             multiplier_color = (79, 172, 254)  # Blue for high multipliers
@@ -434,7 +479,7 @@ class LimboGame:
         multiplier_bbox = draw.textbbox((0, 0), multiplier_text, font=multiplier_font)
         multiplier_width = multiplier_bbox[2] - multiplier_bbox[0]
         multiplier_height = multiplier_bbox[3] - multiplier_bbox[1]
-        
+
         # Center the multiplier text
         multiplier_x = (width - multiplier_width) // 2
         multiplier_y = (height - multiplier_height) // 2 - 10
@@ -455,9 +500,9 @@ class LimboGame:
             progress = min(multiplier / self.target_multiplier, 1.0)
         else:
             progress = 0.5
-        
+
         progress_width = int(bar_width * progress)
-        
+
         # Progress bar (colored)
         if progress_width > 0:
             draw.rectangle([bar_x, bar_y, bar_x + progress_width, bar_y + bar_height], 

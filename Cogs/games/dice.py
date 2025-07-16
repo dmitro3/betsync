@@ -224,6 +224,43 @@ class DiceCog(commands.Cog):
 
             bet_display = f"`{total_bet} {currency_used}`"
 
+            # Add to history
+            timestamp = int(time.time())
+            if is_draw:
+                history_entry = {
+                    "type": "push",
+                    "game": "dice",
+                    "amount": total_bet,
+                    "bet": total_bet,
+                    "multiplier": 1.0,
+                    "user_roll": user_roll,
+                    "dealer_roll": dealer_roll,
+                    "timestamp": timestamp
+                }
+            elif user_won:
+                history_entry = {
+                    "type": "win",
+                    "game": "dice",
+                    "amount": winnings,
+                    "bet": total_bet,
+                    "multiplier": multiplier,
+                    "user_roll": user_roll,
+                    "dealer_roll": dealer_roll,
+                    "timestamp": timestamp
+                }
+            else:
+                history_entry = {
+                    "type": "loss",
+                    "game": "dice",
+                    "amount": total_bet,
+                    "bet": total_bet,
+                    "multiplier": 0,
+                    "user_roll": user_roll,
+                    "dealer_roll": dealer_roll,
+                    "timestamp": timestamp
+                }
+
+            db.update_history(ctx.author.id, history_entry)
 
             # Add play again button that expires after 15 seconds
             play_again_view = PlayAgainView(self, ctx, total_bet)

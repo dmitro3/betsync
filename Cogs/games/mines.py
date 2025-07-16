@@ -359,6 +359,29 @@ class MinesTileView(discord.ui.View):
         profit = winnings - self.bet_amount
         server_db.update_server_profit(ctx, ctx.guild.id, -profit, game="mines")
 
+        # Add to history
+        timestamp = int(time.time())
+        history_entry = {
+            "type": "win",
+            "game": "mines",
+            "amount": winnings,
+            "bet": self.bet_amount,
+            "multiplier": self.current_multiplier,
+            "mines_count": self.mines_count,
+            "tiles_revealed": len(self.revealed_tiles),
+            "timestamp": timestamp
+        }
+        
+        db.update_history(ctx.author.id, history_entry)
+        
+        # Update server history
+        server_history_entry = history_entry.copy()
+        server_history_entry.update({
+            "user_id": ctx.author.id,
+            "user_name": ctx.author.name
+        })
+        server_db.update_history(ctx.guild.id, server_history_entry)
+
         # Update user stats
         
 
@@ -367,13 +390,32 @@ class MinesTileView(discord.ui.View):
         # Get database connection
         db = Users()
 
+        # Add to history
+        timestamp = int(time.time())
+        history_entry = {
+            "type": "loss",
+            "game": "mines",
+            "amount": self.bet_amount,
+            "bet": self.bet_amount,
+            "multiplier": 0,
+            "mines_count": self.mines_count,
+            "tiles_revealed": len(self.revealed_tiles),
+            "timestamp": timestamp
+        }
         
+        db.update_history(ctx.author.id, history_entry)
 
         # Update server history
         server_db = Servers()
         server_data = server_db.fetch_server(ctx.guild.id)
 
         if server_data:
+            server_history_entry = history_entry.copy()
+            server_history_entry.update({
+                "user_id": ctx.author.id,
+                "user_name": ctx.author.name
+            })
+            server_db.update_history(ctx.guild.id, server_history_entry)
             
             server_db.update_server_profit(ctx, ctx.guild.id, self.bet_amount, game="mines")
 

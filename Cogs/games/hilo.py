@@ -226,7 +226,29 @@ class HiLoView(discord.ui.View):
             embed.set_image(url="attachment://hilo_game.png")
 
             # Add to user and server history
-            self.cog.add_to_history(self.ctx, self.ctx.author.id, self.ctx.guild.id, winnings, self.bet_amount, "win", "hilo")
+            timestamp = int(time.time())
+            history_entry = {
+                "type": "win",
+                "game": "hilo",
+                "amount": winnings,
+                "bet": self.bet_amount,
+                "multiplier": self.current_multiplier,
+                "cards_revealed": len(self.previous_cards) + 1,
+                "final_card": self.get_card_emoji(self.current_card),
+                "timestamp": timestamp
+            }
+            
+            db = Users()
+            db.update_history(self.ctx.author.id, history_entry)
+            
+            # Update server history
+            server_db = Servers()
+            server_history_entry = history_entry.copy()
+            server_history_entry.update({
+                "user_id": self.ctx.author.id,
+                "user_name": self.ctx.author.name
+            })
+            server_db.update_history(self.ctx.guild.id, server_history_entry)
 
             # Remove from ongoing games
             if self.ctx.author.id in self.cog.ongoing_games:
@@ -415,7 +437,30 @@ class HiLoView(discord.ui.View):
             embed.set_image(url="attachment://hilo_game.png")
 
             # Add to history
-            self.cog.add_to_history(self.ctx, self.ctx.author.id, self.ctx.guild.id, 0, self.bet_amount, "loss", "hilo")
+            timestamp = int(time.time())
+            history_entry = {
+                "type": "loss",
+                "game": "hilo",
+                "amount": self.bet_amount,
+                "bet": self.bet_amount,
+                "multiplier": 0,
+                "cards_revealed": len(self.previous_cards) + 1,
+                "final_card": self.get_card_emoji(new_card),
+                "choice": choice,
+                "timestamp": timestamp
+            }
+            
+            db = Users()
+            db.update_history(self.ctx.author.id, history_entry)
+            
+            # Update server history
+            server_db = Servers()
+            server_history_entry = history_entry.copy()
+            server_history_entry.update({
+                "user_id": self.ctx.author.id,
+                "user_name": self.ctx.author.name
+            })
+            server_db.update_history(self.ctx.guild.id, server_history_entry)
 
             # Remove from ongoing games
             if self.ctx.author.id in self.cog.ongoing_games:

@@ -417,10 +417,21 @@ class SlotsCog(commands.Cog):
                 "game": "slots",
                 "amount": total_winnings if total_winnings > 0 else total_bet,
                 "bet": total_bet,
+                "multiplier": sum(r['multiplier'] for r in all_results),
                 "spins": spins,
+                "winning_spins": sum(1 for r in all_results if r['winnings'] > 0),
+                "total_combinations": sum(len(r['combinations']) for r in all_results),
                 "timestamp": int(time.time())
             }
             db.update_history(ctx.author.id, history_entry)
+            
+            # Update server history
+            server_history_entry = history_entry.copy()
+            server_history_entry.update({
+                "user_id": ctx.author.id,
+                "user_name": ctx.author.name
+            })
+            server_db.update_history(ctx.guild.id, server_history_entry)
 
             # Show final result
             user_won = total_winnings > 0

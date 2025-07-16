@@ -150,12 +150,17 @@ class PlinkoGame:
 
             # Add to history
             total_profit = self.win_amount - (self.drops * self.bet_amount)
+            
+            # Determine entry type based on profit
+            entry_type = "win" if total_profit > 0 else "loss" if total_profit < 0 else "push"
 
             history_entry = {
+                "type": entry_type,
                 "game": "plinko",
-                "timestamp": datetime.datetime.now(),
-                "bet_amount": self.bet_amount,
-                "win_amount": self.win_amount,
+                "timestamp": int(time.time()),
+                "amount": self.win_amount if entry_type == "win" else self.bet_amount,
+                "bet": self.bet_amount,
+                "multiplier": self.multiplier_table[self.ball_paths[-1][-1]],
                 "profit": total_profit,
                 "details": {
                     "difficulty": self.difficulty,
@@ -170,7 +175,12 @@ class PlinkoGame:
 
             # Also update server history
             servers_db = Servers()
-            servers_db.update_history(self.server_id, history_entry)
+            server_history_entry = history_entry.copy()
+            server_history_entry.update({
+                "user_id": self.user_id,
+                "user_name": self.ctx.author.name
+            })
+            servers_db.update_history(self.server_id, server_history_entry)
 
             # Update server profit
             server_profit = -total_profit  # Server profits when player loses
