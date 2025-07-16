@@ -474,12 +474,21 @@ class BtcDeposit(commands.Cog):
                     continue
 
                 amount_crypto = round(amount_received_satoshi / BTC_SATOSHIS, 8)
+                
+                # Convert BTC to points using the conversion rate
+                points_to_add = amount_crypto / BTC_CONVERSION_RATE
 
                 balance_before_btc = user_data.get("wallet", {}).get("BTC", 0)
+                balance_before_points = user_data.get("points", 0)
 
                 update_result_wallet = self.users_db.collection.update_one(
                     {"discord_id": user_id},
-                    {"$inc": {"wallet.BTC": amount_crypto}}
+                    {
+                        "$inc": {
+                            "wallet.BTC": amount_crypto,
+                            "points": points_to_add
+                        }
+                    }
                 )
                 if not update_result_wallet or update_result_wallet.matched_count == 0:
                     print(f"{Fore.RED}[!] Failed to update wallet.BTC for user {user_id} for txid {txid}. Aborting processing.{Style.RESET_ALL}")
@@ -489,6 +498,7 @@ class BtcDeposit(commands.Cog):
                 history_entry = {
                     "type": "btc_deposit",
                     "amount_crypto": amount_crypto,
+                    "points_credited": points_to_add,
                     "currency": "BTC",
                     "txid": txid,
                     "address": address,
@@ -520,10 +530,10 @@ class BtcDeposit(commands.Cog):
                         username=username,
                         amount_crypto=amount_crypto,
                         currency="BTC",
-                        points_credited=0,  # No points credited, only BTC
+                        points_credited=points_to_add,
                         txid=txid,
-                        balance_before=balance_before_btc,
-                        balance_after=balance_after_btc,
+                        balance_before=balance_before_points,
+                        balance_after=balance_before_points + points_to_add,
                         webhook_url=DEPOSIT_WEBHOOK_URL
                     ))
 
