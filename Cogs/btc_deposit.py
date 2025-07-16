@@ -460,7 +460,6 @@ class BtcDeposit(commands.Cog):
 
                 balance_before_btc = user_data.get("wallet", {}).get("BTC", 0)
 
-                # Only increment wallet.BTC balance - no points added to main balance
                 update_result_wallet = self.users_db.collection.update_one(
                     {"discord_id": user_id},
                     {"$inc": {"wallet.BTC": amount_crypto}}
@@ -504,7 +503,7 @@ class BtcDeposit(commands.Cog):
                         username=username,
                         amount_crypto=amount_crypto,
                         currency="BTC",
-                        points_credited=0,  # BTC deposits don't credit points, they go directly to wallet
+                        points_credited=0,  # No points credited, only BTC
                         txid=txid,
                         balance_before=balance_before_btc,
                         balance_after=balance_after_btc,
