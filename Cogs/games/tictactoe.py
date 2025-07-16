@@ -5,6 +5,114 @@ import datetime
 from discord.ext import commands
 from Cogs.utils.mongo import Users
 from Cogs.utils.emojis import emoji
+import json
+
+class TicTacToeAI:
+    """AI opponent with different difficulty levels"""
+
+    def __init__(self, difficulty="hard"):
+        self.difficulty = difficulty
+        self.player_symbol = "X"
+        self.ai_symbol = "O"
+
+    def get_best_move(self, board):
+        """Get the best move based on difficulty"""
+        if self.difficulty == "easy":
+            return self._get_random_move(board)
+        elif self.difficulty == "medium":
+            return self._get_medium_move(board)
+        else:  # hard
+            return self._get_hard_move(board)
+
+    def _get_random_move(self, board):
+        """Random move for easy difficulty"""
+        empty_cells = [(i, j) for i in range(3) for j in range(3) if board[i][j] is None]
+        return random.choice(empty_cells) if empty_cells else None
+
+    def _get_medium_move(self, board):
+        """Medium difficulty - basic strategy"""
+        # 70% chance to play optimally, 30% random
+        if random.random() < 0.7:
+            return self._get_hard_move(board)
+        else:
+            return self._get_random_move(board)
+
+    def _get_hard_move(self, board):
+        """Hard difficulty - minimax algorithm"""
+        best_score = float('-inf')
+        best_move = None
+
+        for i in range(3):
+            for j in range(3):
+                if board[i][j] is None:
+                    board[i][j] = self.ai_symbol
+                    score = self._minimax(board, 0, False)
+                    board[i][j] = None
+
+                    if score > best_score:
+                        best_score = score
+                        best_move = (i, j)
+
+        return best_move
+
+    def _minimax(self, board, depth, is_maximizing):
+        """Minimax algorithm implementation"""
+        winner = self._check_winner(board)
+
+        if winner == self.ai_symbol:
+            return 1
+        elif winner == self.player_symbol:
+            return -1
+        elif self._is_board_full(board):
+            return 0
+
+        if is_maximizing:
+            best_score = float('-inf')
+            for i in range(3):
+                for j in range(3):
+                    if board[i][j] is None:
+                        board[i][j] = self.ai_symbol
+                        score = self._minimax(board, depth + 1, False)
+                        board[i][j] = None
+                        best_score = max(score, best_score)
+            return best_score
+        else:
+            best_score = float('inf')
+            for i in range(3):
+                for j in range(3):
+                    if board[i][j] is None:
+                        board[i][j] = self.player_symbol
+                        score = self._minimax(board, depth + 1, True)
+                        board[i][j] = None
+                        best_score = min(score, best_score)
+            return best_score
+
+    def _check_winner(self, board):
+        """Check if there's a winner"""
+        # Check rows
+        for row in board:
+            if row[0] == row[1] == row[2] and row[0] is not None:
+                return row[0]
+
+        # Check columns
+        for col in range(3):
+            if board[0][col] == board[1][col] == board[2][col] and board[0][col] is not None:
+                return board[0][col]
+
+        # Check diagonals
+        if board[0][0] == board[1][1] == board[2][2] and board[0][0] is not None:
+            return board[0][0]
+        if board[0][2] == board[1][1] == board[2][0] and board[0][2] is not None:
+            return board[0][2]
+
+        return None
+
+    def _is_board_full(self, board):
+        """Check if board is full"""
+        for row in board:
+            if None in row:
+                return False
+        return True
 
 class TicTacToeButton(discord.ui.Button):
     def __init__(self, x, y, game):
@@ -12,175 +120,144 @@ class TicTacToeButton(discord.ui.Button):
         self.x = x
         self.y = y
         self.game = game
-        self.disabled = False
 
     async def callback(self, interaction: discord.Interaction):
-        # Verify correct player's turn
-        if interaction.user.id != self.game.current_player.id:
-            return await interaction.response.send_message("It's not your turn!", ephemeral=True)
+        if interaction.user.id != self.game.player.id:
+            return await interaction.response.send_message("This is not your game!", ephemeral=True)
 
-        # Place the mark
-        #await interaction.response.defer()
+        if self.game.game_over:
+            return await interaction.response.send_message("Game is already over!", ephemeral=True)
+
         await self.game.make_move(interaction, self.x, self.y)
 
 class TicTacToeGame:
-    def __init__(self, cog, ctx, player1, player2, bet_amount, player1_currency_used):
+    def __init__(self, cog, ctx, player, bet_amount, difficulty):
         self.cog = cog
         self.ctx = ctx
-        self.player1 = player1  # The player who initiated the game
-        self.player2 = player2  # The invited player
-        self.bet_amount = bet_amount  # Amount bet by each player
-        self.player1_currency_used = player1_currency_used  # Which currency player 1 is using
-        self.player2_currency_used = None  # Will be set when player2 accepts
-        self.current_player = player1  # Player 1 starts
+        self.player = player
+        self.bet_amount = bet_amount
+        self.difficulty = difficulty
         self.board = [[None, None, None], [None, None, None], [None, None, None]]
-        self.view = None
-        self.message = None
-        self.winner = None
-        self.timeout_task = None
+        self.current_player = "player"  # Player always starts
         self.game_over = False
-        self.timeout_time = 120  # Timeout in seconds
-
-    def create_text_board(self):
-        # Create a text-based representation of the board
-        board_str = ""
-        
-        # Row separators
-        horizontal_line = "➖➖➖➖➖\n"
-        
-        for y in range(3):
-            # Add cells for this row
-            for x in range(3):
-                if self.board[y][x] == self.player1:
-                    board_str += "❌ "  # X for player 1
-                elif self.board[y][x] == self.player2:
-                    board_str += "⭕ "  # O for player 2
-                else:
-                    board_str += "⬛ "  # Empty cell
-            
-            board_str += "\n"
-            
-            # Add horizontal line between rows (except after the last row)
-            if y < 2:
-                board_str += horizontal_line
-                
-        return board_str
+        self.winner = None
+        self.ai = TicTacToeAI(difficulty)
+        self.message = None
+        self.view = None
+        self.timeout_task = None
+        self.timeout_time = 60
 
     def create_game_view(self):
+        """Create the game view with buttons"""
         view = discord.ui.View(timeout=self.timeout_time)
         for y in range(3):
             for x in range(3):
                 button = TicTacToeButton(x, y, self)
-                # Disable button if cell is already taken
                 if self.board[y][x] is not None:
                     button.disabled = True
-                    if self.board[y][x] == self.player1:
-                        button.label = "X"
+                    if self.board[y][x] == "X":
+                        button.label = "❌"
                         button.style = discord.ButtonStyle.danger
                     else:
-                        button.label = "O"
+                        button.label = "⭕"
                         button.style = discord.ButtonStyle.primary
+                elif self.current_player == "ai" or self.game_over:
+                    button.disabled = True
                 view.add_item(button)
 
         self.view = view
         return view
 
     async def start_game(self):
-        # Create initial game embed
+        """Start the game"""
         embed = discord.Embed(
-            title="🎮 Tic Tac Toe",
+            title="🎮 Tic Tac Toe vs AI",
             description=(
-                f"**{self.player1.name}** (❌) vs **{self.player2.name}** (⭕)\n\n"
-                f"**Bet:** {self.bet_amount} {self.player1_currency_used}/player\n"
-                f"**Reward:** Winner gets 1.95x their bet\n\n"
-                f"**{self.current_player.name}'s turn** ({'❌' if self.current_player == self.player1 else '⭕'})"
+                f"**{self.player.display_name}** (❌) vs **AI Bot** (⭕)\n\n"
+                f"**Difficulty:** {self.difficulty.title()}\n"
+                f"**Bet Amount:** {self.bet_amount:.2f} points\n"
+                f"**Win Multiplier:** 1.92x\n\n"
+                f"**Your turn!** Click a button to make your move."
             ),
             color=0x00FFAE
         )
 
-        # Post the game message
-        self.message = await self.ctx.send(embed=embed, view=self.create_game_view())
-
-        # Start timeout task
+        self.message = await self.ctx.reply(embed=embed, view=self.create_game_view())
         self.timeout_task = asyncio.create_task(self.handle_timeout())
 
     async def make_move(self, interaction, x, y):
-        # Place the mark on the board
+        """Handle player move"""
+        if self.board[y][x] is not None:
+            return await interaction.response.send_message("That spot is already taken!", ephemeral=True)
+
+        # Player makes move
+        self.board[y][x] = "X"
         await interaction.response.defer()
-        self.board[y][x] = self.current_player
 
-        # Check for win or draw
+        # Check for game end
         winner = self.check_winner()
-        is_draw = self.is_board_full()
+        if winner or self.is_board_full():
+            await self.end_game(winner)
+            return
 
-        # Create updated view to show the latest move first
-        updated_view = self.create_game_view()
+        # Switch to AI turn
+        self.current_player = "ai"
 
-        if winner:
-            self.game_over = True
-            self.winner = winner
-            
-            # First update the message to show the final move
-            embed = discord.Embed(
-                title="🎮 Tic Tac Toe",
-                description=(
-                    f"**{self.player1.name}** (❌) vs **{self.player2.name}** (⭕)\n\n"
-                    f"**Bet:** {self.bet_amount} {self.player1_currency_used}/player\n"
-                    f"**Reward:** Winner gets 1.95x their bet\n\n"
-                    f"**{self.current_player.name}** just made a move!"
-                ),
-                color=0x00FFAE
-            )
-            
-            # Update the message with the latest board state
-            await interaction.message.edit(embed=embed, view=updated_view)
-            
-            # Then end the game with a short delay to show the final move
-            await asyncio.sleep(0.5)
-            await self.end_game(interaction, winner=winner)
-            
-        elif is_draw:
-            self.game_over = True
-            
-            # First update the message to show the final move
-            embed = discord.Embed(
-                title="🎮 Tic Tac Toe",
-                description=(
-                    f"**{self.player1.name}** (❌) vs **{self.player2.name}** (⭕)\n\n"
-                    f"**Bet:** {self.bet_amount} {self.player1_currency_used}/player\n"
-                    f"**Reward:** Winner gets 1.95x their bet\n\n"
-                    f"**{self.current_player.name}** just made a move!"
-                ),
-                color=0x00FFAE
-            )
-            
-            # Update the message with the latest board state
-            await interaction.response.edit_message(embed=embed, view=updated_view)
-            
-            # Then end the game with a short delay
-            await asyncio.sleep(0.5)
-            await self.end_game(interaction, draw=True)
-            
-        else:
-            # Switch current player
-            self.current_player = self.player2 if self.current_player == self.player1 else self.player1
+        # Update view to show player's move
+        embed = discord.Embed(
+            title="🎮 Tic Tac Toe vs AI",
+            description=(
+                f"**{self.player.display_name}** (❌) vs **AI Bot** (⭕)\n\n"
+                f"**Difficulty:** {self.difficulty.title()}\n"
+                f"**Bet Amount:** {self.bet_amount:.2f} points\n"
+                f"**Win Multiplier:** 1.92x\n\n"
+                f"**AI is thinking...** 🤖"
+            ),
+            color=0x00FFAE
+        )
 
-            # Update embed
-            embed = discord.Embed(
-                title="🎮 Tic Tac Toe",
-                description=(
-                    f"**{self.player1.name}** (❌) vs **{self.player2.name}** (⭕)\n\n"
-                    f"**Bet:** {self.bet_amount} {self.player1_currency_used}/player\n"
-                    f"**Reward:** Winner gets 1.95x their bet\n\n"
-                    f"**{self.current_player.name}'s turn** {'⭕' if self.current_player == self.player2 else '❌'}"
-                ),
-                color=0x00FFAE
-            )
+        await interaction.edit_original_response(embed=embed, view=self.create_game_view())
 
-            # Update message with new view
-            await interaction.response.edit_message(embed=embed, view=updated_view)
+        # AI makes move after a short delay for realism
+        await asyncio.sleep(random.uniform(0.5, 1.5))
+        await self.ai_move()
+
+    async def ai_move(self):
+        """Handle AI move"""
+        if self.game_over:
+            return
+
+        ai_move = self.ai.get_best_move(self.board)
+        if ai_move:
+            y, x = ai_move
+            self.board[y][x] = "O"
+
+        # Check for game end
+        winner = self.check_winner()
+        if winner or self.is_board_full():
+            await self.end_game(winner)
+            return
+
+        # Switch back to player
+        self.current_player = "player"
+
+        # Update view
+        embed = discord.Embed(
+            title="🎮 Tic Tac Toe vs AI",
+            description=(
+                f"**{self.player.display_name}** (❌) vs **AI Bot** (⭕)\n\n"
+                f"**Difficulty:** {self.difficulty.title()}\n"
+                f"**Bet Amount:** {self.bet_amount:.2f} points\n"
+                f"**Win Multiplier:** 1.92x\n\n"
+                f"**Your turn!** Click a button to make your move."
+            ),
+            color=0x00FFAE
+        )
+
+        await self.message.edit(embed=embed, view=self.create_game_view())
 
     def check_winner(self):
+        """Check if there's a winner"""
         # Check rows
         for row in self.board:
             if row[0] == row[1] == row[2] and row[0] is not None:
@@ -188,8 +265,7 @@ class TicTacToeGame:
 
         # Check columns
         for col in range(3):
-            if (self.board[0][col] == self.board[1][col] == self.board[2][col] and 
-                self.board[0][col] is not None):
+            if self.board[0][col] == self.board[1][col] == self.board[2][col] and self.board[0][col] is not None:
                 return self.board[0][col]
 
         # Check diagonals
@@ -201,483 +277,279 @@ class TicTacToeGame:
         return None
 
     def is_board_full(self):
+        """Check if board is full"""
         for row in self.board:
             if None in row:
                 return False
         return True
 
-    async def handle_timeout(self):
-        try:
-            await asyncio.sleep(self.timeout_time)
-            if not self.game_over:
-                self.game_over = True
-                
-                # Determine the winner (opposite of current player)
-                winner = self.player2 if self.current_player == self.player1 else self.player1
-                
-                # Create timeout embed
-                embed = discord.Embed(
-                    title="⌛ Game Timed Out",
-                    description=(
-                        f"**{self.current_player.name}** didn't make a move in time.\n"
-                        f"**{winner.name}** wins by timeout!\n"
-                        f"**{winner.name}** received **{self.bet_amount * 1.95:.2f} credits**."
-                    ),
-                    color=discord.Color.orange()
-                )
+    async def end_game(self, winner):
+        """End the game and process results"""
+        self.game_over = True
 
-                # Update the game message
-                if self.message:
-                    # Create a final view with all buttons disabled
-                    final_view = discord.ui.View()
-                    for y in range(3):
-                        for x in range(3):
-                            button = TicTacToeButton(x, y, self)
-                            button.disabled = True
-                            if self.board[y][x] is not None:
-                                if self.board[y][x] == self.player1:
-                                    button.label = "X"
-                                    button.style = discord.ButtonStyle.danger
-                                else:
-                                    button.label = "O"
-                                    button.style = discord.ButtonStyle.primary
-                            final_view.add_item(button)
-                            
-                    await self.message.edit(embed=embed, view=final_view)
-
-                # Process win reward for the non-timing out player
-                await self.process_win_reward(winner)
-
-                # Remove game from ongoing games
-                if self.player1.id in self.cog.ongoing_games:
-                    del self.cog.ongoing_games[self.player1.id]
-                if self.player2.id in self.cog.ongoing_games:
-                    del self.cog.ongoing_games[self.player2.id]
-        except asyncio.CancelledError:
-            pass
-
-    async def end_game(self, interaction, winner=None, draw=False):
-        # Cancel timeout task
         if self.timeout_task:
             self.timeout_task.cancel()
 
-        # Create game end embed
-        if draw:
+        # Process rewards and history
+        db = Users()
+
+        if winner == "X":  # Player wins
+            winnings = self.bet_amount * 1.92
+            db.update_balance(self.player.id, winnings, "points", "$inc")
+
+            # Add to history
+            history_entry = {
+                "type": "win",
+                "game": "tictactoe",
+                "bet": self.bet_amount,
+                "amount": winnings,
+                "multiplier": 1.92,
+                "timestamp": int(datetime.datetime.now().timestamp())
+            }
+
             embed = discord.Embed(
-                title="🎮 Tic Tac Toe - Draw!",
+                title="<:yes:1355501647538815106> | Victory!",
                 description=(
-                    f"The game between **{self.player1.name}** and **{self.player2.name}** ended in a draw.\n"
-                    f"Both players have been refunded their {self.bet_amount} {self.player1_currency_used}."
+                    f"**{self.player.display_name}** defeated the AI!\n\n"
+                    f"**Winnings:** {winnings:.2f} points (1.92x)\n"
+                    f"**Difficulty:** {self.difficulty.title()}"
                 ),
-                color=discord.Color.gold()
-            )
-        else:
-            embed = discord.Embed(
-                title="🎮 Tic Tac Toe - Game Over!",
-                description=(
-                    f"**{winner.name}** has won the game against **{self.player2.name if winner == self.player1 else self.player1.name}**!\n"
-                    f"**{winner.name}** received **{self.bet_amount * 1.95:.2f} credits**."
-                ),
-                color=discord.Color.green()
+                color=0x00FF00
             )
 
-        # Create final view with all buttons disabled but still showing the final state
+        elif winner == "O":  # AI wins
+            # Add to history
+            history_entry = {
+                "type": "loss",
+                "game": "tictactoe",
+                "bet": self.bet_amount,
+                "amount": self.bet_amount,
+                "timestamp": int(datetime.datetime.now().timestamp())
+            }
+
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Defeat!",
+                description=(
+                    f"**AI Bot** defeated **{self.player.display_name}**!\n\n"
+                    f"**Lost:** {self.bet_amount:.2f} points\n"
+                    f"**Difficulty:** {self.difficulty.title()}\n\n"
+                    f"Try again with a different difficulty!"
+                ),
+                color=0xFF0000
+            )
+
+        else:  # Draw
+            # Refund bet
+            db.update_balance(self.player.id, self.bet_amount, "points", "$inc")
+
+            # Add to history
+            history_entry = {
+                "type": "push",
+                "game": "tictactoe",
+                "bet": self.bet_amount,
+                "amount": self.bet_amount,
+                "timestamp": int(datetime.datetime.now().timestamp())
+            }
+
+            embed = discord.Embed(
+                title="🔄 | Draw!",
+                description=(
+                    f"**{self.player.display_name}** and **AI Bot** tied!\n\n"
+                    f"**Refunded:** {self.bet_amount:.2f} points\n"
+                    f"**Difficulty:** {self.difficulty.title()}"
+                ),
+                color=0xFFD700
+            )
+
+        # Update history
+        db.collection.update_one(
+            {"discord_id": self.player.id},
+            {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
+        )
+
+        # Update user stats
+        if winner == "X":
+            db.collection.update_one(
+                {"discord_id": self.player.id},
+                {"$inc": {"total_won": 1, "total_earned": winnings}}
+            )
+        else:
+            db.collection.update_one(
+                {"discord_id": self.player.id},
+                {"$inc": {"total_lost": 1, "total_spent": self.bet_amount}}
+            )
+
+        db.collection.update_one(
+            {"discord_id": self.player.id},
+            {"$inc": {"total_played": 1}}
+        )
+
+        # Create final view with disabled buttons
         final_view = self.create_game_view()
         for item in final_view.children:
             item.disabled = True
 
-        # Try to edit the message, but handle the case where it might have already been modified
+        embed.set_footer(text="BetSync Casino • Play again with !tictactoe", icon_url=self.cog.bot.user.avatar.url)
+        await self.message.edit(embed=embed, view=final_view)
+
+    async def handle_timeout(self):
+        """Handle game timeout"""
         try:
-            await interaction.edit_original_response(embed=embed, view=final_view)
-        except:
-            # Fallback if the original response can't be edited
-            try:
-                await self.message.edit(embed=embed, view=final_view)
-            except:
-                # If both fail, try a new response
-                await interaction.followup.send(embed=embed, view=final_view)
+            await asyncio.sleep(self.timeout_time)
+            if not self.game_over:
+                self.game_over = True
 
-        # Process rewards
-        if draw:
-            await self.process_refunds()
-        else:
-            await self.process_win_reward(winner)
+                # Refund bet
+                db = Users()
+                db.update_balance(self.player.id, self.bet_amount, "points", "$inc")
 
-        # Remove game from ongoing games
-        if self.player1.id in self.cog.ongoing_games:
-            del self.cog.ongoing_games[self.player1.id]
-        if self.player2.id in self.cog.ongoing_games:
-            del self.cog.ongoing_games[self.player2.id]
-
-    async def process_refunds(self):
-        # Refund player 1
-        db = Users()
-
-        # Different handling based on currency type
-        if "tokens" in self.player1_currency_used:
-            db.update_balance(self.player1.id, self.bet_amount, "tokens", "$inc")
-        elif "credits" in self.player1_currency_used:
-            db.update_balance(self.player1.id, self.bet_amount, "credits", "$inc")
-        elif "mixed" in self.player1_currency_used:
-            # If mixed, need to refund both currencies (specific handling would require more details)
-            # For now, assuming the mix info is stored elsewhere and handled by another function
-            pass
-
-        # Refund player 2
-        if self.player2_currency_used:
-            if "tokens" in self.player2_currency_used:
-                db.update_balance(self.player2.id, self.bet_amount, "tokens", "$inc")
-            elif "credits" in self.player2_currency_used:
-                db.update_balance(self.player2.id, self.bet_amount, "credits", "$inc")
-            elif "mixed" in self.player2_currency_used:
-                # Mixed currency handling for player 2
-                pass
-
-    async def process_win_reward(self, winner):
-        db = Users()
-        loser = self.player2 if winner == self.player1 else self.player1
-
-        # Calculate reward (1.95x bet)
-        reward = self.bet_amount * 1.95
-
-        # Award winner with credits
-        db.update_balance(winner.id, reward, "credits", "$inc")
-
-        # Add to winner's history
-        history_entry_winner = {
-            "type": "win",
-            "game": "tictactoe",
-            "opponent": loser.name,
-            "amount": reward,
-            "timestamp": int(datetime.datetime.now().timestamp())
-        }
-        db.collection.update_one(
-            {"discord_id": winner.id},
-            {"$push": {"history": {"$each": [history_entry_winner], "$slice": -100}}}
-        )
-
-        # Add to loser's history
-        history_entry_loser = {
-            "type": "loss",
-            "game": "tictactoe",
-            "opponent": winner.name,
-            "amount": self.bet_amount,
-            "timestamp": int(datetime.datetime.now().timestamp())
-        }
-        db.collection.update_one(
-            {"discord_id": loser.id},
-            {"$push": {"history": {"$each": [history_entry_loser], "$slice": -100}}}
-        )
-        #from Cogs.utils.mongo import Servers
-        #serverss = Servers()
-        #serverss.update_server_profit(ctx.guild.id, )
-        
-        # Update server stats
-        # This part would be similar to other games, but I don't have complete context
-        # of your server stats structure
-
-class TicTacToeInvite(discord.ui.View):
-    def __init__(self, cog, ctx, target, bet_amount, currency_used):
-        super().__init__(timeout=120)  # 120 second timeout as requested
-        self.cog = cog
-        self.ctx = ctx
-        self.target = target
-        self.bet_amount = bet_amount
-        self.currency_used = currency_used
-        self.responded = False
-        self.timeout_task = None
-
-    @discord.ui.button(label="Accept", style=discord.ButtonStyle.success)
-    async def accept_button(self, button, interaction):
-        # Check if the correct user is responding
-        if interaction.user.id != self.target.id:
-            return await interaction.response.send_message("This invitation is not for you!", ephemeral=True)
-
-        # Mark as responded to prevent multiple responses
-        self.responded = True
-
-        # Process bet for player 2
-        from Cogs.utils.currency_helper import process_bet_amount
-
-        success, bet_info, error_embed = await process_bet_amount(
-            self.ctx, self.bet_amount, self.currency_used, interaction.message
-        )
-
-        if not success:
-            return await interaction.response.send_message(embed=error_embed, ephemeral=True)
-
-        # Extract player 2's bet info
-        tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
-
-        # Determine which currency was primarily used
-        if tokens_used > 0 and credits_used > 0:
-            player2_currency_used = "mixed"
-        elif tokens_used > 0:
-            player2_currency_used = "tokens"
-        else:
-            player2_currency_used = "credits"
-
-        # Disable all buttons
-        for child in self.children:
-            child.disabled = True
-        await interaction.response.edit_message(view=self)
-
-        # Create and start the game
-        game = TicTacToeGame(
-            self.cog, 
-            self.ctx, 
-            self.ctx.author, 
-            self.target, 
-            self.bet_amount, 
-            self.currency_used
-        )
-        game.player2_currency_used = player2_currency_used
-
-        # Register both players as having an ongoing game
-        self.cog.ongoing_games[self.ctx.author.id] = game
-        self.cog.ongoing_games[self.target.id] = game
-
-        # Start the game
-        await game.start_game()
-
-    @discord.ui.button(label="Decline", style=discord.ButtonStyle.danger)
-    async def decline_button(self, button, interaction):
-        # Check if the correct user is responding
-        if interaction.user.id != self.target.id:
-            return await interaction.response.send_message("This invitation is not for you!", ephemeral=True)
-
-        # Mark as responded
-        self.responded = True
-
-        # Disable buttons
-        for child in self.children:
-            child.disabled = True
-            
-        try:
-            await interaction.response.edit_message(view=self)
-        except Exception as e:
-            print(f"Error editing message: {e}")
-            try:
-                await self.message.edit(view=self)
-            except:
-                pass
-
-        # Refund the inviter
-        try:
-            db = Users()
-            if "tokens" in self.currency_used:
-                db.update_balance(self.ctx.author.id, self.bet_amount, "tokens", "$inc")
-            elif "credits" in self.currency_used:
-                db.update_balance(self.ctx.author.id, self.bet_amount, "credits", "$inc")
-            elif "mixed" in self.currency_used:
-                # Mixed currency handling would be implemented here
-                pass
-
-            # Send decline message with confirmation of refund
-            decline_embed = discord.Embed(
-                title="❌ Game Invitation Declined",
-                description=f"**{self.target.name}** declined your Tic Tac Toe invitation.\nYour {self.bet_amount} {self.currency_used} has been refunded.",
-                color=discord.Color.red()
-            )
-            await self.ctx.send(embed=decline_embed)
-        except Exception as e:
-            print(f"Error processing refund or sending decline message: {e}")
-            # Send a backup message in case of error
-            try:
-                await self.ctx.send(f"**{self.target.name}** declined the game invitation. There was an issue processing the refund, please contact an admin.")
-            except:
-                pass
-
-    async def on_timeout(self):
-        if not self.responded:
-            # Disable buttons
-            for child in self.children:
-                child.disabled = True
-
-            try:
-                # Update the original invitation message with disabled buttons
-                await self.message.edit(view=self)
-            except Exception as e:
-                print(f"Error editing invitation message: {e}")
-
-            # Refund the inviter
-            db = Users()
-            try:
-                if "tokens" in self.currency_used:
-                    db.update_balance(self.ctx.author.id, self.bet_amount, "tokens", "$inc")
-                elif "credits" in self.currency_used:
-                    db.update_balance(self.ctx.author.id, self.bet_amount, "credits", "$inc")
-                elif "mixed" in self.currency_used:
-                    # Mixed currency handling would be implemented here
-                    pass
-                
-                # Send timeout message
-                timeout_embed = discord.Embed(
-                    title="⌛ Game Invitation Expired",
-                    description=f"**{self.target.name}** did not respond to your Tic Tac Toe invitation.\nYour {self.bet_amount} {self.currency_used} has been refunded.",
-                    color=discord.Color.gold()
+                embed = discord.Embed(
+                    title="⌛ | Game Timed Out",
+                    description=(
+                        f"**{self.player.display_name}** took too long to respond.\n"
+                        f"**Refunded:** {self.bet_amount:.2f} points"
+                    ),
+                    color=0xFFD700
                 )
-                await self.ctx.send(embed=timeout_embed)
-            except Exception as e:
-                print(f"Error processing refund or sending timeout message: {e}")
 
+                # Create final view with disabled buttons
+                final_view = self.create_game_view()
+                for item in final_view.children:
+                    item.disabled = True
+
+                embed.set_footer(text="BetSync Casino", icon_url=self.cog.bot.user.avatar.url)
+                await self.message.edit(embed=embed, view=final_view)
+        except asyncio.CancelledError:
+            pass
 
 class TicTacToeCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.ongoing_games = {}
 
     @commands.command(aliases=["ttt"])
-    async def tictactoe(self, ctx, target: discord.Member = None, bet_amount: str = None, currency_type: str = None):
-        """Play Tic Tac Toe against another player with bets!"""
+    async def tictactoe(self, ctx, bet_amount: str = None, difficulty: str = None):
+        """Play Tic Tac Toe against an AI opponent!"""
+
         # Show help if no arguments
-        if not target or not bet_amount:
+        if not bet_amount:
             embed = discord.Embed(
-                title="🎮 How to Play Tic Tac Toe",
+                title=":information_source: | How to Play Tic Tac Toe",
                 description=(
-                    "**Tic Tac Toe** is a classic game where you try to get 3 in a row!\n\n"
-                    "**Usage:** `!tictactoe <@player> <amount> [currency_type]`\n"
-                    "**Example:** `!tictactoe @Friend 100` or `!tictactoe @Friend 100 tokens`\n\n"
-                    "- **Win by getting 3 marks in a row (horizontal, vertical, or diagonal)**\n"
-                    "- **If you win, you receive 1.95x your bet!**\n"
-                    "- **If it's a draw, both players get their bets back**\n"
-                    "- **Games timeout after 120 seconds of inactivity**\n"
+                    "Challenge our AI bot to a game of Tic Tac Toe!\n\n"
+                    "**Usage:** `!tictactoe <amount> [difficulty]`\n"
+                    "**Examples:** \n"
+                    "• `!tictactoe 10` - Play with 10 points on hard difficulty\n"
+                    "• `!tictactoe 25 easy` - Play with 25 points on easy difficulty\n\n"
+                    "**Difficulties:**\n"
+                    "• `easy` - AI makes random moves\n"
+                    "• `medium` - AI plays strategically 70% of the time\n"
+                    "• `hard` - AI plays optimally (default)\n\n"
+                    "**Rewards:**\n"
+                    "• Win: **1.92x** your bet\n"
+                    "• Draw: Full refund\n"
+                    "• Loss: Lose your bet\n\n"
+                    "**Tips:**\n"
+                    "• You play as ❌ and go first\n"
+                    "• Hard difficulty is very challenging!\n"
+                    "• Try different difficulties to find your sweet spot"
                 ),
                 color=0x00FFAE
             )
             embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
             return await ctx.reply(embed=embed)
 
-        # Check if target is valid
-        if target.id == ctx.author.id:
+        # Validate difficulty
+        if difficulty and difficulty.lower() not in ["easy", "medium", "hard"]:
             embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Target",
-                description="You cannot play against yourself!",
-                color=discord.Color.red()
+                title="<:no:1344252518305234987> | Invalid Difficulty",
+                description="Available difficulties: `easy`, `medium`, `hard`",
+                color=0xFF0000
             )
+            embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
             return await ctx.reply(embed=embed)
 
-        if target.bot:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Target",
-                description="You cannot play against a bot!",
-                color=discord.Color.red()
-            )
-            return await ctx.reply(embed=embed)
+        difficulty = difficulty.lower() if difficulty else "hard"
 
-        # Check if either player is already in a game
-        if ctx.author.id in self.ongoing_games:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Game In Progress",
-                description="You already have an ongoing game. Please finish it first.",
-                color=discord.Color.red()
-            )
-            return await ctx.reply(embed=embed)
-
-        if target.id in self.ongoing_games:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Target Busy",
-                description=f"**{target.name}** is already in a game. Try again later.",
-                color=discord.Color.red()
-            )
-            return await ctx.reply(embed=embed)
-
-        # Send loading message
+        # Show loading message
         loading_emoji = emoji()["loading"]
         loading_embed = discord.Embed(
             title=f"{loading_emoji} | Preparing Tic Tac Toe Game...",
-            description="Please wait while we set up your game.",
+            description="Please wait while we set up your game against the AI.",
             color=0x00FFAE
         )
         loading_message = await ctx.reply(embed=loading_embed)
 
-        # Process bet amount
+        # Get user data
         db = Users()
+        db.save(ctx.author.id)
         user_data = db.fetch_user(ctx.author.id)
 
-        if user_data == False:
+        if not user_data:
             await loading_message.delete()
             embed = discord.Embed(
-                title="<:no:1344252518305234987> | User Not Found",
-                description="You don't have an account. Please wait for auto-registration or use `!signup`.",
-                color=discord.Color.red()
+                title="<:no:1344252518305234987> | Account Required",
+                description="You need an account to play. Please wait for auto-registration.",
+                color=0xFF0000
             )
+            embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
             return await ctx.reply(embed=embed)
 
-        # Check if target has an account
-        target_data = db.fetch_user(target.id)
-        if target_data == False:
+        # Parse bet amount
+        try:
+            bet_amount_float = float(bet_amount)
+            if bet_amount_float <= 0:
+                raise ValueError("Bet must be positive")
+        except ValueError:
             await loading_message.delete()
             embed = discord.Embed(
-                title="<:no:1344252518305234987> | Target Not Found",
-                description=f"**{target.name}** doesn't have an account. They need to use any command once to register.",
-                color=discord.Color.red()
+                title="<:no:1344252518305234987> | Invalid Bet Amount",
+                description="Please enter a valid positive number for your bet.",
+                color=0xFF0000
             )
+            embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
             return await ctx.reply(embed=embed)
 
-        # Import currency helper
-        from Cogs.utils.currency_helper import process_bet_amount
-
-        # Process bet using currency helper
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, currency_type, loading_message)
-
-        if not success:
+        # Check if user has enough balance
+        current_balance = user_data.get("points", 0)
+        if current_balance < bet_amount_float:
             await loading_message.delete()
-            return await ctx.reply(embed=error_embed)
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Insufficient Balance",
+                description=f"You need {bet_amount_float:.2f} points to play.\nYour balance: {current_balance:.2f} points",
+                color=0xFF0000
+            )
+            embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+            return await ctx.reply(embed=embed)
 
-        # Successful bet processing - extract relevant information
-        tokens_used = bet_info["tokens_used"]
-        credits_used = bet_info["credits_used"]
-        bet_amount_value = bet_info["total_bet_amount"]
+        # Deduct bet amount
+        db.update_balance(ctx.author.id, -bet_amount_float, "points", "$inc")
 
-        # Determine which currency was primarily used for display purposes
-        if tokens_used > 0 and credits_used > 0:
-            currency_used = "mixed"
-        elif tokens_used > 0:
-            currency_used = "tokens"
-        else:
-            currency_used = "credits"
+        # Add rakeback
+        user_data = db.fetch_user(ctx.author.id)
+        with open('static_data/ranks.json', 'r') as f:
+            rank_data = json.load(f)
 
-        # Create invitation embed
-        if currency_used == "mixed":
-            currency_display = f"{tokens_used} tokens and {credits_used} credits"
-        else:
-            currency_display = f"{bet_amount_value} {currency_used}"
+        current_rank_requirement = user_data.get('rank', 0)
+        rakeback_percentage = 0
+
+        for name, info in rank_data.items():
+            if info['level_requirement'] == current_rank_requirement:
+                rakeback_percentage = info['rakeback_percentage']
+                break
+
+        rakeback_amount = bet_amount_float * (rakeback_percentage / 100)
+        if rakeback_amount > 0:
+            db.collection.update_one(
+                {"discord_id": ctx.author.id},
+                {"$inc": {"rakeback_tokens": rakeback_amount}}
+            )
+
+        # Delete loading message and start game
         await loading_message.delete()
 
-        invite_embed = discord.Embed(
-            title="🎮 Tic Tac Toe Invitation",
-            description=(
-                f"**{ctx.author.name}** has invited **{target.name}** to a game of Tic Tac Toe!\n\n"
-                f"**Bet:** {currency_display}\n"
-                f"**Reward:** Winner gets 1.95x their bet\n\n"
-                f"**{target.name}**, do you accept this challenge?"
-            ),
-            color=0x00FFAE
-        )
-
-        # Create invitation view
-        invite_view = TicTacToeInvite(self, ctx, target, bet_amount_value, currency_used)
-
-        # Delete loading message and send invitation
-        #await loading_message.delete()
-        
-        # Set the message attribute before sending to avoid race condition
-        try:
-            # First send a mention in a separate message to ensure notification
-            await ctx.send(f"{target.mention}", delete_after=1)
-            # Then send the actual invitation
-            invite_message = await ctx.reply(embed=invite_embed, view=invite_view)
-            invite_view.message = invite_message
-            
-            # Print confirmation to console for debugging
-            print(f"Successfully sent TicTacToe invitation to {target.name}")
-            #await loading_message.delete()
-        except Exception as e:
-            print(f"Error sending TicTacToe invitation: {e}")
-            # Fallback in case of error to ensure invitation is sent
-            #await ctx.send(f"{target.mention}, you've been invited to a TicTacToe game! Please check the message above.")
+        # Create and start game
+        game = TicTacToeGame(self, ctx, ctx.author, bet_amount_float, difficulty)
+        await game.start_game()
 
 def setup(bot):
     bot.add_cog(TicTacToeCog(bot))
