@@ -46,8 +46,11 @@ class TicTacToeAI:
         self.ai_symbol = "O"
 
     def get_best_move(self, board):
-        """Get the best move based on difficulty"""
-        return self._get_hard_move(board)
+        """Get the best move based on difficulty - 70% optimal, 30% random"""
+        if random.random() < 0.7:
+            return self._get_hard_move(board)
+        else:
+            return self._get_random_move(board)
 
     def _get_random_move(self, board):
         """Random move for easy difficulty"""
@@ -422,17 +425,36 @@ class TicTacToeGame:
             if not self.game_over:
                 self.game_over = True
 
-                # Refund bet
+                # Player loses bet on timeout - no refund
                 db = Users()
-                db.update_balance(self.player.id, self.bet_amount, "points", "$inc")
+
+                # Add loss to history
+                history_entry = {
+                    "type": "loss",
+                    "game": "tictactoe",
+                    "bet": self.bet_amount,
+                    "amount": self.bet_amount,
+                    "timestamp": int(datetime.datetime.now().timestamp())
+                }
+
+                # Update history and stats
+                db.collection.update_one(
+                    {"discord_id": self.player.id},
+                    {"$push": {"history": {"$each": [history_entry], "$slice": -100}}}
+                )
+
+                db.collection.update_one(
+                    {"discord_id": self.player.id},
+                    {"$inc": {"total_lost": 1, "total_spent": self.bet_amount, "total_played": 1}}
+                )
 
                 embed = discord.Embed(
-                    title="⌛ | Game Timed Out",
+                    title="<:no:1344252518305234987> | Game Timed Out",
                     description=(
                         f"**{self.player.display_name}** took too long to respond.\n"
-                        f"**Refunded:** {self.bet_amount:.2f} points"
+                        f"**Lost:** {self.bet_amount:.2f} points"
                     ),
-                    color=0xFFD700
+                    color=0xFF0000
                 )
 
                 # Create final view with disabled buttons
