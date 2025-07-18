@@ -4,9 +4,12 @@ import datetime
 from colorama import Fore, Back, Style
 import os
 import json
-import aiohttp # Add import for http requests
+from pymongo import MongoClient
 from dotenv import load_dotenv
+
 load_dotenv()
+import aiohttp # Add import for http requests
+
 
 # CoinGecko API endpoint
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
