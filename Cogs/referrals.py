@@ -197,6 +197,23 @@ class ReferralsCog(commands.Cog):
                     if previous_inviter_id == inviter_id:
                         # Same inviter - this is a rejoin
                         is_rejoin = True
+                        # Ensure inviter data exists first
+                        self.referral_collection.update_one(
+                            {"user_id": inviter_id},
+                            {
+                                "$setOnInsert": {
+                                    "user_id": inviter_id,
+                                    "total_joins": 0,
+                                    "current_invites": 0,
+                                    "rejoins": 0,
+                                    "left_users": 0,
+                                    "invited_users": [],
+                                    "left_user_ids": [],
+                                    "rejoined_user_ids": []
+                                }
+                            },
+                            upsert=True
+                        )
                         # Remove from left users and add to rejoined (but don't increment current_invites for rejoins)
                         self.referral_collection.update_one(
                             {"user_id": inviter_id},
@@ -215,20 +232,32 @@ class ReferralsCog(commands.Cog):
                             {"$pull": {"left_user_ids": member.id}}
                         )
                         
-                        # Add as new invite for current inviter
-                        invite_data = {
-                            "user_id": member.id,
-                            "username": member.name,
-                            "join_date": datetime.datetime.utcnow().isoformat()
-                        }
-                        
+                        # For invite switches, this should count as a rejoin for the new inviter, NOT a new invite
+                        # Ensure new inviter data exists first
                         self.referral_collection.update_one(
                             {"user_id": inviter_id},
                             {
-                                "$inc": {"total_joins": 1, "current_invites": 1},
-                                "$addToSet": {"invited_users": invite_data}
+                                "$setOnInsert": {
+                                    "user_id": inviter_id,
+                                    "total_joins": 0,
+                                    "current_invites": 0,
+                                    "rejoins": 0,
+                                    "left_users": 0,
+                                    "invited_users": [],
+                                    "left_user_ids": [],
+                                    "rejoined_user_ids": []
+                                }
                             },
                             upsert=True
+                        )
+                        
+                        # Add as rejoin for new inviter (not a new invite)
+                        self.referral_collection.update_one(
+                            {"user_id": inviter_id},
+                            {
+                                "$inc": {"rejoins": 1},
+                                "$addToSet": {"rejoined_user_ids": member.id}
+                            }
                         )
                 
                 if not is_rejoin and not is_invite_switch:
@@ -239,29 +268,22 @@ class ReferralsCog(commands.Cog):
                         "join_date": datetime.datetime.utcnow().isoformat()
                     }
                     
-                    referral_data = self.referral_collection.find_one({"user_id": inviter_id})
-                    if referral_data:
-                        self.referral_collection.update_one(
-                            {"user_id": inviter_id},
-                            {
-                                "$inc": {"total_joins": 1, "current_invites": 1},
-                                "$addToSet": {"invited_users": invite_data}
+                    # Ensure inviter data exists and update (use upsert to create if doesn't exist)
+                    self.referral_collection.update_one(
+                        {"user_id": inviter_id},
+                        {
+                            "$inc": {"total_joins": 1, "current_invites": 1},
+                            "$addToSet": {"invited_users": invite_data},
+                            "$setOnInsert": {
+                                "user_id": inviter_id,
+                                "rejoins": 0,
+                                "left_users": 0,
+                                "left_user_ids": [],
+                                "rejoined_user_ids": []
                             }
-                        )
-                    else:
-                        # First time inviter
-                        referral_doc = {
-                            "user_id": inviter_id,
-                            "total_joins": 1,
-                            "current_invites": 1,
-                            "rejoins": 0,
-                            "left_users": 0,
-                            "invited_users": [invite_data],
-                            "left_user_ids": [],
-                            "rejoined_user_ids": []
-                        }
-                        
-                        self.referral_collection.insert_one(referral_doc)
+                        },
+                        upsert=True
+                    )
                 
                 if is_rejoin:
                     print(f"[REFERRAL] {member.name} (rejoined) via invite from {inviter_id}")
