@@ -10,6 +10,206 @@ from pymongo import MongoClient
 
 load_dotenv()
 
+class ReferralRewardsView(discord.ui.View):
+    def __init__(self, cog, user_id):
+        super().__init__(timeout=300)
+        self.cog = cog
+        self.user_id = user_id
+    
+    @discord.ui.button(label="Referral Rewards", style=discord.ButtonStyle.green, emoji="💰")
+    async def referral_rewards(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("You can only view your own referral rewards!", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        
+        try:
+            # Get referral data
+            referral_data = self.cog.referral_collection.find_one({"user_id": self.user_id})
+            if not referral_data:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | No Referral Data",
+                    description="You don't have any referral data yet.",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # Get list of currently invited users
+            invited_users = referral_data.get("invited_users", [])
+            current_invited_ids = [user_data["user_id"] for user_data in invited_users]
+            
+            # Remove users who have left
+            left_user_ids = referral_data.get("left_user_ids", [])
+            current_invited_ids = [uid for uid in current_invited_ids if uid not in left_user_ids]
+            
+            if not current_invited_ids:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | No Current Invites",
+                    description="You don't have any current invites to calculate rewards from.",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # Calculate profit from invited users
+            users_db = Users()
+            total_profit = 0
+            
+            for invited_user_id in current_invited_ids:
+                user_data = users_db.fetch_user(invited_user_id)
+                if user_data:
+                    total_lost = user_data.get("total_lost", 0)
+                    total_won = user_data.get("total_won", 0)
+                    profit = total_lost - total_won
+                    total_profit += profit
+            
+            # Calculate 5% reward
+            reward_points = total_profit * 0.05
+            
+            # Convert to LTC and BTC points
+            ltc_points = reward_points * 0.5  # 50% in LTC
+            btc_points = reward_points * 0.5  # 50% in BTC
+            
+            # Create rewards embed
+            embed = discord.Embed(
+                title="💰 Referral Rewards",
+                description=f"Rewards from {len(current_invited_ids)} current invites",
+                color=0x00FFAE
+            )
+            
+            embed.add_field(
+                name="📊 Total Profit from Invites",
+                value=f"```{total_profit:,.2f} points```",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🎁 Your 5% Reward",
+                value=f"```{reward_points:,.2f} points```",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🪙 LTC Reward",
+                value=f"```{ltc_points:,.2f} points```",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="₿ BTC Reward", 
+                value=f"```{btc_points:,.2f} points```",
+                inline=True
+            )
+            
+            embed.set_footer(text="Click the buttons below to claim your rewards!")
+            
+            # Create claim view
+            claim_view = ReferralClaimView(self.cog, self.user_id, ltc_points, btc_points)
+            
+            await interaction.followup.send(embed=embed, view=claim_view, ephemeral=True)
+            
+        except Exception as e:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"An error occurred while calculating rewards: {str(e)}",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+class ReferralClaimView(discord.ui.View):
+    def __init__(self, cog, user_id, ltc_points, btc_points):
+        super().__init__(timeout=300)
+        self.cog = cog
+        self.user_id = user_id
+        self.ltc_points = ltc_points
+        self.btc_points = btc_points
+        self.ltc_claimed = False
+        self.btc_claimed = False
+    
+    @discord.ui.button(label="Claim LTC Reward", style=discord.ButtonStyle.secondary, emoji="🪙")
+    async def claim_ltc(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("You can only claim your own rewards!", ephemeral=True)
+            return
+        
+        if self.ltc_claimed:
+            await interaction.response.send_message("You have already claimed your LTC reward!", ephemeral=True)
+            return
+        
+        if self.ltc_points <= 0:
+            await interaction.response.send_message("No LTC reward to claim!", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        
+        try:
+            # Add points to user balance
+            users_db = Users()
+            users_db.update_balance(self.user_id, self.ltc_points, operation="$inc")
+            
+            self.ltc_claimed = True
+            button.disabled = True
+            button.label = "LTC Claimed ✓"
+            
+            await interaction.edit_original_response(view=self)
+            
+            embed = discord.Embed(
+                title="<:yes:1355501647538815106> | LTC Reward Claimed",
+                description=f"Successfully claimed **{self.ltc_points:,.2f} points** as LTC reward!",
+                color=0x00FFAE
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"Failed to claim LTC reward: {str(e)}",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    @discord.ui.button(label="Claim BTC Reward", style=discord.ButtonStyle.secondary, emoji="₿")
+    async def claim_btc(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("You can only claim your own rewards!", ephemeral=True)
+            return
+        
+        if self.btc_claimed:
+            await interaction.response.send_message("You have already claimed your BTC reward!", ephemeral=True)
+            return
+        
+        if self.btc_points <= 0:
+            await interaction.response.send_message("No BTC reward to claim!", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        
+        try:
+            # Add points to user balance
+            users_db = Users()
+            users_db.update_balance(self.user_id, self.btc_points, operation="$inc")
+            
+            self.btc_claimed = True
+            button.disabled = True
+            button.label = "BTC Claimed ✓"
+            
+            await interaction.edit_original_response(view=self)
+            
+            embed = discord.Embed(
+                title="<:yes:1355501647538815106> | BTC Reward Claimed",
+                description=f"Successfully claimed **{self.btc_points:,.2f} points** as BTC reward!",
+                color=0x00FFAE
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"Failed to claim BTC reward: {str(e)}",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
 class ReferralsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -148,7 +348,10 @@ class ReferralsCog(commands.Cog):
             # Add timestamp
             embed.timestamp = discord.utils.utcnow()
             
-            await loading_message.edit(embed=embed)
+            # Create view with referral rewards button
+            view = ReferralRewardsView(self, target_user.id)
+            
+            await loading_message.edit(embed=embed, view=view)
             
         except Exception as e:
             embed = discord.Embed(
