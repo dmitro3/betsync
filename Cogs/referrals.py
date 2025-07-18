@@ -5,6 +5,7 @@ from Cogs.utils.mongo import Users, Servers
 from Cogs.utils.emojis import emoji
 import os
 import datetime
+import json
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -25,6 +26,21 @@ class ReferralRewardsView(discord.ui.View):
         await interaction.response.defer()
         
         try:
+            # Get user data for rank calculation
+            users_db = Users()
+            user_data = users_db.fetch_user(self.user_id)
+            if not user_data:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | User Not Found",
+                    description="Could not find your user data.",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # Calculate user rank and reward percentage
+            user_level = user_data.get("level", 1)
+            rank_info = self.get_rank_info(user_level)
+            
             # Get referral data
             referral_data = self.cog.referral_collection.find_one({"user_id": self.user_id})
             if not referral_data:
@@ -46,67 +62,136 @@ class ReferralRewardsView(discord.ui.View):
             if not current_invited_ids:
                 embed = discord.Embed(
                     title="<:no:1344252518305234987> | No Current Invites",
-                    description="You don't have any current invites to calculate rewards from.",
+                    description="You don't have any current invites to calculate community rewards from.",
                     color=0xFF0000
                 )
                 return await interaction.followup.send(embed=embed, ephemeral=True)
             
-            # Calculate profit from invited users
-            users_db = Users()
-            total_profit = 0
+            # Calculate community activity bonus from invited users
+            total_activity = 0
             
             for invited_user_id in current_invited_ids:
-                user_data = users_db.fetch_user(invited_user_id)
-                if user_data:
-                    total_lost = user_data.get("total_lost", 0)
-                    total_won = user_data.get("total_won", 0)
-                    profit = total_lost - total_won
-                    total_profit += profit
+                invited_user_data = users_db.fetch_user(invited_user_id)
+                if invited_user_data:
+                    total_played = invited_user_data.get("total_played", 0)
+                    total_activity += total_played
             
-            # Calculate 5% reward
-            reward_points = total_profit * 0.05
+            # Calculate community bonus based on activity
+            community_bonus = total_activity * rank_info["percentage"]
             
-            # Convert to LTC and BTC points
-            ltc_points = reward_points * 0.5  # 50% in LTC
-            btc_points = reward_points * 0.5  # 50% in BTC
+            # Round to nearest whole number
+            community_bonus = round(community_bonus)
+            
+            # Check if user has stored claimable rewards
+            stored_rewards = self.cog.referral_collection.find_one({"user_id": self.user_id, "type": "rewards"})
+            if not stored_rewards:
+                stored_rewards = {
+                    "user_id": self.user_id,
+                    "type": "rewards",
+                    "ltc_points": 0,
+                    "btc_points": 0,
+                    "last_updated": datetime.datetime.utcnow().isoformat()
+                }
+                self.cog.referral_collection.insert_one(stored_rewards)
+            
+            # Add new community bonus to stored rewards
+            ltc_bonus = community_bonus // 2
+            btc_bonus = community_bonus - ltc_bonus
+            
+            # Update stored rewards
+            self.cog.referral_collection.update_one(
+                {"user_id": self.user_id, "type": "rewards"},
+                {
+                    "$inc": {
+                        "ltc_points": ltc_bonus,
+                        "btc_points": btc_bonus
+                    },
+                    "$set": {"last_updated": datetime.datetime.utcnow().isoformat()}
+                }
+            )
+            
+            # Get updated stored rewards
+            updated_rewards = self.cog.referral_collection.find_one({"user_id": self.user_id, "type": "rewards"})
+            total_ltc_points = updated_rewards.get("ltc_points", 0)
+            total_btc_points = updated_rewards.get("btc_points", 0)
             
             # Create rewards embed
             embed = discord.Embed(
-                title="💰 Referral Rewards",
-                description=f"Rewards from {len(current_invited_ids)} current invites",
+                title="💰 Community Rewards",
+                description=f"Your community activity bonus from {len(current_invited_ids)} active members",
                 color=0x00FFAE
             )
             
+            # Add rank information
             embed.add_field(
-                name="📊 Total Profit from Invites",
-                value=f"```{total_profit:,.2f} points```",
+                name=f"{rank_info['emoji']} Your Rank",
+                value=f"```{rank_info['name']} (Level {user_level})```",
+                inline=False
+            )
+            
+            # Add progress bar for next level
+            if user_level < 50:  # Max level
+                current_xp = user_data.get("xp", 0)
+                next_level_xp = self.get_xp_for_level(user_level + 1)
+                current_level_xp = self.get_xp_for_level(user_level)
+                xp_progress = current_xp - current_level_xp
+                xp_needed = next_level_xp - current_level_xp
+                
+                progress_percentage = min(xp_progress / xp_needed, 1.0)
+                bar_length = 20
+                filled_bars = int(progress_percentage * bar_length)
+                empty_bars = bar_length - filled_bars
+                
+                embed.add_field(
+                    name="📊 Level Progress",
+                    value=f"```[{'█' * filled_bars}{'░' * empty_bars}] {int(progress_percentage * 100)}%```\n`{xp_progress}/{xp_needed} XP to next level`",
+                    inline=False
+                )
+            
+            embed.add_field(
+                name="🏆 Community Bonus Rate",
+                value=f"```{rank_info['percentage']:.1%} per member activity```",
                 inline=False
             )
             
             embed.add_field(
-                name="🎁 Your 5% Reward",
-                value=f"```{reward_points:,.2f} points```",
+                name="🎁 Available Rewards",
+                value=f"```Total: {total_ltc_points + total_btc_points} points```",
                 inline=False
             )
             
             embed.add_field(
-                name="🪙 LTC Reward",
-                value=f"```{ltc_points:,.2f} points```",
+                name="🪙 LTC Rewards",
+                value=f"```{total_ltc_points} points```",
                 inline=True
             )
             
             embed.add_field(
-                name="₿ BTC Reward", 
-                value=f"```{btc_points:,.2f} points```",
+                name="₿ BTC Rewards", 
+                value=f"```{total_btc_points} points```",
                 inline=True
             )
             
-            embed.set_footer(text="Click the buttons below to claim your rewards!")
+            # Check if minimum claim amount is met
+            can_claim_ltc = total_ltc_points >= 50
+            can_claim_btc = total_btc_points >= 50
             
-            # Create claim view
-            claim_view = ReferralClaimView(self.cog, self.user_id, ltc_points, btc_points)
-            
-            await interaction.followup.send(embed=embed, view=claim_view, ephemeral=True)
+            if can_claim_ltc or can_claim_btc:
+                embed.add_field(
+                    name="✅ Claim Status",
+                    value="Your rewards are ready to claim!\n*Minimum 50 points required per currency*",
+                    inline=False
+                )
+                # Create claim view
+                claim_view = ReferralClaimView(self.cog, self.user_id, total_ltc_points, total_btc_points)
+                await interaction.followup.send(embed=embed, view=claim_view, ephemeral=True)
+            else:
+                embed.add_field(
+                    name="🔒 Claim Status",
+                    value=f"Minimum 50 points required per currency to claim\nLTC: {total_ltc_points}/50 | BTC: {total_btc_points}/50",
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
             
         except Exception as e:
             embed = discord.Embed(
@@ -115,6 +200,26 @@ class ReferralRewardsView(discord.ui.View):
                 color=0xFF0000
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    def get_rank_info(self, level):
+        """Get rank information based on level"""
+        if level >= 40:
+            return {"name": "Diamond Elite", "emoji": "💎", "percentage": 0.08}
+        elif level >= 25:
+            return {"name": "Platinum Master", "emoji": "🏆", "percentage": 0.06}
+        elif level >= 15:
+            return {"name": "Gold Expert", "emoji": "🥇", "percentage": 0.04}
+        elif level >= 5:
+            return {"name": "Silver Pro", "emoji": "🥈", "percentage": 0.02}
+        else:
+            return {"name": "Bronze Member", "emoji": "🥉", "percentage": 0.01}
+    
+    def get_xp_for_level(self, level):
+        """Calculate XP required for a specific level"""
+        if level <= 1:
+            return 0
+        # Exponential XP curve: level^2 * 100
+        return (level - 1) ** 2 * 100
 
 class ReferralClaimView(discord.ui.View):
     def __init__(self, cog, user_id, ltc_points, btc_points):
@@ -136,8 +241,8 @@ class ReferralClaimView(discord.ui.View):
             await interaction.response.send_message("You have already claimed your LTC reward!", ephemeral=True)
             return
         
-        if self.ltc_points <= 0:
-            await interaction.response.send_message("No LTC reward to claim!", ephemeral=True)
+        if self.ltc_points < 50:
+            await interaction.response.send_message("You need at least 50 LTC points to claim!", ephemeral=True)
             return
         
         await interaction.response.defer()
@@ -147,6 +252,12 @@ class ReferralClaimView(discord.ui.View):
             users_db = Users()
             users_db.update_balance(self.user_id, self.ltc_points, operation="$inc")
             
+            # Reset LTC points in database
+            self.cog.referral_collection.update_one(
+                {"user_id": self.user_id, "type": "rewards"},
+                {"$set": {"ltc_points": 0}}
+            )
+            
             self.ltc_claimed = True
             button.disabled = True
             button.label = "LTC Claimed ✓"
@@ -155,7 +266,7 @@ class ReferralClaimView(discord.ui.View):
             
             embed = discord.Embed(
                 title="<:yes:1355501647538815106> | LTC Reward Claimed",
-                description=f"Successfully claimed **{self.ltc_points:,.2f} points** as LTC reward!",
+                description=f"Successfully claimed **{self.ltc_points} points** as LTC community bonus!",
                 color=0x00FFAE
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -178,8 +289,8 @@ class ReferralClaimView(discord.ui.View):
             await interaction.response.send_message("You have already claimed your BTC reward!", ephemeral=True)
             return
         
-        if self.btc_points <= 0:
-            await interaction.response.send_message("No BTC reward to claim!", ephemeral=True)
+        if self.btc_points < 50:
+            await interaction.response.send_message("You need at least 50 BTC points to claim!", ephemeral=True)
             return
         
         await interaction.response.defer()
@@ -189,6 +300,12 @@ class ReferralClaimView(discord.ui.View):
             users_db = Users()
             users_db.update_balance(self.user_id, self.btc_points, operation="$inc")
             
+            # Reset BTC points in database
+            self.cog.referral_collection.update_one(
+                {"user_id": self.user_id, "type": "rewards"},
+                {"$set": {"btc_points": 0}}
+            )
+            
             self.btc_claimed = True
             button.disabled = True
             button.label = "BTC Claimed ✓"
@@ -197,7 +314,7 @@ class ReferralClaimView(discord.ui.View):
             
             embed = discord.Embed(
                 title="<:yes:1355501647538815106> | BTC Reward Claimed",
-                description=f"Successfully claimed **{self.btc_points:,.2f} points** as BTC reward!",
+                description=f"Successfully claimed **{self.btc_points} points** as BTC community bonus!",
                 color=0x00FFAE
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
