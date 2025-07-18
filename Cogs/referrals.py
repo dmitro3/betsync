@@ -361,7 +361,7 @@ class ReferralRewardsView(discord.ui.View):
         self.user_id = user_id
 
     @discord.ui.button(label="Referral Rewards", style=discord.ButtonStyle.green, emoji="🎁")
-    async def referral_rewards(self, button, interaction):
+    async def referral_rewards(self, interaction, button):
         if interaction.user.id != self.user_id:
             return await interaction.response.send_message("You can only view your own referral rewards!", ephemeral=True)
         
@@ -554,7 +554,7 @@ class ReferralClaimView(discord.ui.View):
         self.ltc_points = ltc_points
 
     @discord.ui.button(label=f"Claim Rewards", style=discord.ButtonStyle.green, emoji="💰")
-    async def claim_rewards(self, button, interaction):
+    async def claim_rewards(self, interaction, button):
         if interaction.user.id != self.user_id:
             return await interaction.response.send_message("You can only claim your own rewards!", ephemeral=True)
         
