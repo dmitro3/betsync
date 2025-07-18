@@ -1744,6 +1744,16 @@ class AdminCommands(commands.Cog):
                     color=0x00FFAE
                 )
                 
+            elif target == "referrals":
+                referral_result = db["referrals"].delete_many({})
+                invite_cache_result = db["invite_cache"].delete_many({})
+                total_deleted = referral_result.deleted_count + invite_cache_result.deleted_count
+                embed = discord.Embed(
+                    title="✅ | Referral Data Cleared",
+                    description=f"Successfully deleted {total_deleted} referral records ({referral_result.deleted_count} referrals + {invite_cache_result.deleted_count} invite cache).",
+                    color=0x00FFAE
+                )
+                
             elif target == "everything":
                 # Create final confirmation for everything
                 confirm_embed = discord.Embed(
@@ -2056,6 +2066,12 @@ class ClearDBDropdown(discord.ui.Select):
                 description="Remove game net profit statistics",
                 value="net_profit",
                 emoji="🎮"
+            ),
+            discord.SelectOption(
+                label="Clear Referral Data",
+                description="Remove all referral tracking data",
+                value="referrals",
+                emoji="🎯"
             ),
             discord.SelectOption(
                 label="⚠️ CLEAR EVERYTHING ⚠️",
