@@ -361,11 +361,19 @@ class ReferralRewardsView(discord.ui.View):
         self.user_id = user_id
 
     @discord.ui.button(label="Referral Rewards", style=discord.ButtonStyle.green, emoji="🎁")
-    async def referral_rewards(self, button, interaction):
+    async def referral_rewards(self, interaction, button):
         if interaction.user.id != self.user_id:
             return await interaction.response.send_message("You can only view your own referral rewards!", ephemeral=True)
         
         await self.show_referral_rewards(interaction)
+
+    async def on_timeout(self):
+        """Handle view timeout"""
+        try:
+            for item in self.children:
+                item.disabled = True
+        except:
+            pass
 
     async def show_referral_rewards(self, interaction):
         await interaction.response.defer()
@@ -451,7 +459,11 @@ class ReferralRewardsView(discord.ui.View):
             # Create claim view if user has claimable rewards
             view = None
             if total_claimable >= 50:
-                view = ReferralClaimView(self.cog, self.user_id, btc_points, ltc_points)
+                try:
+                    view = ReferralClaimView(self.cog, self.user_id, btc_points, ltc_points)
+                except Exception as e:
+                    print(f"Error creating claim view: {e}")
+                    view = None
 
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             
@@ -542,11 +554,19 @@ class ReferralClaimView(discord.ui.View):
         self.ltc_points = ltc_points
 
     @discord.ui.button(label=f"Claim Rewards", style=discord.ButtonStyle.green, emoji="💰")
-    async def claim_rewards(self, button, interaction):
+    async def claim_rewards(self, interaction, button):
         if interaction.user.id != self.user_id:
             return await interaction.response.send_message("You can only claim your own rewards!", ephemeral=True)
         
         await interaction.response.defer()
+
+    async def on_timeout(self):
+        """Handle view timeout"""
+        try:
+            for item in self.children:
+                item.disabled = True
+        except:
+            pass
         
         try:
             total_claimable = self.btc_points + self.ltc_points
