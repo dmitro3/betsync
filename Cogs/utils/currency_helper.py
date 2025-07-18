@@ -168,6 +168,50 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
             {"discord_id": user.id},
             {"$set": {"rakeback_tokens": current_rakeback + rakeback_amount}}
         )
+    
+    # Track referral profit for referral rewards system
+    try:
+        from Cogs.referrals import ReferralsCog
+        import os
+        from pymongo import MongoClient
+        
+        mongodb = MongoClient(os.environ["MONGO"])
+        db_ref = mongodb["BetSync"]
+        referral_collection = db_ref["referrals"]
+        
+        # Find who invited this user
+        referral_data = referral_collection.find_one(
+            {"invited_users.user_id": user.id}
+        )
+        
+        if referral_data:
+            inviter_id = referral_data["user_id"]
+            
+            # Calculate profit (positive when user loses, negative when user wins)
+            if result == "loss":
+                profit = tokens_used
+            else:  # win
+                profit = -(tokens_won - tokens_used)  # Net loss for house
+            
+            # Update referrer's profit tracking
+            db_ref["referral_rewards"].update_one(
+                {"user_id": inviter_id},
+                {
+                    "$inc": {"total_profit_tracked": profit},
+                    "$setOnInsert": {
+                        "user_id": inviter_id,
+                        "btc_rewards": 0,
+                        "ltc_rewards": 0,
+                        "level": 1,
+                        "total_claimed": 0,
+                        "level_progress": 0
+                    }
+                },
+                upsert=True
+            )
+    except Exception as e:
+        # Silently handle errors to not break game flow
+        pass
 
     # Update user's rank if changed
     if rank_changed:

@@ -63,6 +63,24 @@ class Users:
         except Exception as e:
             print(f"Error updating balance: {e}")
             return None
+    
+    def update_bet_stats(self, user_id, bet_amount, won_amount, game_result):
+        """Update user's betting statistics for referral tracking"""
+        try:
+            if game_result == "win":
+                self.collection.update_one(
+                    {"discord_id": user_id},
+                    {"$inc": {"total_won": won_amount, "total_played": 1}}
+                )
+            else:  # loss
+                self.collection.update_one(
+                    {"discord_id": user_id},
+                    {"$inc": {"total_lost": bet_amount, "total_played": 1}}
+                )
+            return True
+        except Exception as e:
+            print(f"Error updating bet stats: {e}")
+            return False
 
     def update_history(self, user_id, history_entry):
         """Add an entry to user's bet history with 100 entry limit"""
