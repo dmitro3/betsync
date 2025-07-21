@@ -39,43 +39,6 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=["!", "."], intents=intents, case_insensitive=True)
 bot.remove_command("help")
 
-# Add help command with aliases
-@bot.command(name="help", aliases=["info", "commands"])
-async def help_command(ctx):
-    """Display help information"""
-    embed = discord.Embed(
-        title="🎰 BetSync Casino - Help",
-        description="Welcome to BetSync Casino! Here are the available commands:",
-        color=0x00FFAE
-    )
-    
-    embed.add_field(
-        name="🎯 Getting Started",
-        value="`!setbal` - Set your primary currency\n`!profile` - View your profile\n`!deposit` - Deposit funds",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="🎲 Games",
-        value="`!dice` - Dice game\n`!coinflip` - Coin flip\n`!mines` - Mines game\n`!crash` - Crash game\n`!slots` - Slot machine\n`!blackjack` - Blackjack game",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="💰 Currency",
-        value="`!balance` - Check balance\n`!tip` - Tip another user\n`!withdraw` - Withdraw funds",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="📊 Information",
-        value="`!history` - View bet history\n`!leaderboard` - View leaderboards\n`!stats` - View statistics",
-        inline=False
-    )
-    
-    embed.set_footer(text="BetSync Casino", icon_url=bot.user.avatar.url)
-    await ctx.reply(embed=embed)
-
 # List of cogs to load
 print("DEBUG: Loading cogs...")
 cogs = [
