@@ -224,28 +224,16 @@ class RaceCog(commands.Cog):
         winner = None
 
         while winner is None:
-            # Create a list of cars with their moves for this iteration
-            car_moves = []
+            # Move all cars simultaneously and check for winner immediately
             for i in range(4):
                 # More varied speed with better randomization
                 move = random.choice([1, 1, 2, 2, 3])  # Weighted toward 1-2, occasional 3
-                car_moves.append((i, move))
-            
-            # Shuffle the order to prevent first-car bias
-            random.shuffle(car_moves)
-            
-            # Apply moves and check for winners
-            winners = []
-            for car_index, move in car_moves:
-                car_positions[car_index] = min(car_positions[car_index] + move, self.track_length)
+                car_positions[i] = min(car_positions[i] + move, self.track_length)
                 
-                # Track cars that reach the finish line
-                if car_positions[car_index] >= self.track_length:
-                    winners.append(car_index + 1)
-
-            # If multiple cars cross the finish line in the same iteration, randomly pick winner
-            if winners and winner is None:
-                winner = random.choice(winners)  # Randomly select from winners
+                # Check if this car won (first to reach finish line)
+                if car_positions[i] >= self.track_length and winner is None:
+                    winner = i + 1
+                    break  # Stop immediately when first car reaches finish
 
             # Update the race display
             updated_embed = discord.Embed(
