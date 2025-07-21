@@ -52,7 +52,7 @@ cogs = [
     "Cogs.games.race", "Cogs.games.cases",
     "Cogs.games.hilo", "Cogs.games.poker", "Cogs.games.plinko", 
     "Cogs.games.keno", "Cogs.games.blackjack", "Cogs.games.baccarat",
-    "Cogs.games.match", "Cogs.sol_deposit", "Cogs.games.slots", "Cogs.games.build" , "Cogs.referrals", "Cogs.channel_management", "Cogs.restart"
+    "Cogs.games.match", "Cogs.sol_deposit", "Cogs.games.slots", "Cogs.games.build" , "Cogs.referrals", "Cogs.channel_management"
 ]
 
 @bot.event
