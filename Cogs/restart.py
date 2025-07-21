@@ -87,7 +87,7 @@ class RestartCog(commands.Cog):
             
             # Restart the bot
             await self.bot.close()
-            os.execv(sys.executable, ['python'] + sys.argv)
+            os.execv(sys.executable, [sys.executable] + sys.argv)
             
         except asyncio.TimeoutError:
             # User didn't confirm in time
