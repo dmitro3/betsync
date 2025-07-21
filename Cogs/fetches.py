@@ -814,7 +814,7 @@ class Fetches(commands.Cog):
             )
 
             # Add the rakeback tokens to user's tokens
-            balance_result = db.update_balance(self.user_id, rakeback_tokens)
+            balance_result = db.update_balance(self.user_id, rakeback_tokens, operation="$inc")
 
             # Log after claiming
             print(f"{Back.GREEN}  {Style.DIM}{self.user_id}{Style.RESET_ALL}{Back.RESET}{Fore.GREEN}    SUCCESS    {Fore.WHITE}Rakeback claimed: {rakeback_tokens:.2f} points | DB updates: {update_result.modified_count}, {balance_result}{Style.RESET_ALL}")

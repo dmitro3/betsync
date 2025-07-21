@@ -250,7 +250,7 @@ class ReferralClaimView(discord.ui.View):
         try:
             # Add points to user balance
             users_db = Users()
-            users_db.update_balance(self.user_id, self.ltc_points, operation="$inc")
+            users_db.update_balance(self.user_id, self.ltc_points, "points", "$inc")
             
             # Reset LTC points in database
             self.cog.referral_collection.update_one(
@@ -298,7 +298,7 @@ class ReferralClaimView(discord.ui.View):
         try:
             # Add points to user balance
             users_db = Users()
-            users_db.update_balance(self.user_id, self.btc_points, operation="$inc")
+            users_db.update_balance(self.user_id, self.btc_points, "points", "$inc")
             
             # Reset BTC points in database
             self.cog.referral_collection.update_one(
