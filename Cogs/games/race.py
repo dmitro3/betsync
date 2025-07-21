@@ -132,7 +132,7 @@ class RaceCog(commands.Cog):
 
         # Auto-cancel the game after 30 seconds if no selection is made
         await asyncio.sleep(30)
-        
+
         # Check if the game still exists and no car was selected
         if ctx.author.id in self.ongoing_games:
             game_data = self.ongoing_games[ctx.author.id]
@@ -229,7 +229,7 @@ class RaceCog(commands.Cog):
                 # More varied speed with better randomization
                 move = random.choice([1, 1, 2, 2, 3])  # Weighted toward 1-2, occasional 3
                 car_positions[i] = min(car_positions[i] + move, self.track_length)
-                
+
                 # Check if this car won (first to reach finish line)
                 if car_positions[i] >= self.track_length and winner is None:
                     winner = i + 1
@@ -262,12 +262,14 @@ class RaceCog(commands.Cog):
             updated_embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
             await message.edit(embed=updated_embed)
 
+            # Slower delay between updates
+            await asyncio.sleep(0.8)
+
             # Stop immediately if we have a winner
             if winner is not None:
                 break
 
-            # Slower delay between updates
-            await asyncio.sleep(0.8)
+
 
         # Determine race result
         user_won = selected_car == winner
@@ -350,7 +352,7 @@ class RaceCog(commands.Cog):
         # Show only the winner car in final results
         winner_position = car_positions[winner - 1]
         winner_track = "⬜" * winner_position + f"{car_colors[winner - 1]}" + "⬜" * (self.track_length - winner_position - 1) + "🏁"
-        
+
         result_embed.add_field(
             name=f"🏆 Winner: {car_emojis[winner - 1]} Car {winner}",
             value=winner_track,
