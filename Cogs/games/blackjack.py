@@ -612,12 +612,13 @@ class Blackjack(commands.Cog):
                 game_message = await ctx.reply(embed=embed, file=file, view=view)
                 view.message = game_message
 
-            # Mark game as ongoing
-            self.ongoing_games[ctx.author.id] = {
-                "bet_amount": bet_amount_value,
-                "currency_used": currency_used,
-                "view": view
-            }
+            # Mark game as ongoing only if it hasn't already ended (e.g., blackjack)
+            if not view.game_over:
+                self.ongoing_games[ctx.author.id] = {
+                    "bet_amount": bet_amount_value,
+                    "currency_used": currency_used,
+                    "view": view
+                }
 
         except Exception as e:
             print(f"Blackjack error: {e}")
