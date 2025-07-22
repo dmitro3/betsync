@@ -392,20 +392,14 @@ class BlackjackView(discord.ui.View):
                 child.disabled = True
 
             try:
-                # Create timeout embed without image
+                # Create timeout embed
                 embed = discord.Embed(
-                    title="♠️ Blackjack - Timeout",
+                    title="<:no:1344252518305234987> | Game Timeout",
                     description="Game timed out due to inactivity. Your bet has been lost.",
                     color=discord.Color.red()
                 )
 
-                # Remove any existing attachments
-                files = []
-                if self.message.attachments:
-                    files = [a for a in self.message.attachments]
-                    await self.message.remove_attachments(*files)
-
-                await self.message.edit(embed=embed, view=self, attachments=[])
+                await self.message.edit(embed=embed, view=self)
 
                 # Handle loss in database
                 await self.cog.handle_game_end(
@@ -420,10 +414,9 @@ class BlackjackView(discord.ui.View):
             except Exception as e:
                 print(f"Error in Blackjack timeout handler: {e}")
 
-            finally:
-                # Remove from ongoing games
-                if self.ctx.author.id in self.cog.ongoing_games:
-                    del self.cog.ongoing_games[self.ctx.author.id]
+        # Always remove from ongoing games on timeout
+        if self.ctx.author.id in self.cog.ongoing_games:
+            del self.cog.ongoing_games[self.ctx.author.id]
 
 class Blackjack(commands.Cog):
     def __init__(self, bot):
@@ -522,15 +515,11 @@ class Blackjack(commands.Cog):
                 for child in view.children:
                     child.disabled = True
 
-                # Remove from ongoing games immediately
-                if ctx.author.id in self.ongoing_games:
-                    del self.ongoing_games[ctx.author.id]
-
                 if dealer_value == 21 and len(view.dealer_cards) == 2:
-                    # Both have blackjack - push
+                    # Both have blackjack - push (return bet)
                     embed = discord.Embed(
                         title="♠️ Blackjack - Push!",
-                        description="Both you and the dealer have Blackjack! Push!",
+                        description="Both you and the dealer have Blackjack! Your bet is returned.",
                         color=discord.Color.yellow()
                     )
 
@@ -548,8 +537,8 @@ class Blackjack(commands.Cog):
                     win_amount = bet_amount_value * 1.5
 
                     embed = discord.Embed(
-                        title="<:yes:1355501647538815106> Blackjack - Blackjack!",
-                        description=f"**You win** `{win_amount:.2f} {currency_used}`",
+                        title="<:yes:1355501647538815106> | Blackjack!",
+                        description=f"**You win** `{win_amount:.2f} {currency_used}` with a natural blackjack!",
                         color=discord.Color.green()
                     )
 
@@ -619,6 +608,10 @@ class Blackjack(commands.Cog):
                     "currency_used": currency_used,
                     "view": view
                 }
+            else:
+                # Game ended immediately (blackjack), ensure it's not marked as ongoing
+                if ctx.author.id in self.ongoing_games:
+                    del self.ongoing_games[ctx.author.id]
 
         except Exception as e:
             print(f"Blackjack error: {e}")
@@ -924,9 +917,43 @@ class Blackjack(commands.Cog):
         # Timestamp for history entries
         timestamp = int(datetime.datetime.now().timestamp())
 
-        if result == "win" or result == "blackjack" or result == "push":
+        if result == "push":
+            # Push - return bet amount only
+            user_db.update_balance(user_id, bet_amount, "points", "$inc")
+            
+            history_entry = {
+                "type": "push",
+                "game": "blackjack",
+                "amount": bet_amount,
+                "bet": bet_amount,
+                "multiplier": 1.0,
+                "timestamp": timestamp
+            }
+
+            user_db.collection.update_one(
+                {"discord_id": user_id},
+                {
+                    "$push": {"history": {"$each": [history_entry], "$slice": -100}},
+                    "$inc": {"total_played": 1}
+                }
+            )
+
+            # No server profit change for push
+            server_history_entry = {
+                "type": "push",
+                "game": "blackjack",
+                "user_id": user_id,
+                "user_name": ctx.author.name,
+                "bet": bet_amount,
+                "amount": bet_amount,
+                "multiplier": 1.0,
+                "timestamp": timestamp
+            }
+            server_db.update_history(ctx.guild.id, server_history_entry)
+
+        elif result == "win" or result == "blackjack":
             # Player wins - add winnings to balance
-            user_db.update_balance(user_id, win_amount, "credits", "$inc")
+            user_db.update_balance(user_id, win_amount, "points", "$inc")
 
             # Add win to history
             multiplier = 1.5 if result == "blackjack" else 1.98
