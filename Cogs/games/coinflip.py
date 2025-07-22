@@ -153,10 +153,16 @@ class CoinflipCog(commands.Cog):
         await loading_message.edit(embed=loading_embed)
 
         # Choose a side if none specified
-        if not side or side.lower() not in ["heads", "tails"]:
+        if not side:
             side = random.choice(["heads", "tails"])
         else:
-            side = side.lower()
+            side_lower = side.lower()
+            if side_lower in ["heads", "h"]:
+                side = "heads"
+            elif side_lower in ["tails", "t"]:
+                side = "tails"
+            else:
+                side = random.choice(["heads", "tails"])
 
 
         # Mark the game as ongoing
