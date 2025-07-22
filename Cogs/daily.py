@@ -68,9 +68,9 @@ class Daily(commands.Cog):
         # Calculate total points from all deposit types
         for entry in history:
             if entry and entry.get('type') in ['btc_deposit', 'ltc_deposit', 'eth_deposit', 'usdt_deposit', 'sol_deposit']:
-                # Get points from deposit entry
-                points_earned = entry.get('points_earned', 0)
-                total_deposit_points += points_earned
+                # Get points from deposit entry - check both possible field names
+                points_credited = entry.get('points_credited', entry.get('points_earned', 0))
+                total_deposit_points += points_credited
         
         if total_deposit_points > 1:
             requirements.append("✅ Deposited more than 1 point")

@@ -195,11 +195,14 @@ class DepositView(discord.ui.View):
                     sol_price = await get_crypto_price('solana')
                     usd_value = deposit['amount_crypto'] * sol_price if sol_price else None
 
+                    points_credited = deposit.get('points_credited', 0)
+                    
                     await self.cog.notifier.deposit_notification(
                         user_id=self.user_id,
                         username=interaction.user.name,
                         amount_crypto=deposit['amount_crypto'],
                         currency="SOL",
+                        points_credited=points_credited,
                         usd_value=usd_value,
                         txid=deposit['txid'],
                         address=self.address
@@ -208,6 +211,7 @@ class DepositView(discord.ui.View):
                     history_entry = {
                         "type": "sol_deposit",
                         "amount_crypto": deposit['amount_crypto'],
+                        "points_credited": points_credited,
                         "currency": "SOL",
                         "usd_value": usd_value,
                         "txid": deposit['txid'],
@@ -510,11 +514,19 @@ class SolDeposit(commands.Cog):
 
                         # Convert lamports to SOL
                         amount_sol = lamports_received / SOL_LAMPORTS
+                        
+                        # Convert SOL to points using the conversion rate
+                        points_to_add = amount_sol / SOL_CONVERSION_RATE
 
-                        # Update user's SOL wallet balance
+                        # Update user's SOL wallet balance AND points
                         update_result = self.users_db.collection.update_one(
                             {"discord_id": user_id},
-                            {"$inc": {"wallet.SOL": amount_sol}}
+                            {
+                                "$inc": {
+                                    "wallet.SOL": amount_sol,
+                                    "points": points_to_add
+                                }
+                            }
                         )
 
                         if update_result.matched_count == 0:
@@ -529,6 +541,7 @@ class SolDeposit(commands.Cog):
 
                         processed_deposits.append({
                             "amount_crypto": amount_sol,
+                            "points_credited": points_to_add,
                             "txid": tx_hash
                         })
 

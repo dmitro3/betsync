@@ -193,7 +193,7 @@ class DepositView(discord.ui.View):
             await interaction.response.send_message("Error: User data not found.", ephemeral=True)
             return
             
-        primary_currency = fresh_user_data.get('primary_currency', fresh_user_data.get('primary_coin', '')).upper()
+        primary_currency = fresh_user_data.get('primary_coin', fresh_user_data.get('primary_currency', '')).upper()
         if primary_currency != 'LTC':
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Wrong Primary Currency",
