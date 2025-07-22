@@ -61,9 +61,18 @@ class Daily(commands.Cog):
         requirements = []
         all_met = True
 
-        # Check 1: Deposited more than 1 point (total deposits USD)
-        total_deposits = user_data.get('total_deposit_amount_usd', 0)
-        if total_deposits > 1:
+        # Check 1: Deposited more than 1 point (check history for deposits)
+        history = user_data.get('history', [])
+        total_deposit_points = 0
+        
+        # Calculate total points from all deposit types
+        for entry in history:
+            if entry and entry.get('type') in ['btc_deposit', 'ltc_deposit', 'eth_deposit', 'usdt_deposit', 'sol_deposit']:
+                # Get points from deposit entry
+                points_earned = entry.get('points_earned', 0)
+                total_deposit_points += points_earned
+        
+        if total_deposit_points > 1:
             requirements.append("✅ Deposited more than 1 point")
         else:
             requirements.append("❌ Deposited more than 1 point")
