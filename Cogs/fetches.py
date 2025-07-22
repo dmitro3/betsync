@@ -7,8 +7,6 @@ from discord.ext import commands
 from Cogs.utils.emojis import emoji
 from Cogs.utils.mongo import Users, Servers
 from colorama import Fore, Back, Style
-from PIL import Image, ImageDraw, ImageFont
-import io
 
 class Fetches(commands.Cog):
     def __init__(self, bot):
@@ -180,89 +178,6 @@ class Fetches(commands.Cog):
 
         await ctx.reply(embed=embed)
 
-    async def generate_balance_image(self, user, user_data):
-        """Generates a balance image using PIL."""
-        # Image dimensions and colors
-        width, height = 800, 400
-        bg_color = (30, 30, 30)  # Dark background
-        text_color = (255, 255, 255)  # White text
-        secondary_color = (150, 150, 150) # Grey text
-        highlight_color = (79, 177, 255) # Light blue
-
-        # Create a new image
-        img = Image.new('RGB', (width, height), color=bg_color)
-        d = ImageDraw.Draw(img)
-
-        # Load fonts (you may need to adjust the path)
-        title_font = ImageFont.truetype("arial.ttf", 32)
-        normal_font = ImageFont.truetype("arial.ttf", 24)
-        small_font = ImageFont.truetype("arial.ttf", 16)
-
-        # User avatar (download and paste)
-        try:
-            avatar_url = user.avatar.url if user.avatar else user.default_avatar.url
-            avatar_data = requests.get(avatar_url, stream=True).raw
-            avatar = Image.open(avatar_data).resize((100, 100))
-
-            # Mask to make the avatar circular
-            mask = Image.new('L', (100, 100), 0)
-            mask_draw = ImageDraw.Draw(mask)
-            mask_draw.ellipse((0, 0, 100, 100), fill=255)
-            avatar = Image.composite(avatar, Image.new('RGB', (100, 100), (0, 0, 0)), mask)
-
-            img.paste(avatar, (30, 30))
-        except Exception as e:
-            print(f"Error loading avatar: {e}")
-
-        # User info
-        user_name = user.name
-        d.text((150, 30), user_name, font=title_font, fill=highlight_color)
-
-        # Points balance
-        points_balance = user_data.get('points', 0)
-        d.text((150, 80), f"Points: {points_balance:,.2f}", font=normal_font, fill=text_color)
-
-        # Wallet info
-        wallet = user_data.get('wallet', {})
-        wallet_text = "Wallet:\n"
-        y_offset = 0
-        for coin, balance in wallet.items():
-            wallet_text += f"{coin}: {balance:.4f}\n"
-            y_offset += 25
-
-        # Crypto wallet balances
-        wallet_y_position = 150
-        d.text((30, wallet_y_position), "Crypto Balances:", font=normal_font, fill=secondary_color)
-
-        y_position = wallet_y_position + 35
-        crypto_map = {
-            'BTC': '<:btc:1339343445675868189>',
-            'ETH': '<:eth:1339343445675868191>',
-            'LTC': '<:ltc:1339343445675868190>',
-            'SOL': '<:sol:1339343445675868192>',
-            'USDT': '<:usdt:1339343445675868188>'
-        }
-
-        for coin, balance in wallet.items():
-            coin_emoji = crypto_map.get(coin, coin)
-            text = f"{coin}: {balance:.8f}"
-            d.text((30, y_position), text, font=small_font, fill=text_color)
-            y_position += 25
-            
-        # Calculate total USD value
-        total_usd = self.calculate_total_usd(user_data)
-        d.text((30, y_position + 10), f"Total USD Value: ${total_usd:,.2f}", font=normal_font, fill=highlight_color)
-
-        # Footer
-        footer_text = "BetSync Casino"
-        d.text((30, height - 30), footer_text, font=small_font, fill=secondary_color)
-
-        # Save as PNG to bytes
-        buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
-        buffer.seek(0)
-        return buffer.read()
-
     @commands.command(aliases=["bal"])
     async def balance(self, ctx, param: str = None):
         """
@@ -297,7 +212,7 @@ class Fetches(commands.Cog):
                 description = "You need an account to check your balance."
             else:
                 description = f"{user.mention} hasn't registered yet."
-
+            
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Account Required",
                 description=description,
@@ -333,7 +248,7 @@ class Fetches(commands.Cog):
             if currency not in crypto_values:
                 await ctx.reply(f"**Invalid currency. Supported currencies: {', '.join(crypto_values.keys())}**")
                 return
-
+            
             # Check if currency is disabled
             if currency in ["ETH", "USDT"]:
                 embed = discord.Embed(
@@ -344,11 +259,11 @@ class Fetches(commands.Cog):
                 embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
                 await ctx.reply(embed=embed)
                 return
-
+            
             #Calculate how much of the specified currency the user has based on points
             currency_rate = crypto_values.get(currency, 0)
             currency_value = points * currency_rate
-
+            
             #Prepare currency emojis
             emoji_map = {
                 "BTC": "<:btc:1339343483089063976>",
@@ -357,7 +272,7 @@ class Fetches(commands.Cog):
                 "USDT": "<:usdt:1340981835563401217>",
                 "SOL": "<:sol:1340981839497793556>"
             }
-
+            
             #Create embed to display the balance in the specified currency
             money = emoji()["money"]
             embed = discord.Embed(title=f"{money} | {user.name}'s Balance in {currency}", color=discord.Color.blue())
@@ -369,7 +284,7 @@ class Fetches(commands.Cog):
             embed.set_footer(text="Use !setbal to change your primary currency", icon_url=self.bot.user.avatar.url)
             await ctx.reply(embed=embed)
             return
-
+            
 
         # Get live prices using crypto utility
         try:
@@ -393,40 +308,59 @@ class Fetches(commands.Cog):
 
         usd_value = primary_coin_amount * coin_usd_price if coin_usd_price else 0
 
-        # Send loading message
-        loading_emoji = emoji()["loading"]
-        loading_embed = discord.Embed(
-            title=f"{loading_emoji} | Generating Balance Image...",
-            description="Please wait while we generate your balance image.",
-            color=0x00FFAE
+        # Create embed
+        money = emoji()["money"]
+        embed = discord.Embed(title=f"{money} | {user.name}'s Balance", color=discord.Color.blue())
+
+        # Prepare currency emojis
+        emoji_map = {
+            "BTC": "<:btc:1339343483089063976>",
+            "LTC": "<:ltc:1339343445675868191>", 
+            "ETH": "<:eth:1340981832799485985>",
+            "USDT": "<:usdt:1340981835563401217>",
+            "SOL": "<:sol:1340981839497793556>"
+        }
+
+        # Conversion rates
+        crypto_values = {
+            "BTC": 0.00000024,
+            "LTC": 0.00023,
+            "ETH": 0.000010,
+            "USDT": 0.0212,
+            "SOL": 0.0001442
+        }
+
+        # Get the user data and points
+        #tokens = info.get("points", 0)
+
+        # Current primary coin balance and conversion
+        primary_rate = crypto_values.get(current_primary_coin, 0)
+        primary_value = points * primary_rate
+        primary_emoji = emoji_map.get(current_primary_coin, "")
+
+        # Main balance display - clean and minimalistic
+        embed.add_field(
+            name="Points",
+            value=f"`{points:.2f}` `({usd_value:.2f}$)`",
+            inline=False
         )
-        loading_message = await ctx.reply(embed=loading_embed)
 
-        # Generate balance image
-        try:
-            image_bytes = await self.generate_balance_image(user, user_data)
+        # Add USD value if available
 
-            # Create a simple embed with just the image
-            embed = discord.Embed(
-                title="<:yes:1355501647538815106> | Balance Information",
-                color=0x00FFAE
-            )
 
-            # Attach the image
-            file = discord.File(image_bytes, filename="balance.png")
-            embed.set_image(url="attachment://balance.png")
+        # Currency info field - simplified
+        embed.add_field(
+            name="Primary Currency", 
+            value=f"`{current_primary_coin} (1 Point => {primary_rate:.8f} {current_primary_coin})`",
+            inline=False
+        )
 
-            await loading_message.edit(embed=embed, file=file, attachments=[])
+        # The information is already displayed in the main balance field,
+        # so we don't need these redundant fields anymore.
 
-        except Exception as e:
-            print(f"Error in balance command: {e}")
-            # Fallback to text if image generation fails
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Error Generating Balance Image",
-                description=f"Points: **{user_data.get('points', 0):.2f}**\nPrimary Coin: **{user_data.get('primary_coin', 'BTC')}**",
-                color=0xFF0000
-            )
-            await loading_message.edit(embed=embed)
+        embed.set_footer(text="Use !setbal to change your primary currency", icon_url=self.bot.user.avatar.url)
+        db.save(ctx.author.id)
+        await ctx.reply(embed=embed)
 
     @commands.command(aliases=["wa"]) # Added alias for convenience
     async def wallet(self, ctx, user: discord.Member = None):
