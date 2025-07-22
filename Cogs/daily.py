@@ -148,7 +148,7 @@ class Daily(commands.Cog):
             value=f"**+{reward_amount} points** added to your balance!",
             inline=False
         )
-        success_embed.set_footer(text="Come back tomorrow for another daily reward!")
+        success_embed.set_footer(text="BetSync • Come back tomorrow for another daily reward!", icon_url=self.bot.user.avatar.url)
         
         await loading_message.edit(embed=success_embed)
 
