@@ -378,7 +378,7 @@ class ChannelControlView(discord.ui.View):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Channel Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
-    async def channel_info(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def channel_info(self, interaction: discord.Interaction, btn: discord.ui.Button):
         channel = interaction.channel
         
         # Get members with read access (excluding @everyone and bots)
