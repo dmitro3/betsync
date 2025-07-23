@@ -1,4 +1,3 @@
-
 import discord
 from discord.ext import commands
 import asyncio
@@ -34,10 +33,10 @@ class PrivateThreads(commands.Cog):
                 type=discord.ChannelType.private_thread,
                 reason=f"Private thread created by {ctx.author}"
             )
-            
+
             # Track the thread
             self.user_threads[ctx.author.id] = thread.id
-            
+
             # Create control panel embed
             embed = discord.Embed(
                 title="<:yes:1355501647538815106> | Private Thread Created",
@@ -50,10 +49,10 @@ class PrivateThreads(commands.Cog):
                 inline=False
             )
             embed.set_footer(text="BetSync • Private Thread System", icon_url=self.bot.user.avatar.url)
-            
+
             # Send confirmation in original channel
             await ctx.reply(embed=embed)
-            
+
             # Send welcome message in thread with controls
             welcome_embed = discord.Embed(
                 title=":information_source: | Welcome to Your Private Thread",
@@ -70,10 +69,10 @@ class PrivateThreads(commands.Cog):
                 value="Only you and added members can see this thread.",
                 inline=False
             )
-            
+
             view = ThreadControlView(self, ctx.author.id)
             await thread.send(embed=welcome_embed, view=view)
-            
+
         except discord.Forbidden:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Permission Error",
@@ -99,7 +98,7 @@ class PrivateThreads(commands.Cog):
                 color=0xFF0000
             )
             return await ctx.reply(embed=embed)
-        
+
         # Check if user owns this thread
         if ctx.author.id not in self.user_threads or self.user_threads[ctx.author.id] != ctx.channel.id:
             embed = discord.Embed(
@@ -108,7 +107,7 @@ class PrivateThreads(commands.Cog):
                 color=0xFF0000
             )
             return await ctx.reply(embed=embed)
-        
+
         # Close the thread
         embed = discord.Embed(
             title="<:yes:1355501647538815106> | Thread Closing",
@@ -116,12 +115,12 @@ class PrivateThreads(commands.Cog):
             color=0x00FFAE
         )
         await ctx.reply(embed=embed)
-        
+
         await asyncio.sleep(5)
-        
+
         # Remove from tracking
         del self.user_threads[ctx.author.id]
-        
+
         # Archive the thread
         await ctx.channel.edit(archived=True, reason=f"Thread closed by {ctx.author}")
 
@@ -140,20 +139,20 @@ class ThreadControlView(discord.ui.View):
                 color=0xFF0000
             )
             return await interaction.response.send_message(embed=embed, ephemeral=True)
-        
+
         embed = discord.Embed(
             title="<:yes:1355501647538815106> | Thread Closing",
             description="This private thread will be closed in 5 seconds...",
             color=0x00FFAE
         )
         await interaction.response.send_message(embed=embed)
-        
+
         await asyncio.sleep(5)
-        
+
         # Remove from tracking
         if self.owner_id in self.cog.user_threads:
             del self.cog.user_threads[self.owner_id]
-        
+
         # Archive the thread
         await interaction.followup.channel.edit(archived=True, reason=f"Thread closed by {interaction.user}")
 
@@ -166,11 +165,11 @@ class ThreadControlView(discord.ui.View):
                 color=0xFF0000
             )
             return await interaction.response.send_message(embed=embed, ephemeral=True)
-        
+
         member = await self.get_member_input(interaction, "Add")
         if not member:
             return
-            
+
         if member.bot:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Invalid Member",
@@ -178,7 +177,7 @@ class ThreadControlView(discord.ui.View):
                 color=0xFF0000
             )
             return await interaction.followup.send(embed=embed, ephemeral=True)
-        
+
         try:
             await interaction.channel.add_user(member)
             embed = discord.Embed(
@@ -211,11 +210,11 @@ class ThreadControlView(discord.ui.View):
                 color=0xFF0000
             )
             return await interaction.response.send_message(embed=embed, ephemeral=True)
-        
+
         member = await self.get_member_input(interaction, "Remove")
         if not member:
             return
-            
+
         if member not in interaction.channel.members:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Not in Thread",
@@ -223,7 +222,7 @@ class ThreadControlView(discord.ui.View):
                 color=0xFF0000
             )
             return await interaction.followup.send(embed=embed, ephemeral=True)
-        
+
         try:
             await interaction.channel.remove_user(member)
             embed = discord.Embed(
@@ -251,7 +250,7 @@ class ThreadControlView(discord.ui.View):
     async def thread_info(self, interaction: discord.Interaction, button: discord.ui.Button):
         thread = interaction.channel
         members = [member for member in thread.members if not member.bot]
-        
+
         embed = discord.Embed(
             title=":information_source: | Thread Information",
             description=f"Information about {thread.name}",
@@ -277,7 +276,7 @@ class ThreadControlView(discord.ui.View):
             value=f"`{thread.id}`",
             inline=False
         )
-        
+
         if len(members) > 1:
             member_list = "\n".join([f"• {member.display_name}" for member in members[:10]])
             if len(members) > 10:
@@ -287,7 +286,7 @@ class ThreadControlView(discord.ui.View):
                 value=member_list,
                 inline=False
             )
-        
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def get_member_input(self, interaction: discord.Interaction, action: str):
@@ -298,18 +297,18 @@ async def get_member_input(self, interaction: discord.Interaction, action: str):
         color=0x3498db
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
-    
+
     def check(m):
         return m.author == interaction.user and m.channel == interaction.channel
-        
+
     try:
         msg = await self.cog.bot.wait_for('message', check=check, timeout=60)
         member_input = msg.content.strip()
-        
+
         # Try to find the member
         member = None
         guild = interaction.guild
-        
+
         # Try by mention (if it starts with <@)
         if member_input.startswith('<@') and member_input.endswith('>'):
             user_id = member_input[2:-1]
@@ -319,11 +318,11 @@ async def get_member_input(self, interaction: discord.Interaction, action: str):
                 member = guild.get_member(int(user_id))
             except ValueError:
                 pass
-        
+
         # Try by user ID
         if not member and member_input.isdigit():
             member = guild.get_member(int(member_input))
-        
+
         # Try by username or display name
         if not member:
             member = discord.utils.find(
@@ -331,7 +330,7 @@ async def get_member_input(self, interaction: discord.Interaction, action: str):
                          m.display_name.lower() == member_input.lower(),
                 guild.members
             )
-        
+
         if not member:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Member Not Found",
@@ -340,9 +339,9 @@ async def get_member_input(self, interaction: discord.Interaction, action: str):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return None
-            
+
         return member
-        
+
     except asyncio.TimeoutError:
         embed = discord.Embed(
             title="<:no:1344252518305234987> | Timed Out",
