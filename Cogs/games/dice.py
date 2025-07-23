@@ -146,8 +146,8 @@ class DiceCog(commands.Cog):
             user_won = user_roll > dealer_roll
 
             # Define the multiplier (for a win)
-            # House edge of at least 4%
-            multiplier = 1.90  # With 6 sides, fair would be 2.0, so 1.90 gives 5% house edge
+            # House edge of 8%
+            multiplier = 1.84  # With 6 sides, fair would be 2.0, so 1.84 gives 8% house edge
 
             # Create result embed
             if is_draw:

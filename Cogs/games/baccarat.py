@@ -86,7 +86,7 @@ class BaccaratGame(commands.Cog):
                     "- **Player & Banker each get 2 cards**\n"
                     "- **Card values: A=1, 2-9=face value, 10/J/Q/K=0**\n"
                     "- **Only the ones digit of the total matters (12 = 2)**\n"
-                    "- **Win 1.90x your bet on correct player/banker pick**\n"
+                    "- **Win 1.85x your bet on correct player/banker pick**\n"
                     "- **Win 4x your bet on a correct tie prediction**\n"
                 ),
                 color=0x00FFAE
@@ -179,8 +179,8 @@ class BaccaratGame(commands.Cog):
                     description=(
                         f"{bet_description}\n\n"
                         "**Choose who to bet on:**\n"
-                        "**Player** - Win 1.90x if player hand wins\n"
-                        "**Banker** - Win 1.90x if banker hand wins\n"
+                        "**Player** - Win 1.85x if player hand wins\n"
+                        "**Banker** - Win 1.85x if banker hand wins\n"
                         "**Tie** - Win 4x if the hands tie"
                     ),
                     color=0x00FFAE
@@ -247,10 +247,10 @@ class BaccaratGame(commands.Cog):
             # Determine winner
             if player_score > banker_score:
                 winner = "player"
-                win_multiplier = 1.90 if bet_on == "player" else 0
+                win_multiplier = 1.85 if bet_on == "player" else 0
             elif banker_score > player_score:
                 winner = "banker"
-                win_multiplier = 1.90 if bet_on == "banker" else 0
+                win_multiplier = 1.85 if bet_on == "banker" else 0
             else:
                 winner = "tie"
                 win_multiplier = 4 if bet_on == "tie" else 0
