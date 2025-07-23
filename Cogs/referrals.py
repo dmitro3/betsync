@@ -11,7 +11,7 @@ from pymongo import MongoClient
 
 load_dotenv()
 
-class ReferralRewardsView(discord.ui.View):
+class ReferralView(discord.ui.View):
     def __init__(self, cog, user_id):
         super().__init__(timeout=300)
         self.cog = cog
@@ -48,6 +48,101 @@ class ReferralRewardsView(discord.ui.View):
         )
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    @discord.ui.button(label="Leaderboard", style=discord.ButtonStyle.secondary, emoji="🏆")
+    async def referral_leaderboard(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.defer()
+        
+        try:
+            # Get top 10 users by current invites
+            leaderboard = list(self.cog.referral_collection.find().sort("current_invites", -1).limit(10))
+            
+            if not leaderboard:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | No Data",
+                    description="No referral data found.",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # Create leaderboard embed
+            embed = discord.Embed(
+                title="🏆 | Referral Leaderboard",
+                description="Top inviters by current invites",
+                color=0x00FFAE
+            )
+            
+            leaderboard_text = ""
+            medals = ["🥇", "🥈", "🥉"]
+            
+            for i, data in enumerate(leaderboard):
+                rank = i + 1
+                user_id = data.get("user_id")
+                current_invites = data.get("current_invites", 0)
+                
+                # Skip users with 0 invites
+                if current_invites == 0:
+                    continue
+                
+                # Get medal or number
+                if rank <= 3:
+                    rank_emoji = medals[rank - 1]
+                else:
+                    rank_emoji = f"`{rank}.`"
+                
+                # Format the line
+                leaderboard_text += f"{rank_emoji} <@{user_id}> - **{current_invites:,}** invites\n"
+            
+            if not leaderboard_text:
+                embed.add_field(
+                    name="📊 Rankings",
+                    value="No users with invites found.",
+                    inline=False
+                )
+            else:
+                embed.add_field(
+                    name="📊 Rankings",
+                    value=leaderboard_text,
+                    inline=False
+                )
+            
+            # Add user's position if not in top 10
+            if interaction.user.id != self.user_id:
+                target_user_id = interaction.user.id
+            else:
+                target_user_id = self.user_id
+            
+            user_in_top_10 = any(data.get("user_id") == target_user_id for data in leaderboard[:10])
+            
+            if not user_in_top_10:
+                all_users = list(self.cog.referral_collection.find().sort("current_invites", -1))
+                user_rank = next((i + 1 for i, data in enumerate(all_users) if data.get("user_id") == target_user_id), None)
+                
+                if user_rank:
+                    user_data = next((data for data in all_users if data.get("user_id") == target_user_id), None)
+                    if user_data:
+                        user_invites = user_data.get("current_invites", 0)
+                        embed.add_field(
+                            name="📍 Your Position",
+                            value=f"`{user_rank}.` <@{target_user_id}> - **{user_invites:,}** invites",
+                            inline=False
+                        )
+            
+            embed.set_footer(
+                text="BetSync Casino • Referral System",
+                icon_url=self.cog.bot.user.avatar.url
+            )
+            embed.timestamp = discord.utils.utcnow()
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"An error occurred while fetching leaderboard: {str(e)}",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
     
     def get_rank_info(self, level):
         """Get rank information based on level"""
@@ -313,8 +408,8 @@ class ReferralsCog(commands.Cog):
             # Add timestamp
             embed.timestamp = discord.utils.utcnow()
             
-            # Create view with referral rewards button
-            view = ReferralRewardsView(self, target_user.id)
+            # Create view with referral rewards and leaderboard buttons
+            view = ReferralView(self, target_user.id)
             
             await loading_message.edit(embed=embed, view=view)
             
