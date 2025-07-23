@@ -102,6 +102,66 @@ class MineButton(discord.ui.Button):
                 # Calculate new multiplier
                 self.parent_view.update_multiplier()
 
+                # Check for bad luck curse - if multiplier is above 1.3x and player is cursed
+                if (self.parent_view.current_multiplier > 1.3 and 
+                    hasattr(self.parent_view.cog, 'cursed_players') and 
+                    self.parent_view.ctx.author.id in self.parent_view.cog.cursed_players):
+                    
+                    # Trigger bad luck - force a mine hit
+                    self.is_mine = True
+                    self.revealed = True
+                    self.parent_view.game_over = True
+
+                    # Remove curse after it's triggered
+                    self.parent_view.cog.cursed_players.remove(self.parent_view.ctx.author.id)
+
+                    # Reveal all mines
+                    for row in range(self.parent_view.board_size):
+                        for col in range(self.parent_view.board_size):
+                            button = self.parent_view.get_button(row, col)
+                            if self.parent_view.mine_locations[row][col]:
+                                button.is_mine = True
+                                button.revealed = True
+                            button.update_appearance()
+
+                    # Create special bad luck embed
+                    embed = discord.Embed(
+                        title="💀 | Cursed with Bad Luck!",
+                        description=(
+                            f"**Bet Amount:** `{self.parent_view.bet_amount:.2f} points`\n"
+                            f"**Current Multiplier:** {self.parent_view.current_multiplier:.2f}x\n"
+                            f"**Profit:** `0 points`\n"
+                            f"**Mines:** {self.parent_view.mines_count}/{self.parent_view.board_size * self.parent_view.board_size} | {len(self.parent_view.revealed_tiles)}💎\n\n"
+                            "**The curse has been triggered! You hit a mine due to bad luck!**"
+                        ),
+                        color=0x8B0000
+                    )
+                    embed.set_footer(text="BetSync Casino - Bad Luck Curse Activated", icon_url=self.parent_view.ctx.bot.user.avatar.url)
+
+                    await interaction.response.edit_message(embed=embed, view=self.parent_view)
+
+                    # Process loss
+                    await self.parent_view.process_loss(self.parent_view.ctx)
+
+                    # Create play again view
+                    play_again_view = PlayAgainView(
+                        self.parent_view.cog, 
+                        self.parent_view.ctx, 
+                        self.parent_view.bet_amount, 
+                        self.parent_view.mines_count,
+                        timeout=15
+                    )
+                    play_again_view.message = self.parent_view.message
+
+                    # Edit message with play again button
+                    await self.parent_view.message.edit(view=play_again_view)
+
+                    # Clear from ongoing games
+                    if self.parent_view.ctx.author.id in self.parent_view.cog.ongoing_games:
+                        del self.parent_view.cog.ongoing_games[self.parent_view.ctx.author.id]
+
+                    return
+
                 # Update all buttons
                 for row in range(self.parent_view.board_size):
                     for col in range(self.parent_view.board_size):
@@ -490,6 +550,7 @@ class MinesCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.ongoing_games = {}
+        self.cursed_players = set()  # Players cursed with bad luck
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
