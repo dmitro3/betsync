@@ -1,0 +1,31 @@
+Ignoring exception in view <ChannelControlView timeout=None children=4> for item <Button style=<ButtonStyle.primary: 1> url=None disabled=False label='Channel Info' emoji=<PartialEmoji animated=False name='ℹ️' id=None> sku_id=None row=None>:
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/discord/ui/view.py", line 426, in _scheduled_task
+    await item.callback(interaction)
+  File "/home/runner/workspace/Cogs/private_threads.py", line 417, in channel_info
+    channel = interaction.guild.get_channel(channel_id)
+              ^^^^^^^^^^^^^^^^^
+AttributeError: 'Button' object has no attribute 'guild'
+Ignoring exception in view <ChannelControlView timeout=None children=4> for item <Button style=<ButtonStyle.danger: 4> url=None disabled=False label='Delete Channel' emoji=<PartialEmoji animated=False name='🗑️' id=None> sku_id=None row=None>:
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/discord/ui/view.py", line 426, in _scheduled_task
+    await item.callback(interaction)
+  File "/home/runner/workspace/Cogs/private_threads.py", line 245, in delete_channel
+    if interaction.user.id != self.owner_id:
+       ^^^^^^^^^^^^^^^^
+Ignoring exception in view <ChannelControlView timeout=None children=4> for item <Button style=<ButtonStyle.danger: 4> url=None disabled=False label='Delete Channel' emoji=<PartialEmoji animated=False name='🗑️' id=None> sku_id=None row=None>:
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/discord/ui/view.py", line 426, in _scheduled_task
+    await item.callback(interaction)
+  File "/home/runner/workspace/Cogs/private_threads.py", line 245, in delete_channel
+    if interaction.user.id != self.owner_id:
+       ^^^^^^^^^^^^^^^^
+AttributeError: 'Button' object has no attribute 'user'
+Ignoring exception in view <ChannelControlView timeout=None children=4> for item <Button style=<ButtonStyle.secondary: 2> url=None disabled=False label='Remove Member' emoji=<PartialEmoji animated=False name='➖' id=None> sku_id=None row=None>:
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/discord/ui/view.py", line 426, in _scheduled_task
+    await item.callback(interaction)
+  File "/home/runner/workspace/Cogs/private_threads.py", line 343, in remove_member
+    if interaction.user.id != self.owner_id:
+       ^^^^^^^^^^^^^^^^
+AttributeError: 'Button' object has no attribute 'user'
