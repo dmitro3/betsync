@@ -95,7 +95,7 @@ class Daily(commands.Cog):
             all_met = False
 
         # Check 4: Custom status must start with specified text
-        required_status_start = "Best Crypto Casino .gg/kNp4ZYDYSq"
+        required_status_start = "Best Crypto Casino .gg/betsync"
         custom_status_met = False
         
         if member and member.activity:
