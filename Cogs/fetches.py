@@ -442,9 +442,56 @@ class Fetches(commands.Cog):
 
         await ctx.reply(embed=embed)
 
-    
+    # Leaderboard Pagination View
+    class LeaderboardView(discord.ui.View):
+        def __init__(self, author_id, all_data, page_size=10, timeout=60):
+            super().__init__(timeout=timeout)
+            self.author_id = author_id
+            self.all_data = all_data
+            self.page_size = page_size
+            self.current_page = 0
+            self.total_pages = max(1, (len(all_data["users"]) + page_size - 1) // page_size)
+            self.message = None
+            self.scope = all_data.get("scope", "global")
+            self.leaderboard_type = all_data.get("type", "stats")
+            self.stat_type = all_data.get("stat_type", "wins")
 
-            d(), view=self)
+            # Disable buttons if not needed
+            self.update_buttons()
+
+        def update_buttons(self):
+            # Disable/enable prev/next buttons based on current page
+            self.first_page_button.disabled = self.current_page == 0
+            self.prev_button.disabled = self.current_page == 0
+            self.next_button.disabled = self.current_page >= self.total_pages - 1
+            self.last_page_button.disabled = self.current_page >= self.total_pages - 1
+
+        @discord.ui.button(label="<<", style=discord.ButtonStyle.gray, custom_id="first_page")
+        async def first_page_button(self, button, interaction):
+            if interaction.user.id != self.author_id:
+                return await interaction.response.send_message("This is not your leaderboard!", ephemeral=True)
+
+            self.current_page = 0
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.get_current_page_embed(), view=self)
+
+        @discord.ui.button(label="<", style=discord.ButtonStyle.gray, custom_id="prev_page")
+        async def prev_button(self, button, interaction):
+            if interaction.user.id != self.author_id:
+                return await interaction.response.send_message("This is not your leaderboard!", ephemeral=True)
+
+            self.current_page = max(0, self.current_page - 1)
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.get_current_page_embed(), view=self)
+
+        @discord.ui.button(label=">", style=discord.ButtonStyle.gray, custom_id="next_page")
+        async def next_button(self, button, interaction):
+            if interaction.user.id != self.author_id:
+                return await interaction.response.send_message("This is not your leaderboard!", ephemeral=True)
+
+            self.current_page = min(self.total_pages - 1, self.current_page + 1)
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.get_current_page_embed(), view=self)
 
         @discord.ui.button(label=">>", style=discord.ButtonStyle.gray, custom_id="last_page")
         async def last_page_button(self, button, interaction):
@@ -475,16 +522,120 @@ class Fetches(commands.Cog):
                     user_amount = user["amount"]
                     break
 
-            
+            # Simplified description showing user's rank if available
+            description = None
+            if user_position:
+                description = f"Your Rank: #{user_position} (${user_amount:,.2f})"
+
+            embed = discord.Embed(
+                title="Global USD Value Leaderboard", # Removed emoji
+                description=description, # Use simplified description or None
+                color=discord.Color.blue() # Changed color to blue
+            )
+
+            if not users_data:
+                 embed.description = "No users found on this page." # Handle empty page case
+
+            for i, user_data in enumerate(users_data):
+                # Calculate actual position on leaderboard
+                position = start_idx + i + 1
+
+                # Format the USD amount
+                usd_value = f"${user_data['amount']:,.2f}"
+
+                embed.add_field(
+                    name=f"#{position}. {user_data['name']}",
+                    value=f"`{usd_value}`", # Removed emoji, used backticks for minimalistic style
+                    inline=False
+                )
+
+            # Simplified pagination details in footer
+            footer_text = f"Page {self.current_page + 1} of {self.total_pages}"
+            embed.set_footer(text=footer_text, icon_url=self.all_data.get("bot_avatar", "")) # Kept bot avatar for context
             return embed
 
-        
+        async def on_timeout(self):
+            # Disable all buttons when the view times out
+            for child in self.children:
+                child.disabled = True
 
-     leaderboard.")
+            if self.message:
+                try:
+                    await self.message.edit(view=self)
+                except:
+                    pass
 
-        ssage = message
+    @commands.command(aliases=["lb", "top"])
+    async def leaderboard(self, ctx):
+        """View the global USD value leaderboard"""
+        await self.show_global_usd_leaderboard(ctx)
 
-    
+    async def show_global_usd_leaderboard(self, ctx):
+        """Show global leaderboard sorted by USD wallet value"""
+        db = Users()
+        all_users = list(db.collection.find())
+
+        if not all_users:
+            return await ctx.reply("No users found in the leaderboard.")
+
+        # Calculate USD value for each user and filter out 0 balances
+        formatted_users = []
+        for user_data in all_users:
+            usd_value = self.calculate_total_usd(user_data)
+            if usd_value > 0:  # Only include users with positive balance
+                try:
+                    user = await self.bot.fetch_user(user_data["discord_id"])
+                    user_name = user.name if user else f"User {user_data['discord_id']}"
+                    formatted_users.append({
+                        "name": user_name,
+                        "amount": usd_value,
+                        "id": user_data["discord_id"]
+                    })
+                except Exception as e:
+                    print(f"Error getting user: {e}")
+                    continue
+
+        # Sort by USD value descending
+        formatted_users.sort(key=lambda x: x["amount"], reverse=True)
+
+        # Create the data structure for the paginated view
+        leaderboard_data = {
+            "users": formatted_users,
+            "scope": "global",
+            "type": "usd",
+            "bot_avatar": self.bot.user.avatar.url,
+            "author_id": ctx.author.id
+        }
+
+        # Create and send the paginated view
+        view = self.LeaderboardView(ctx.author.id, leaderboard_data)
+        message = await ctx.reply(embed=view.get_current_page_embed(), view=view)
+        view.message = message
+
+    async def show_leaderboard_usage(self, ctx):
+        """Show usage information for leaderboard command"""
+        embed = discord.Embed(
+            title=":trophy: Leaderboard - Usage",
+            description=(
+                "View the top users by wins, losses, or wagered amount.\n\n"
+                "**Usage:** `!leaderboard [scope] [type]`\n\n"
+                "**Examples:**\n"
+                "`!leaderboard global wins` - Global wins leaderboard\n"
+                "`!leaderboard server losses` - Server losses leaderboard\n"
+                "`!leaderboard wagered` - Global wagering leaderboard\n"
+                "`!leaderboard server wagered` - Server wagering leaderboard\n\n"
+                "**Available Scopes:**\n"
+                "`global` - Show leaderboard across all servers\n"
+                "`server` - Show leaderboard for the current server\n\n"
+                "**Available Types:**\n"
+                "`wins` - Show leaderboard by total wins\n"
+                "`losses` - Show leaderboard by total losses\n"
+                "`wagered` - Show leaderboard by total amount wagered"
+            ),
+            color=0x00FFAE
+        )
+        embed.set_footer(text="BetSync Casino", icon_url=self.bot.user.avatar.url)
+        return await ctx.reply(embed=embed)
 
 
     @commands.command(name="rank")
