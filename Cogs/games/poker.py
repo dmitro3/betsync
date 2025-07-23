@@ -20,7 +20,7 @@ paytable = {
     "Straight": 5,
     "Three of a Kind": 3,
     "Two Pair": 2,
-    "One Pair": 0.5,
+    "One Pair": 0,
     "High Card": 0
 }
 
@@ -486,7 +486,7 @@ class Poker(commands.Cog):
                     "- Straight: 5x\n"
                     "- Three of a Kind: 3x\n"
                     "- Two Pair: 2x\n"
-                    "- One Pair: 0.5x\n"
+                    "- One Pair: 0x\n"
                 ),
                 color=0x00FFAE
             )
@@ -641,7 +641,7 @@ class Poker(commands.Cog):
                 ),
                 color=embed_color
             )
-        elif multiplier==0.5:
+        elif multiplier == 0:
             db.update_balance(ctx.author.id, bet_amount*multiplier)
             db.collection.update_one(
                 {"discord_id": ctx.author.id},

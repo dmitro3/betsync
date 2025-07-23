@@ -88,7 +88,7 @@ class CoinflipCog(commands.Cog):
                     "**Usage:** `!coinflip <amount> [heads/tails]`\n"
                     "**Example:** `!coinflip 100` or `!coinflip 100 heads`\n\n"
                     "- **If you don't specify heads or tails, one will be chosen randomly**\n"
-                    "- **If you win, you receive 1.95x your bet!**\n"
+                    "- **If you win, you receive 1.90x your bet!**\n"
                     "- **If you lose, you lose your bet**\n"
                 ),
                 color=0x00FFAE
@@ -205,8 +205,8 @@ class CoinflipCog(commands.Cog):
             # Determine if user won
             user_won = side == result
 
-            # Calculate winnings (1.95x multiplier)
-            multiplier = 1.95
+            # Calculate winnings (1.90x multiplier)
+            multiplier = 1.90
             win_amount = round(bet_amount_value * multiplier, 2)
 
             # Add winnings if user won (always in credits)

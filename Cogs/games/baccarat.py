@@ -86,7 +86,7 @@ class BaccaratGame(commands.Cog):
                     "- **Player & Banker each get 2 cards**\n"
                     "- **Card values: A=1, 2-9=face value, 10/J/Q/K=0**\n"
                     "- **Only the ones digit of the total matters (12 = 2)**\n"
-                    "- **Win 1.95x your bet on correct player/banker pick**\n"
+                    "- **Win 1.90x your bet on correct player/banker pick**\n"
                     "- **Win 4x your bet on a correct tie prediction**\n"
                 ),
                 color=0x00FFAE
@@ -149,14 +149,14 @@ class BaccaratGame(commands.Cog):
                         super().__init__(timeout=timeout)
                         self.bet_on = None
                     
-                    @discord.ui.button(label="Player (1.95x)", style=discord.ButtonStyle.primary)
+                    @discord.ui.button(label="Player (1.90x)", style=discord.ButtonStyle.primary)
                     async def player_button(self, button, interaction):
                         if interaction.user.id != ctx.author.id:
                             return await interaction.response.send_message("This is not your game.", ephemeral=True)
                         self.bet_on = "player"
                         self.stop()
                         
-                    @discord.ui.button(label="Banker (1.95x)", style=discord.ButtonStyle.danger)
+                    @discord.ui.button(label="Banker (1.90x)", style=discord.ButtonStyle.danger)
                     async def banker_button(self, button, interaction):
                         if interaction.user.id != ctx.author.id:
                             return await interaction.response.send_message("This is not your game.", ephemeral=True)
@@ -179,8 +179,8 @@ class BaccaratGame(commands.Cog):
                     description=(
                         f"{bet_description}\n\n"
                         "**Choose who to bet on:**\n"
-                        "**Player** - Win 1.95x if player hand wins\n"
-                        "**Banker** - Win 1.95x if banker hand wins\n"
+                        "**Player** - Win 1.90x if player hand wins\n"
+                        "**Banker** - Win 1.90x if banker hand wins\n"
                         "**Tie** - Win 4x if the hands tie"
                     ),
                     color=0x00FFAE
@@ -247,10 +247,10 @@ class BaccaratGame(commands.Cog):
             # Determine winner
             if player_score > banker_score:
                 winner = "player"
-                win_multiplier = 1.95 if bet_on == "player" else 0
+                win_multiplier = 1.90 if bet_on == "player" else 0
             elif banker_score > player_score:
                 winner = "banker"
-                win_multiplier = 1.95 if bet_on == "banker" else 0
+                win_multiplier = 1.90 if bet_on == "banker" else 0
             else:
                 winner = "tie"
                 win_multiplier = 4 if bet_on == "tie" else 0

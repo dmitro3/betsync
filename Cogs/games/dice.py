@@ -147,7 +147,7 @@ class DiceCog(commands.Cog):
 
             # Define the multiplier (for a win)
             # House edge of at least 4%
-            multiplier = 1.95  # With 6 sides, fair would be 2.0, so 1.95 gives 2.5% house edge
+            multiplier = 1.90  # With 6 sides, fair would be 2.0, so 1.90 gives 5% house edge
 
             # Create result embed
             if is_draw:

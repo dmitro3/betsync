@@ -443,7 +443,7 @@ class Blackjack(commands.Cog):
                     "- Get closer to 21 than the dealer without going over\n"
                     "- Face cards are worth 10, Aces are 1 or 11\n"
                     "- Dealer must hit until 17 or higher\n"
-                    "- Blackjack pays 1.5x your bet & Win Pays 1.98x\n\n"
+                    "- Blackjack pays 1.4x your bet & Win Pays 1.90x\n\n"
                     "**Commands:**\n"
                     "- **Hit**: Take another card\n"
                     "- **Stand**: End your turn\n"
@@ -533,8 +533,8 @@ class Blackjack(commands.Cog):
                         view.dealer_cards
                     )
                 else:
-                    # Player wins with blackjack - 1.5x payout
-                    win_amount = bet_amount_value * 1.5
+                    # Player wins with blackjack - 1.4x payout
+                    win_amount = bet_amount_value * 1.4
 
                     embed = discord.Embed(
                         title="<:yes:1355501647538815106> | Blackjack!",
@@ -910,7 +910,7 @@ class Blackjack(commands.Cog):
         # Calculate win amount
         win_amount = 0
         if result == "win":
-            win_amount = bet_amount * 1.98
+            win_amount = bet_amount * 1.90
         elif result == "blackjack":
             win_amount = bet_amount * 1.5
 
@@ -956,7 +956,7 @@ class Blackjack(commands.Cog):
             user_db.update_balance(user_id, win_amount, "points", "$inc")
 
             # Add win to history
-            multiplier = 1.5 if result == "blackjack" else 1.98
+            multiplier = 1.4 if result == "blackjack" else 1.90
             history_entry = {
                 "type": "win",
                 "game": "blackjack",
