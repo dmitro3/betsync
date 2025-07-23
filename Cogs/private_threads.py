@@ -264,7 +264,10 @@ class ChannelControlView(discord.ui.View):
             del self.cog.user_channels[self.owner_id]
 
         # Delete the channel
-        await interaction.message.channel.delete(reason=f"Channel deleted by {interaction.user}")
+        channel_id = self.cog.user_channels[self.owner_id]['channel_id']
+        channel = interaction.guild.get_channel(channel_id)
+        if channel:
+            await channel.delete(reason=f"Channel deleted by {interaction.user}")
 
     @discord.ui.button(label="Add Member", style=discord.ButtonStyle.secondary, emoji="➕")
     async def add_member(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -289,8 +292,19 @@ class ChannelControlView(discord.ui.View):
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         try:
+            # Get the channel
+            channel_id = self.cog.user_channels[self.owner_id]['channel_id']
+            channel = interaction.guild.get_channel(channel_id)
+            if not channel:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Channel Not Found",
+                    description="This channel no longer exists.",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+            
             # Add read and send permissions for the member
-            await interaction.message.channel.set_permissions(
+            await channel.set_permissions(
                 member,
                 read_messages=True,
                 send_messages=True,
@@ -338,8 +352,19 @@ class ChannelControlView(discord.ui.View):
         if not member:
             return
 
+        # Get the channel
+        channel_id = self.cog.user_channels[self.owner_id]['channel_id']
+        channel = interaction.guild.get_channel(channel_id)
+        if not channel:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Channel Not Found",
+                description="This channel no longer exists.",
+                color=0xFF0000
+            )
+            return await interaction.followup.send(embed=embed, ephemeral=True)
+        
         # Check if member has access to the channel
-        permissions = interaction.message.channel.permissions_for(member)
+        permissions = channel.permissions_for(member)
         if not permissions.read_messages:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Not in Channel",
@@ -350,7 +375,7 @@ class ChannelControlView(discord.ui.View):
 
         try:
             # Remove permissions for the member
-            await interaction.message.channel.set_permissions(member, overwrite=None)
+            await channel.set_permissions(member, overwrite=None)
             
             embed = discord.Embed(
                 title="<:yes:1355501647538815106> | Member Removed",
@@ -379,7 +404,17 @@ class ChannelControlView(discord.ui.View):
 
     @discord.ui.button(label="Channel Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
     async def channel_info(self, interaction: discord.Interaction, btn: discord.ui.Button):
-        channel = interaction.message.channel
+        # Get the channel from the guild using the channel ID from the tracked channels
+        if self.owner_id not in self.cog.user_channels:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Channel Not Found",
+                description="This channel is no longer tracked.",
+                color=0xFF0000
+            )
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        channel_id = self.cog.user_channels[self.owner_id]['channel_id']
+        channel = interaction.guild.get_channel(channel_id)
         
         # Get members with read access (excluding @everyone and bots)
         members_with_access = []
