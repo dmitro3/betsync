@@ -264,7 +264,7 @@ class ChannelControlView(discord.ui.View):
             del self.cog.user_channels[self.owner_id]
 
         # Delete the channel
-        await interaction.channel.delete(reason=f"Channel deleted by {interaction.user}")
+        await interaction.message.channel.delete(reason=f"Channel deleted by {interaction.user}")
 
     @discord.ui.button(label="Add Member", style=discord.ButtonStyle.secondary, emoji="➕")
     async def add_member(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -290,7 +290,7 @@ class ChannelControlView(discord.ui.View):
 
         try:
             # Add read and send permissions for the member
-            await interaction.channel.set_permissions(
+            await interaction.message.channel.set_permissions(
                 member,
                 read_messages=True,
                 send_messages=True,
@@ -339,7 +339,7 @@ class ChannelControlView(discord.ui.View):
             return
 
         # Check if member has access to the channel
-        permissions = interaction.channel.permissions_for(member)
+        permissions = interaction.message.channel.permissions_for(member)
         if not permissions.read_messages:
             embed = discord.Embed(
                 title="<:no:1344252518305234987> | Not in Channel",
@@ -350,7 +350,7 @@ class ChannelControlView(discord.ui.View):
 
         try:
             # Remove permissions for the member
-            await interaction.channel.set_permissions(member, overwrite=None)
+            await interaction.message.channel.set_permissions(member, overwrite=None)
             
             embed = discord.Embed(
                 title="<:yes:1355501647538815106> | Member Removed",
@@ -379,7 +379,7 @@ class ChannelControlView(discord.ui.View):
 
     @discord.ui.button(label="Channel Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
     async def channel_info(self, interaction: discord.Interaction, btn: discord.ui.Button):
-        channel = interaction.channel
+        channel = interaction.message.channel
         
         # Get members with read access (excluding @everyone and bots)
         members_with_access = []
