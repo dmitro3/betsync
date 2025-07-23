@@ -249,7 +249,9 @@ class ThreadControlView(discord.ui.View):
 
     @discord.ui.button(label="Thread Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
     async def thread_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        thread = interaction.channel
+        thread = interaction.guild.get_thread(interaction.channel_id)
+        if not thread:
+            thread = interaction.channel
         members = [member for member in thread.members if not member.bot]
         
         embed = discord.Embed(
