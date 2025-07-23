@@ -29,9 +29,15 @@ class ChannelManagementCog(commands.Cog):
 
     async def check_disabled_channels(self, ctx):
         """Check if commands are disabled in the current channel"""
-        # Skip check for DMs
+        # Block all DM commands
         if not ctx.guild:
-            return True
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | DMs Disabled",
+                description="Commands are disabled in direct messages. Please use the bot in a server.",
+                color=0xFF0000
+            )
+            await ctx.reply(embed=embed)
+            return False
 
         # Skip check for admin commands and this cog's commands
         if ctx.command.cog_name in ['AdminCommands', 'ChannelManagementCog']:
