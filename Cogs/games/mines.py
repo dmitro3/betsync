@@ -412,12 +412,13 @@ class MinesTileView(discord.ui.View):
 
         # Add credits to user (always give credits for winnings)
         db.update_balance(ctx.author.id, winnings)
-        server_db = Servers()
-            
-
+        
+        # Only update server profit if in a guild context
+        if ctx.guild:
+            server_db = Servers()
             # Update server profit (negative value because server loses when player wins)
-        profit = winnings - self.bet_amount
-        server_db.update_server_profit(ctx, ctx.guild.id, -profit, game="mines")
+            profit = winnings - self.bet_amount
+            server_db.update_server_profit(ctx, ctx.guild.id, -profit, game="mines")
 
         # Add to history
         timestamp = int(time.time())
@@ -434,13 +435,15 @@ class MinesTileView(discord.ui.View):
         
         db.update_history(ctx.author.id, history_entry)
         
-        # Update server history
-        server_history_entry = history_entry.copy()
-        server_history_entry.update({
-            "user_id": ctx.author.id,
-            "user_name": ctx.author.name
-        })
-        server_db.update_history(ctx.guild.id, server_history_entry)
+        # Update server history only if in guild context
+        if ctx.guild:
+            server_db = Servers()
+            server_history_entry = history_entry.copy()
+            server_history_entry.update({
+                "user_id": ctx.author.id,
+                "user_name": ctx.author.name
+            })
+            server_db.update_history(ctx.guild.id, server_history_entry)
 
         # Update user stats
         
@@ -465,19 +468,20 @@ class MinesTileView(discord.ui.View):
         
         db.update_history(ctx.author.id, history_entry)
 
-        # Update server history
-        server_db = Servers()
-        server_data = server_db.fetch_server(ctx.guild.id)
+        # Update server history only if in guild context
+        if ctx.guild:
+            server_db = Servers()
+            server_data = server_db.fetch_server(ctx.guild.id)
 
-        if server_data:
-            server_history_entry = history_entry.copy()
-            server_history_entry.update({
-                "user_id": ctx.author.id,
-                "user_name": ctx.author.name
-            })
-            server_db.update_history(ctx.guild.id, server_history_entry)
-            
-            server_db.update_server_profit(ctx, ctx.guild.id, self.bet_amount, game="mines")
+            if server_data:
+                server_history_entry = history_entry.copy()
+                server_history_entry.update({
+                    "user_id": ctx.author.id,
+                    "user_name": ctx.author.name
+                })
+                server_db.update_history(ctx.guild.id, server_history_entry)
+                
+                server_db.update_server_profit(ctx, ctx.guild.id, self.bet_amount, game="mines")
 
         
 
