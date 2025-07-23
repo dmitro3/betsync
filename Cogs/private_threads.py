@@ -259,13 +259,15 @@ class ChannelControlView(discord.ui.View):
 
         await asyncio.sleep(5)
 
+        # Get channel before removing from tracking
+        channel_id = self.cog.user_channels[self.owner_id]['channel_id']
+        channel = interaction.guild.get_channel(channel_id)
+        
         # Remove from tracking
         if self.owner_id in self.cog.user_channels:
             del self.cog.user_channels[self.owner_id]
 
         # Delete the channel
-        channel_id = self.cog.user_channels[self.owner_id]['channel_id']
-        channel = interaction.guild.get_channel(channel_id)
         if channel:
             await channel.delete(reason=f"Channel deleted by {interaction.user}")
 
@@ -403,7 +405,7 @@ class ChannelControlView(discord.ui.View):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Channel Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
-    async def channel_info(self, interaction: discord.Interaction, btn: discord.ui.Button):
+    async def channel_info(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Get the channel from the guild using the channel ID from the tracked channels
         if self.owner_id not in self.cog.user_channels:
             embed = discord.Embed(
