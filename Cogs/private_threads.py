@@ -195,7 +195,7 @@ class PrivateChannels(commands.Cog):
             )
             await ctx.reply(embed=embed)
 
-    @commands.command(aliases=["dc", "deletechannel"])
+    @commands.command(aliases=["delc", "deletechannel"])
     async def delete_channel(self, ctx):
         """Delete your private channel"""
         # Check if user owns a private channel
