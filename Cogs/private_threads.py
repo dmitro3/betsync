@@ -167,7 +167,40 @@ class ThreadControlView(discord.ui.View):
             )
             return await interaction.response.send_message(embed=embed, ephemeral=True)
         
-        await interaction.response.send_modal(AddMemberModal(self.cog))
+        member = await self.get_member_input(interaction, "Add")
+        if not member:
+            return
+            
+        if member.bot:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Invalid Member",
+                description="You cannot add bots to private threads.",
+                color=0xFF0000
+            )
+            return await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        try:
+            await interaction.channel.add_user(member)
+            embed = discord.Embed(
+                title="<:yes:1355501647538815106> | Member Added",
+                description=f"{member.mention} has been added to this thread.",
+                color=0x00FFAE
+            )
+            await interaction.followup.send(embed=embed)
+        except discord.Forbidden:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Permission Error",
+                description="I don't have permission to add members to this thread.",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except Exception as e:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"Failed to add member: {str(e)}",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Remove Member", style=discord.ButtonStyle.secondary, emoji="➖")
     async def remove_member(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -179,7 +212,40 @@ class ThreadControlView(discord.ui.View):
             )
             return await interaction.response.send_message(embed=embed, ephemeral=True)
         
-        await interaction.response.send_modal(RemoveMemberModal(self.cog))
+        member = await self.get_member_input(interaction, "Remove")
+        if not member:
+            return
+            
+        if member not in interaction.channel.members:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Not in Thread",
+                description=f"{member.mention} is not in this thread.",
+                color=0xFF0000
+            )
+            return await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        try:
+            await interaction.channel.remove_user(member)
+            embed = discord.Embed(
+                title="<:yes:1355501647538815106> | Member Removed",
+                description=f"{member.mention} has been removed from this thread.",
+                color=0x00FFAE
+            )
+            await interaction.followup.send(embed=embed)
+        except discord.Forbidden:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Permission Error",
+                description="I don't have permission to remove members from this thread.",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except Exception as e:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"Failed to remove member: {str(e)}",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Thread Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
     async def thread_info(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -224,20 +290,21 @@ class ThreadControlView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-class AddMemberModal(discord.ui.Modal, title="Add Member to Thread"):
-    def __init__(self, cog):
-        super().__init__()
-        self.cog = cog
-
-    member_input = discord.ui.TextInput(
-        label="Member",
-        placeholder="Enter username, display name, or user ID...",
-        required=True,
-        max_length=100
+async def get_member_input(self, interaction: discord.Interaction, action: str):
+    """Get member input via message instead of modal"""
+    embed = discord.Embed(
+        title=f"ℹ️ | {action} Member",
+        description=f"Please type the username, display name, or user ID of the member to {action.lower()}:",
+        color=0x3498db
     )
-
-    async def on_submit(self, interaction: discord.Interaction):
-        member_input = self.member_input.value.strip()
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    def check(m):
+        return m.author == interaction.user and m.channel == interaction.channel
+        
+    try:
+        msg = await self.cog.bot.wait_for('message', check=check, timeout=60)
+        member_input = msg.content.strip()
         
         # Try to find the member
         member = None
@@ -271,118 +338,19 @@ class AddMemberModal(discord.ui.Modal, title="Add Member to Thread"):
                 description=f"Could not find member: `{member_input}`",
                 color=0xFF0000
             )
-            return await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return None
+            
+        return member
         
-        if member.bot:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Invalid Member",
-                description="You cannot add bots to private threads.",
-                color=0xFF0000
-            )
-            return await interaction.response.send_message(embed=embed, ephemeral=True)
-        
-        try:
-            await interaction.channel.add_user(member)
-            embed = discord.Embed(
-                title="<:yes:1355501647538815106> | Member Added",
-                description=f"{member.mention} has been added to this thread.",
-                color=0x00FFAE
-            )
-            await interaction.response.send_message(embed=embed)
-        except discord.Forbidden:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Permission Error",
-                description="I don't have permission to add members to this thread.",
-                color=0xFF0000
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        except Exception as e:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Error",
-                description=f"Failed to add member: {str(e)}",
-                color=0xFF0000
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-class RemoveMemberModal(discord.ui.Modal, title="Remove Member from Thread"):
-    def __init__(self, cog):
-        super().__init__()
-        self.cog = cog
-
-    member_input = discord.ui.TextInput(
-        label="Member",
-        placeholder="Enter username, display name, or user ID...",
-        required=True,
-        max_length=100
-    )
-
-    async def on_submit(self, interaction: discord.Interaction):
-        member_input = self.member_input.value.strip()
-        
-        # Try to find the member
-        member = None
-        guild = interaction.guild
-        
-        # Try by mention (if it starts with <@)
-        if member_input.startswith('<@') and member_input.endswith('>'):
-            user_id = member_input[2:-1]
-            if user_id.startswith('!'):
-                user_id = user_id[1:]
-            try:
-                member = guild.get_member(int(user_id))
-            except ValueError:
-                pass
-        
-        # Try by user ID
-        if not member and member_input.isdigit():
-            member = guild.get_member(int(member_input))
-        
-        # Try by username or display name
-        if not member:
-            member = discord.utils.find(
-                lambda m: m.name.lower() == member_input.lower() or 
-                         m.display_name.lower() == member_input.lower(),
-                guild.members
-            )
-        
-        if not member:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Member Not Found",
-                description=f"Could not find member: `{member_input}`",
-                color=0xFF0000
-            )
-            return await interaction.response.send_message(embed=embed, ephemeral=True)
-        
-        if member not in interaction.channel.members:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Not in Thread",
-                description=f"{member.mention} is not in this thread.",
-                color=0xFF0000
-            )
-            return await interaction.response.send_message(embed=embed, ephemeral=True)
-        
-        try:
-            await interaction.channel.remove_user(member)
-            embed = discord.Embed(
-                title="<:yes:1355501647538815106> | Member Removed",
-                description=f"{member.mention} has been removed from this thread.",
-                color=0x00FFAE
-            )
-            await interaction.response.send_message(embed=embed)
-        except discord.Forbidden:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Permission Error",
-                description="I don't have permission to remove members from this thread.",
-                color=0xFF0000
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        except Exception as e:
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | Error",
-                description=f"Failed to remove member: {str(e)}",
-                color=0xFF0000
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+    except asyncio.TimeoutError:
+        embed = discord.Embed(
+            title="<:no:1344252518305234987> | Timed Out",
+            description="Timed out waiting for member input",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return None
 
 def setup(bot):
     bot.add_cog(PrivateThreads(bot))
