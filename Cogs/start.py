@@ -58,7 +58,7 @@ class Start(commands.Cog):
             "profile": "View your casino profile and statistics",
             #"history": "View your transaction history",
             #"stats": "View your gambling statistics",
-            "leaderboard": "View top players and your rank.",
+            
 
             # Currency & Banking
             "deposit": "Deposit currency for tokens",
