@@ -248,7 +248,7 @@ class ThreadControlView(discord.ui.View):
 
     @discord.ui.button(label="Thread Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
     async def thread_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        thread = interaction.channel
+        thread = interaction.message.channel
         members = [member for member in thread.members if not member.bot]
 
         embed = discord.Embed(
@@ -289,7 +289,7 @@ class ThreadControlView(discord.ui.View):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-async def get_member_input(self, interaction: discord.Interaction, action: str):
+    async def get_member_input(self, interaction: discord.Interaction, action: str):
     """Get member input via message instead of modal"""
     embed = discord.Embed(
         title=f"ℹ️ | {action} Member",
