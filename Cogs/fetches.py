@@ -442,6 +442,69 @@ class Fetches(commands.Cog):
 
         await ctx.reply(embed=embed)
 
+    # Leaderboard Selection Dropdown
+    class LeaderboardDropdownView(discord.ui.View):
+        def __init__(self, author_id, default_type="wins", timeout=60):
+            super().__init__(timeout=timeout)
+            self.author_id = author_id
+            self.default_type = default_type
+            self.message = None
+
+        @discord.ui.select(
+            placeholder="🏆 Select leaderboard type to view...",
+            options=[
+                discord.SelectOption(
+                    label="🏆 Most Wins", 
+                    value="wins", 
+                    description="Players with the most total wins",
+                    default=True
+                ),
+                discord.SelectOption(
+                    label="💰 Total Wagered (USD)", 
+                    value="wagered", 
+                    description="Players who wagered the most in USD value"
+                ),
+                discord.SelectOption(
+                    label="💎 USD Wallet Value", 
+                    value="usd", 
+                    description="Players with highest current USD wallet value"
+                )
+            ]
+        )
+        async def select_leaderboard(self, select, interaction):
+            if interaction.user.id != self.author_id:
+                await interaction.response.send_message("<:no:1344252518305234987> | This is not your leaderboard!", ephemeral=True)
+                return
+
+            leaderboard_type = select.values[0]
+            
+            # Send loading message
+            loading_embed = discord.Embed(
+                title="<a:loading:1344611780638412811> | Loading Leaderboard...",
+                description="Please wait while we fetch the leaderboard data.",
+                color=0x00FFAE
+            )
+            await interaction.response.edit_message(embed=loading_embed, view=None)
+
+            # Get the cog instance
+            cog = interaction.client.get_cog("Fetches")
+            
+            if leaderboard_type == "wins":
+                await cog.show_wins_leaderboard_response(interaction, self.message)
+            elif leaderboard_type == "wagered":
+                await cog.show_wagered_leaderboard_response(interaction, self.message)
+            elif leaderboard_type == "usd":
+                await cog.show_global_usd_leaderboard_response(interaction, self.message)
+
+        async def on_timeout(self):
+            for child in self.children:
+                child.disabled = True
+            if self.message:
+                try:
+                    await self.message.edit(view=self)
+                except:
+                    pass
+
     # Leaderboard Pagination View
     class LeaderboardView(discord.ui.View):
         def __init__(self, author_id, all_data, page_size=10, timeout=60):
@@ -508,10 +571,10 @@ class Fetches(commands.Cog):
             end_idx = min(start_idx + self.page_size, len(self.all_data["users"]))
             current_page_data = self.all_data["users"][start_idx:end_idx]
 
-            # Create USD embed
-            return self.create_usd_embed(current_page_data, start_idx)
+            # Create leaderboard embed
+            return self.create_leaderboard_embed(current_page_data, start_idx)
 
-        def create_usd_embed(self, users_data, start_idx):
+        def create_leaderboard_embed(self, users_data, start_idx):
             # Find user's position in the full leaderboard
             user_id = self.all_data.get("author_id")
             user_position = None
@@ -522,36 +585,44 @@ class Fetches(commands.Cog):
                     user_amount = user["amount"]
                     break
 
-            # Simplified description showing user's rank if available
-            description = None
-            if user_position:
-                description = f"Your Rank: #{user_position} (${user_amount:,.2f})"
+            # Determine title and format based on leaderboard type
+            leaderboard_type = self.all_data.get("type", "usd")
+            
+            if leaderboard_type == "wins":
+                title = "<:yes:1355501647538815106> | Most Wins Leaderboard"
+                description = f"Your Rank: #{user_position} ({user_amount:,} wins)" if user_position else None
+                value_format = lambda x: f"`{x:,} wins`"
+            elif leaderboard_type == "wagered":
+                title = "💰 | Total Wagered Leaderboard"
+                description = f"Your Rank: #{user_position} (${user_amount:,.2f} wagered)" if user_position else None
+                value_format = lambda x: f"`${x:,.2f}`"
+            else:  # usd
+                title = "💎 | USD Wallet Value Leaderboard"
+                description = f"Your Rank: #{user_position} (${user_amount:,.2f})" if user_position else None
+                value_format = lambda x: f"`${x:,.2f}`"
 
             embed = discord.Embed(
-                title="Global USD Value Leaderboard", # Removed emoji
-                description=description, # Use simplified description or None
-                color=discord.Color.blue() # Changed color to blue
+                title=title,
+                description=description,
+                color=0x00FFAE
             )
 
             if not users_data:
-                 embed.description = "No users found on this page." # Handle empty page case
+                embed.description = "No users found on this page."
 
             for i, user_data in enumerate(users_data):
                 # Calculate actual position on leaderboard
                 position = start_idx + i + 1
 
-                # Format the USD amount
-                usd_value = f"${user_data['amount']:,.2f}"
-
                 embed.add_field(
                     name=f"#{position}. {user_data['name']}",
-                    value=f"`{usd_value}`", # Removed emoji, used backticks for minimalistic style
+                    value=value_format(user_data['amount']),
                     inline=False
                 )
 
-            # Simplified pagination details in footer
-            footer_text = f"Page {self.current_page + 1} of {self.total_pages}"
-            embed.set_footer(text=footer_text, icon_url=self.all_data.get("bot_avatar", "")) # Kept bot avatar for context
+            # Footer with pagination info
+            footer_text = f"Page {self.current_page + 1} of {self.total_pages} • BetSync Casino"
+            embed.set_footer(text=footer_text, icon_url=self.all_data.get("bot_avatar", ""))
             return embed
 
         async def on_timeout(self):
@@ -566,9 +637,336 @@ class Fetches(commands.Cog):
                     pass
 
     @commands.command(aliases=["lb", "top"])
-    async def leaderboard(self, ctx):
-        """View the global USD value leaderboard"""
-        await self.show_global_usd_leaderboard(ctx)
+    async def leaderboard(self, ctx, leaderboard_type: str = None):
+        """View leaderboards with dropdown selection or direct access"""
+        if leaderboard_type:
+            leaderboard_type = leaderboard_type.lower()
+            if leaderboard_type in ["wins", "win"]:
+                await self.show_wins_leaderboard(ctx)
+            elif leaderboard_type in ["wagered", "wager"]:
+                await self.show_wagered_leaderboard(ctx)
+            elif leaderboard_type in ["usd", "value"]:
+                await self.show_global_usd_leaderboard(ctx)
+            else:
+                await self.show_leaderboard_with_dropdown(ctx, "wins")  # Default to wins
+        else:
+            await self.show_leaderboard_with_dropdown(ctx, "wins")  # Default to wins
+
+    async def show_leaderboard_with_dropdown(self, ctx, default_type="wins"):
+        """Show leaderboard selection dropdown with default wins leaderboard"""
+        # Send loading message first
+        loading_embed = discord.Embed(
+            title="<a:loading:1344611780638412811> | Loading Leaderboard...",
+            description="Please wait while we fetch the leaderboard data.",
+            color=0x00FFAE
+        )
+        loading_message = await ctx.reply(embed=loading_embed)
+
+        # Show the default leaderboard (wins) with dropdown
+        await self.show_wins_leaderboard_with_dropdown(ctx, loading_message)
+
+    async def show_wins_leaderboard_with_dropdown(self, ctx, loading_message):
+        """Show wins leaderboard with dropdown for switching"""
+        db = Users()
+        all_users = list(db.collection.find())
+
+        if not all_users:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | No Users Found",
+                description="No users found in the database.",
+                color=0xFF0000
+            )
+            await loading_message.edit(embed=embed)
+            return
+
+        # Calculate wins for each user
+        formatted_users = []
+        for user_data in all_users:
+            total_wins = user_data.get("total_wins", 0)
+            if total_wins > 0:  # Only include users with wins
+                try:
+                    user = await self.bot.fetch_user(user_data["discord_id"])
+                    user_name = user.name if user else f"User {user_data['discord_id']}"
+                    formatted_users.append({
+                        "name": user_name,
+                        "amount": total_wins,
+                        "id": user_data["discord_id"]
+                    })
+                except Exception as e:
+                    print(f"Error getting user: {e}")
+                    continue
+
+        # Sort by wins descending
+        formatted_users.sort(key=lambda x: x["amount"], reverse=True)
+
+        # Create the data structure for the paginated view
+        leaderboard_data = {
+            "users": formatted_users,
+            "scope": "global",
+            "type": "wins",
+            "bot_avatar": self.bot.user.avatar.url,
+            "author_id": ctx.author.id
+        }
+
+        # Create dropdown view and pagination view
+        dropdown_view = self.LeaderboardDropdownView(ctx.author.id, "wins")
+        leaderboard_view = self.LeaderboardView(ctx.author.id, leaderboard_data)
+        
+        # Combine views
+        combined_view = discord.ui.View(timeout=60)
+        combined_view.add_item(dropdown_view.children[0])  # Add dropdown
+        for item in leaderboard_view.children:  # Add pagination buttons
+            combined_view.add_item(item)
+
+        embed = leaderboard_view.get_current_page_embed()
+        await loading_message.edit(embed=embed, view=combined_view)
+        dropdown_view.message = loading_message
+
+    async def show_wins_leaderboard(self, ctx):
+        """Show wins leaderboard without dropdown"""
+        db = Users()
+        all_users = list(db.collection.find())
+
+        if not all_users:
+            return await ctx.reply("No users found in the database.")
+
+        # Calculate wins for each user
+        formatted_users = []
+        for user_data in all_users:
+            total_wins = user_data.get("total_wins", 0)
+            if total_wins > 0:  # Only include users with wins
+                try:
+                    user = await self.bot.fetch_user(user_data["discord_id"])
+                    user_name = user.name if user else f"User {user_data['discord_id']}"
+                    formatted_users.append({
+                        "name": user_name,
+                        "amount": total_wins,
+                        "id": user_data["discord_id"]
+                    })
+                except Exception as e:
+                    print(f"Error getting user: {e}")
+                    continue
+
+        # Sort by wins descending
+        formatted_users.sort(key=lambda x: x["amount"], reverse=True)
+
+        # Create the data structure for the paginated view
+        leaderboard_data = {
+            "users": formatted_users,
+            "scope": "global",
+            "type": "wins",
+            "bot_avatar": self.bot.user.avatar.url,
+            "author_id": ctx.author.id
+        }
+
+        # Create and send the paginated view
+        view = self.LeaderboardView(ctx.author.id, leaderboard_data)
+        message = await ctx.reply(embed=view.get_current_page_embed(), view=view)
+        view.message = message
+
+    async def show_wins_leaderboard_response(self, interaction, message):
+        """Show wins leaderboard as interaction response"""
+        db = Users()
+        all_users = list(db.collection.find())
+
+        if not all_users:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | No Users Found",
+                description="No users found in the database.",
+                color=0xFF0000
+            )
+            await interaction.edit_original_response(embed=embed, view=None)
+            return
+
+        # Calculate wins for each user
+        formatted_users = []
+        for user_data in all_users:
+            total_wins = user_data.get("total_wins", 0)
+            if total_wins > 0:
+                try:
+                    user = await self.bot.fetch_user(user_data["discord_id"])
+                    user_name = user.name if user else f"User {user_data['discord_id']}"
+                    formatted_users.append({
+                        "name": user_name,
+                        "amount": total_wins,
+                        "id": user_data["discord_id"]
+                    })
+                except Exception as e:
+                    print(f"Error getting user: {e}")
+                    continue
+
+        # Sort by wins descending
+        formatted_users.sort(key=lambda x: x["amount"], reverse=True)
+
+        leaderboard_data = {
+            "users": formatted_users,
+            "scope": "global",
+            "type": "wins",
+            "bot_avatar": self.bot.user.avatar.url,
+            "author_id": interaction.user.id
+        }
+
+        dropdown_view = self.LeaderboardDropdownView(interaction.user.id, "wins")
+        leaderboard_view = self.LeaderboardView(interaction.user.id, leaderboard_data)
+        
+        combined_view = discord.ui.View(timeout=60)
+        combined_view.add_item(dropdown_view.children[0])
+        for item in leaderboard_view.children:
+            combined_view.add_item(item)
+
+        embed = leaderboard_view.get_current_page_embed()
+        await interaction.edit_original_response(embed=embed, view=combined_view)
+        dropdown_view.message = message
+
+    async def show_wagered_leaderboard(self, ctx):
+        """Show total wagered leaderboard"""
+        db = Users()
+        all_users = list(db.collection.find())
+
+        if not all_users:
+            return await ctx.reply("No users found in the database.")
+
+        # Calculate total wagered for each user
+        formatted_users = []
+        for user_data in all_users:
+            total_wagered = user_data.get("total_spent", 0)
+            if total_wagered > 0:  # Only include users with wagered amount
+                try:
+                    user = await self.bot.fetch_user(user_data["discord_id"])
+                    user_name = user.name if user else f"User {user_data['discord_id']}"
+                    formatted_users.append({
+                        "name": user_name,
+                        "amount": total_wagered,
+                        "id": user_data["discord_id"]
+                    })
+                except Exception as e:
+                    print(f"Error getting user: {e}")
+                    continue
+
+        # Sort by wagered amount descending
+        formatted_users.sort(key=lambda x: x["amount"], reverse=True)
+
+        # Create the data structure for the paginated view
+        leaderboard_data = {
+            "users": formatted_users,
+            "scope": "global",
+            "type": "wagered",
+            "bot_avatar": self.bot.user.avatar.url,
+            "author_id": ctx.author.id
+        }
+
+        # Create and send the paginated view
+        view = self.LeaderboardView(ctx.author.id, leaderboard_data)
+        message = await ctx.reply(embed=view.get_current_page_embed(), view=view)
+        view.message = message
+
+    async def show_wagered_leaderboard_response(self, interaction, message):
+        """Show wagered leaderboard as interaction response"""
+        db = Users()
+        all_users = list(db.collection.find())
+
+        if not all_users:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | No Users Found",
+                description="No users found in the database.",
+                color=0xFF0000
+            )
+            await interaction.edit_original_response(embed=embed, view=None)
+            return
+
+        # Calculate total wagered for each user
+        formatted_users = []
+        for user_data in all_users:
+            total_wagered = user_data.get("total_spent", 0)
+            if total_wagered > 0:
+                try:
+                    user = await self.bot.fetch_user(user_data["discord_id"])
+                    user_name = user.name if user else f"User {user_data['discord_id']}"
+                    formatted_users.append({
+                        "name": user_name,
+                        "amount": total_wagered,
+                        "id": user_data["discord_id"]
+                    })
+                except Exception as e:
+                    print(f"Error getting user: {e}")
+                    continue
+
+        # Sort by wagered amount descending
+        formatted_users.sort(key=lambda x: x["amount"], reverse=True)
+
+        leaderboard_data = {
+            "users": formatted_users,
+            "scope": "global",
+            "type": "wagered",
+            "bot_avatar": self.bot.user.avatar.url,
+            "author_id": interaction.user.id
+        }
+
+        dropdown_view = self.LeaderboardDropdownView(interaction.user.id, "wagered")
+        leaderboard_view = self.LeaderboardView(interaction.user.id, leaderboard_data)
+        
+        combined_view = discord.ui.View(timeout=60)
+        combined_view.add_item(dropdown_view.children[0])
+        for item in leaderboard_view.children:
+            combined_view.add_item(item)
+
+        embed = leaderboard_view.get_current_page_embed()
+        await interaction.edit_original_response(embed=embed, view=combined_view)
+        dropdown_view.message = message
+
+    async def show_global_usd_leaderboard_response(self, interaction, message):
+        """Show USD leaderboard as interaction response"""
+        db = Users()
+        all_users = list(db.collection.find())
+
+        if not all_users:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | No Users Found",
+                description="No users found in the database.",
+                color=0xFF0000
+            )
+            await interaction.edit_original_response(embed=embed, view=None)
+            return
+
+        # Calculate USD value for each user and filter out 0 balances
+        formatted_users = []
+        for user_data in all_users:
+            usd_value = self.calculate_total_usd(user_data)
+            if usd_value > 0:  # Only include users with positive balance
+                try:
+                    user = await self.bot.fetch_user(user_data["discord_id"])
+                    user_name = user.name if user else f"User {user_data['discord_id']}"
+                    formatted_users.append({
+                        "name": user_name,
+                        "amount": usd_value,
+                        "id": user_data["discord_id"]
+                    })
+                except Exception as e:
+                    print(f"Error getting user: {e}")
+                    continue
+
+        # Sort by USD value descending
+        formatted_users.sort(key=lambda x: x["amount"], reverse=True)
+
+        leaderboard_data = {
+            "users": formatted_users,
+            "scope": "global",
+            "type": "usd",
+            "bot_avatar": self.bot.user.avatar.url,
+            "author_id": interaction.user.id
+        }
+
+        dropdown_view = self.LeaderboardDropdownView(interaction.user.id, "usd")
+        leaderboard_view = self.LeaderboardView(interaction.user.id, leaderboard_data)
+        
+        combined_view = discord.ui.View(timeout=60)
+        combined_view.add_item(dropdown_view.children[0])
+        for item in leaderboard_view.children:
+            combined_view.add_item(item)
+
+        embed = leaderboard_view.get_current_page_embed()
+        await interaction.edit_original_response(embed=embed, view=combined_view)
+        dropdown_view.message = message
 
     async def show_global_usd_leaderboard(self, ctx):
         """Show global leaderboard sorted by USD wallet value"""
