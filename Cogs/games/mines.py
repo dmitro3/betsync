@@ -418,7 +418,8 @@ class MinesTileView(discord.ui.View):
             server_db = Servers()
             # Update server profit (negative value because server loses when player wins)
             profit = winnings - self.bet_amount
-            server_db.update_server_profit(ctx, ctx.guild.id, -profit, game="mines")
+            if ctx.guild:
+                server_db.update_server_profit(ctx, ctx.guild.id, -profit, game="mines")
 
         # Add to history
         timestamp = int(time.time())
