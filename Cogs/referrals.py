@@ -25,7 +25,7 @@ class ReferralRewardsView(discord.ui.View):
         
         # Create coming soon embed
         embed = discord.Embed(
-            title="🚧 Coming Soon",
+            title=":information_source: | Coming Soon",
             description="Referral rewards are currently under development and will be available soon!",
             color=0xFFAA00
         )
@@ -205,7 +205,7 @@ class ReferralsCog(commands.Cog):
         
         # Send loading embed
         loading_embed = discord.Embed(
-            title="<a:loading:1344611780638412811> | Loading Referral Data...",
+            title="<a:loading:1344611780638412811> | Loading Referral Data",
             description="Please wait while we fetch the referral statistics.",
             color=0x00FFAE
         )
@@ -325,6 +325,201 @@ class ReferralsCog(commands.Cog):
                 color=0xFF0000
             )
             await loading_message.edit(embed=embed)
+
+    @commands.command(aliases=["manageinvites", "mi"])
+    async def manage_invites(self, ctx, action: str = None, user: discord.Member = None, amount: int = None):
+        """Manage user invite counts (Admin only)
+        
+        Usage: 
+        !manageinvites add @user 5 - Add 5 current invites
+        !manageinvites remove @user 3 - Remove 3 current invites
+        !manageinvites addrejoins @user 2 - Add 2 rejoin invites
+        !manageinvites removerejoins @user 1 - Remove 1 rejoin invite
+        !manageinvites reset @user - Reset all invite data for user
+        """
+        # Check if command is being used in the main server
+        if ctx.guild.id != self.main_server_id:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Wrong Server",
+                description="This command can only be used in the main server.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
+        
+        # Check if user is admin (you may want to adjust this check based on your admin system)
+        from Cogs.admin import AdminCommands
+        admin_cog = self.bot.get_cog('AdminCommands')
+        if not admin_cog or not admin_cog.is_admin(ctx.author.id):
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Access Denied",
+                description="This command is restricted to administrators only.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
+        
+        if not action or not user:
+            embed = discord.Embed(
+                title=":information_source: | Manage Invites Usage",
+                description="Commands to manage user invite statistics",
+                color=0x00FFAE
+            )
+            embed.add_field(
+                name="Available Commands",
+                value="""
+`!manageinvites add @user amount` - Add current invites
+`!manageinvites remove @user amount` - Remove current invites
+`!manageinvites addrejoins @user amount` - Add rejoin count
+`!manageinvites removerejoins @user amount` - Remove rejoin count
+`!manageinvites reset @user` - Reset all invite data
+                """,
+                inline=False
+            )
+            return await ctx.reply(embed=embed)
+        
+        # Get or create user referral data
+        referral_data = self.referral_collection.find_one({"user_id": user.id})
+        if not referral_data:
+            referral_data = {
+                "user_id": user.id,
+                "total_joins": 0,
+                "current_invites": 0,
+                "rejoins": 0,
+                "left_users": 0,
+                "invited_users": [],
+                "left_user_ids": [],
+                "rejoined_user_ids": []
+            }
+            self.referral_collection.insert_one(referral_data)
+        
+        action = action.lower()
+        
+        try:
+            if action == "add":
+                if amount is None or amount < 1:
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Invalid Amount",
+                        description="Please specify a positive amount to add.",
+                        color=0xFF0000
+                    )
+                    return await ctx.reply(embed=embed)
+                
+                self.referral_collection.update_one(
+                    {"user_id": user.id},
+                    {"$inc": {"current_invites": amount, "total_joins": amount}}
+                )
+                
+                embed = discord.Embed(
+                    title="<:yes:1355501647538815106> | Invites Added",
+                    description=f"Successfully added **{amount}** current invites to {user.mention}",
+                    color=0x00FFAE
+                )
+                
+            elif action == "remove":
+                if amount is None or amount < 1:
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Invalid Amount",
+                        description="Please specify a positive amount to remove.",
+                        color=0xFF0000
+                    )
+                    return await ctx.reply(embed=embed)
+                
+                # Don't let current invites go below 0
+                current_invites = referral_data.get("current_invites", 0)
+                remove_amount = min(amount, current_invites)
+                
+                self.referral_collection.update_one(
+                    {"user_id": user.id},
+                    {"$inc": {"current_invites": -remove_amount}}
+                )
+                
+                embed = discord.Embed(
+                    title="<:yes:1355501647538815106> | Invites Removed",
+                    description=f"Successfully removed **{remove_amount}** current invites from {user.mention}",
+                    color=0x00FFAE
+                )
+                
+            elif action == "addrejoins":
+                if amount is None or amount < 1:
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Invalid Amount",
+                        description="Please specify a positive amount to add.",
+                        color=0xFF0000
+                    )
+                    return await ctx.reply(embed=embed)
+                
+                self.referral_collection.update_one(
+                    {"user_id": user.id},
+                    {"$inc": {"rejoins": amount}}
+                )
+                
+                embed = discord.Embed(
+                    title="<:yes:1355501647538815106> | Rejoins Added",
+                    description=f"Successfully added **{amount}** rejoins to {user.mention}",
+                    color=0x00FFAE
+                )
+                
+            elif action == "removerejoins":
+                if amount is None or amount < 1:
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Invalid Amount",
+                        description="Please specify a positive amount to remove.",
+                        color=0xFF0000
+                    )
+                    return await ctx.reply(embed=embed)
+                
+                # Don't let rejoins go below 0
+                current_rejoins = referral_data.get("rejoins", 0)
+                remove_amount = min(amount, current_rejoins)
+                
+                self.referral_collection.update_one(
+                    {"user_id": user.id},
+                    {"$inc": {"rejoins": -remove_amount}}
+                )
+                
+                embed = discord.Embed(
+                    title="<:yes:1355501647538815106> | Rejoins Removed",
+                    description=f"Successfully removed **{remove_amount}** rejoins from {user.mention}",
+                    color=0x00FFAE
+                )
+                
+            elif action == "reset":
+                self.referral_collection.update_one(
+                    {"user_id": user.id},
+                    {"$set": {
+                        "total_joins": 0,
+                        "current_invites": 0,
+                        "rejoins": 0,
+                        "left_users": 0,
+                        "invited_users": [],
+                        "left_user_ids": [],
+                        "rejoined_user_ids": []
+                    }}
+                )
+                
+                embed = discord.Embed(
+                    title="<:yes:1355501647538815106> | Invite Data Reset",
+                    description=f"Successfully reset all invite data for {user.mention}",
+                    color=0x00FFAE
+                )
+                
+            else:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Invalid Action",
+                    description="Valid actions: `add`, `remove`, `addrejoins`, `removerejoins`, `reset`",
+                    color=0xFF0000
+                )
+                return await ctx.reply(embed=embed)
+            
+            embed.set_footer(text=f"Action performed by {ctx.author.name}", icon_url=ctx.author.avatar.url)
+            await ctx.reply(embed=embed)
+            
+        except Exception as e:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"An error occurred while managing invites: {str(e)}",
+                color=0xFF0000
+            )
+            await ctx.reply(embed=embed)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
