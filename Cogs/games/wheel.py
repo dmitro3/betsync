@@ -251,26 +251,27 @@ class WheelCog(commands.Cog):
 
         # Calculate results for each spin instantly
         for spin_num in range(spins):
-            # Apply house edge to outcome calculation
-            if random.random() < house_edge:
-                # Force a loss (gray) more often for house edge
-                result_color = "gray"
-            else:
-                # Normal weighted random selection
-                random_value = random.randint(1, self.total_chance)
-                cumulative = 0
-                result_color = None
+            # Normal weighted random selection
+            random_value = random.randint(1, self.total_chance)
+            cumulative = 0
+            result_color = None
 
-                for color, data in self.colors.items():
-                    cumulative += data["chance"]
-                    if random_value <= cumulative:
-                        result_color = color
-                        break
+            for color, data in self.colors.items():
+                cumulative += data["chance"]
+                if random_value <= cumulative:
+                    result_color = color
+                    break
 
-            # Get multiplier for the result
-            result_multiplier = self.colors[result_color]["multiplier"]
+            # Get base multiplier for the result
+            base_multiplier = self.colors[result_color]["multiplier"]
             result_emoji = self.colors[result_color]["emoji"]
             result_name = self.colors[result_color]["name"]
+
+            # Apply house edge to multiplier (15% reduction on all wins)
+            if base_multiplier > 0:
+                result_multiplier = base_multiplier * (1 - house_edge)
+            else:
+                result_multiplier = 0  # BUST stays 0
 
             # Calculate winnings for this spin
             winnings = bet_total * result_multiplier
