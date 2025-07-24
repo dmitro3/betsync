@@ -146,32 +146,37 @@ class DiceCog(commands.Cog):
             user_won = user_roll > dealer_roll
 
             # Define the multiplier (for a win)
-            # House edge of 8%
-            multiplier = 1.84  # With 6 sides, fair would be 2.0, so 1.84 gives 8% house edge
+            win_multiplier = 1.90  # 1.9x multiplier for wins
+            tie_multiplier = 0.80  # 0.8x multiplier for ties
 
             # Create result embed
             if is_draw:
-                # Return the bet for a draw
+                # Calculate tie winnings (0.8x multiplier)
+                tie_winnings = round(total_bet * tie_multiplier, 2)
+                tie_loss = round(total_bet - tie_winnings, 2)
+                
                 result_embed = discord.Embed(
                     title="🎲 | Dice Game - It's a Draw!",
                     description=(
                         f"{bet_description}\n\n"
                         f"Your Roll: {user_dice} ({user_roll})\n"
                         f"Dealer Roll: {dealer_dice} ({dealer_roll})\n\n"
-                        f"**Result:** Your bet has been returned!"
+                        f"**Multiplier:** {tie_multiplier}x\n"
+                        f"**Payout:** `{tie_winnings:.2f} points`\n"
+                        f"**Loss:** `{tie_loss:.2f} points`"
                     ),
                     color=0xFFD700  # Gold color for draws
                 )
 
-                # Return the bet to the user
+                # Add tie winnings to user
                 db = Users()
-                db.update_balance(ctx.author.id, tokens_used, "credits", "$inc")
+                db.update_balance(ctx.author.id, tie_winnings, "credits", "$inc")
 
                 # Add to history as a draw
 
             elif user_won:
                 # Calculate winnings
-                winnings = round(total_bet * multiplier, 2)
+                winnings = round(total_bet * win_multiplier, 2)
                 profit = winnings - total_bet
 
                 result_embed = discord.Embed(
@@ -180,7 +185,7 @@ class DiceCog(commands.Cog):
                         f"{bet_description}\n\n"
                         f"Your Roll: {user_dice} ({user_roll})\n"
                         f"Dealer Roll: {dealer_dice} ({dealer_roll})\n\n"
-                        f"**Multiplier:** {multiplier}x\n"
+                        f"**Multiplier:** {win_multiplier}x\n"
                         f"**Winnings:** `{round(winnings,2)} points`\n"
                         f"**Profit:** `{round(profit, 2)} points`"
                     ),
@@ -220,6 +225,12 @@ class DiceCog(commands.Cog):
                 # Update server profit
                 servers_db.update_server_profit(ctx, ctx.guild.id, total_bet, game="dice")
 
+            # Update server profit for ties
+            if is_draw:
+                servers_db = Servers()
+                tie_server_profit = total_bet - tie_winnings  # Server keeps the difference
+                servers_db.update_server_profit(ctx, ctx.guild.id, tie_server_profit, game="dice")
+
             currency_used = "points"
 
             bet_display = f"`{total_bet} {currency_used}`"
@@ -230,9 +241,9 @@ class DiceCog(commands.Cog):
                 history_entry = {
                     "type": "push",
                     "game": "dice",
-                    "amount": total_bet,
+                    "amount": tie_winnings,
                     "bet": total_bet,
-                    "multiplier": 1.0,
+                    "multiplier": tie_multiplier,
                     "user_roll": user_roll,
                     "dealer_roll": dealer_roll,
                     "timestamp": timestamp
@@ -243,7 +254,7 @@ class DiceCog(commands.Cog):
                     "game": "dice",
                     "amount": winnings,
                     "bet": total_bet,
-                    "multiplier": multiplier,
+                    "multiplier": win_multiplier,
                     "user_roll": user_roll,
                     "dealer_roll": dealer_roll,
                     "timestamp": timestamp
