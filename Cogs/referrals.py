@@ -399,6 +399,38 @@ class ReferralsCog(commands.Cog):
             except:
                 pass
             
+            # Calculate casino profit from invited users (Admin only)
+            from Cogs.admin import AdminCommands
+            admin_cog = self.bot.get_cog('AdminCommands')
+            if admin_cog and admin_cog.is_admin(ctx.author.id):
+                try:
+                    # Get all invited user IDs
+                    invited_user_ids = [user_data['user_id'] for user_data in invited_users]
+                    
+                    if invited_user_ids:
+                        # Calculate total casino profit from these users
+                        users_db = Users()
+                        total_wagered = 0
+                        total_won = 0
+                        
+                        for user_id in invited_user_ids:
+                            user_data = users_db.fetch_user(user_id)
+                            if user_data:
+                                total_wagered += user_data.get("total_spent", 0)
+                                total_won += user_data.get("total_earned", 0)
+                        
+                        casino_profit = total_wagered - total_won
+                        casino_profit_usd = casino_profit * 0.0212  # Convert to USD
+                        
+                        # Add casino profit field for admins
+                        embed.add_field(
+                            name="💰 Casino Profit (Admin)",
+                            value=f"**{casino_profit:,.2f}** points (`${casino_profit_usd:,.2f}`)\nFrom {len(invited_user_ids)} invited users",
+                            inline=False
+                        )
+                except Exception as e:
+                    print(f"Error calculating casino profit: {e}")
+            
             # Footer
             embed.set_footer(
                 text=f"BetSync Casino • Requested by {ctx.author.name}",
