@@ -240,8 +240,8 @@ class WheelCog(commands.Cog):
         if game_id in self.ongoing_games:
             del self.ongoing_games[game_id]
 
-        # Calculate results for all spins with house edge (3%)
-        house_edge = 0.03  # 3% house edge
+        # Calculate results for all spins with house edge (15%)
+        house_edge = 0.15  # 15% house edge
 
         # Store results for all spins
         spin_results = []
