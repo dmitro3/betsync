@@ -288,9 +288,9 @@ class LimboGame:
                     #credits_used = self.credits_used
                     is_first_bet = False  # Mark first bet as processed
 
-                # Roll the multiplier (with 8% house edge)
-                # The formula: rolled_mult = 1.0 / (1.0 - R) where R is [0, 0.92)
-                r = random.random() * 0.92
+                # Roll the multiplier (with 15% house edge)
+                # The formula: rolled_mult = 1.0 / (1.0 - R) where R is [0, 0.85)
+                r = random.random() * 0.85
                 rolled_multiplier = 1.0 / (1.0 - r)
                 rounded_multiplier = round(rolled_multiplier, 2)  # Round to 2 decimal places
 
