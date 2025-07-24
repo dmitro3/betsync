@@ -278,83 +278,96 @@ class ChannelControlView(discord.ui.View):
             )
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        class AddMemberModal(discord.ui.Modal, title="Add Member to Channel"):
-            def __init__(self):
-                super().__init__()
+        # Fallback for older discord.py versions without Modals
+        embed = discord.Embed(
+            title="➕ Add Member",
+            description="Please reply with the member to add (username, user ID, or mention):",
+            color=0x00FFAE
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        def check(m):
+            return m.author == interaction.user and m.channel == interaction.channel
+            
+        try:
+            msg = await self.cog.bot.wait_for('message', check=check, timeout=60)
+            member_text = msg.content.strip()
+            
+            # Try to delete the user's input message
+            try:
+                await msg.delete()
+            except:
+                pass
+            
+            # Try to find the member
+            member = None
+            
+            # Remove @ if present
+            if member_text.startswith('@'):
+                member_text = member_text[1:]
+            
+            # Try by ID first
+            if member_text.isdigit():
+                member = interaction.guild.get_member(int(member_text))
+            
+            # Try by username or display name
+            if not member:
+                for guild_member in interaction.guild.members:
+                    if (guild_member.name.lower() == member_text.lower() or 
+                        guild_member.display_name.lower() == member_text.lower()):
+                        member = guild_member
+                        break
 
-            member_input = discord.ui.TextInput(
-                label="Member to Add",
-                placeholder="Enter username, user ID, or mention (@username)",
-                required=True,
-                max_length=100
+            if not member:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Member Not Found",
+                    description=f"Could not find member: `{member_text}`",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+
+            if member.id == interaction.user.id:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Invalid Member",
+                    description="You cannot add yourself to your own channel.",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+
+            # Check if member already has access
+            overwrites = interaction.channel.overwrites
+            if member in overwrites:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Already Added",
+                    description=f"{member.mention} already has access to this channel.",
+                    color=0xFF0000
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+
+            # Add member to channel
+            await interaction.channel.set_permissions(
+                member,
+                read_messages=True,
+                send_messages=True,
+                embed_links=True,
+                attach_files=True,
+                read_message_history=True
             )
 
-            async def on_submit(self, interaction: discord.Interaction):
-                member_text = self.member_input.value.strip()
-                
-                # Try to find the member
-                member = None
-                
-                # Remove @ if present
-                if member_text.startswith('@'):
-                    member_text = member_text[1:]
-                
-                # Try by ID first
-                if member_text.isdigit():
-                    member = interaction.guild.get_member(int(member_text))
-                
-                # Try by username or display name
-                if not member:
-                    for guild_member in interaction.guild.members:
-                        if (guild_member.name.lower() == member_text.lower() or 
-                            guild_member.display_name.lower() == member_text.lower()):
-                            member = guild_member
-                            break
-
-                if not member:
-                    embed = discord.Embed(
-                        title="<:no:1344252518305234987> | Member Not Found",
-                        description=f"Could not find member: `{member_text}`",
-                        color=0xFF0000
-                    )
-                    return await interaction.response.send_message(embed=embed, ephemeral=True)
-
-                if member.id == interaction.user.id:
-                    embed = discord.Embed(
-                        title="<:no:1344252518305234987> | Invalid Member",
-                        description="You cannot add yourself to your own channel.",
-                        color=0xFF0000
-                    )
-                    return await interaction.response.send_message(embed=embed, ephemeral=True)
-
-                # Check if member already has access
-                overwrites = interaction.channel.overwrites
-                if member in overwrites:
-                    embed = discord.Embed(
-                        title="<:no:1344252518305234987> | Already Added",
-                        description=f"{member.mention} already has access to this channel.",
-                        color=0xFF0000
-                    )
-                    return await interaction.response.send_message(embed=embed, ephemeral=True)
-
-                # Add member to channel
-                await interaction.channel.set_permissions(
-                    member,
-                    read_messages=True,
-                    send_messages=True,
-                    embed_links=True,
-                    attach_files=True,
-                    read_message_history=True
-                )
-
-                embed = discord.Embed(
-                    title="<:yes:1355501647538815106> | Member Added",
-                    description=f"{member.mention} has been added to the channel.",
-                    color=0x00FFAE
-                )
-                await interaction.response.send_message(embed=embed)
-
-        await interaction.response.send_modal(AddMemberModal())
+            embed = discord.Embed(
+                title="<:yes:1355501647538815106> | Member Added",
+                description=f"{member.mention} has been added to the channel.",
+                color=0x00FFAE
+            )
+            await interaction.followup.send(embed=embed)
+            
+        except asyncio.TimeoutError:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Timed Out",
+                description="Timed out waiting for member input.",
+                color=0xFF0000
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Remove Member", style=discord.ButtonStyle.secondary, emoji="➖")
     async def remove_member(self, button: discord.ui.Button, interaction: discord.Interaction):
