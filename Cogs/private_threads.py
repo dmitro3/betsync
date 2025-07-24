@@ -452,6 +452,7 @@ class ChannelControlView(discord.ui.View):
         
         for target, overwrite in overwrites.items():
             if (isinstance(target, discord.Member) and 
+                target.id != self.owner_id and
                 target != interaction.guild.me and
                 target != interaction.guild.default_role and
                 (overwrite.read_messages is True or overwrite.read_messages is None)):
