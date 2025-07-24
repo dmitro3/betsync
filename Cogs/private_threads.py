@@ -385,7 +385,7 @@ class ChannelControlView(discord.ui.View):
                 target.id != self.owner_id and 
                 target.id != interaction.guild.me.id and
                 target != interaction.guild.default_role and
-                overwrite.read_messages is True):
+                (overwrite.read_messages is True or overwrite.read_messages is None)):
                 removable_members.append(target)
 
         if not removable_members:
@@ -454,7 +454,7 @@ class ChannelControlView(discord.ui.View):
             if (isinstance(target, discord.Member) and 
                 target != interaction.guild.me and
                 target != interaction.guild.default_role and
-                overwrite.read_messages is True):
+                (overwrite.read_messages is True or overwrite.read_messages is None)):
                 members_with_access.append(target)
 
         # Get activity info if user is owner
