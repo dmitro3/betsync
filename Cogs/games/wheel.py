@@ -109,13 +109,15 @@ class WheelCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.ongoing_games = {}
-        # Define color multipliers with more exciting rarities
+        # Define color multipliers with high-risk, high-reward tiers
         self.colors = {
-            "gray": {"emoji": "⚫", "multiplier": 0, "chance": 45, "name": "BUST"},
-            "yellow": {"emoji": "🟡", "multiplier": 1.8, "chance": 28, "name": "BRONZE"},
-            "red": {"emoji": "🔴", "multiplier": 2.5, "chance": 18, "name": "SILVER"},
-            "blue": {"emoji": "🔵", "multiplier": 4.0, "chance": 7, "name": "GOLD"},
-            "green": {"emoji": "🟢", "multiplier": 8.0, "chance": 2, "name": "DIAMOND"}
+            "gray": {"emoji": "⚫", "multiplier": 0, "chance": 50, "name": "BUST"},
+            "yellow": {"emoji": "🟡", "multiplier": 2.0, "chance": 25, "name": "BRONZE"},
+            "red": {"emoji": "🔴", "multiplier": 4.0, "chance": 12, "name": "SILVER"},
+            "blue": {"emoji": "🔵", "multiplier": 8.0, "chance": 6, "name": "GOLD"},
+            "green": {"emoji": "🟢", "multiplier": 15.0, "chance": 4, "name": "DIAMOND"},
+            "purple": {"emoji": "🟣", "multiplier": 25.0, "chance": 2, "name": "RUBY"},
+            "orange": {"emoji": "🟠", "multiplier": 50.0, "chance": 1, "name": "LEGENDARY"}
         }
         # Calculate total chance to verify it sums to 100
         self.total_chance = sum(color["chance"] for color in self.colors.values())
@@ -141,11 +143,13 @@ class WheelCog(commands.Cog):
                     "> `!wheel 100 5` - Spin 5 times instantly!\n\n"
                     
                     "**🎨 Wheel Zones & Multipliers:**\n"
-                    "> ⚫ **BUST** - 0x (45% chance) - Game over!\n"
-                    "> 🟡 **BRONZE** - 1.8x (28% chance) - Nice win!\n"
-                    "> 🔴 **SILVER** - 2.5x (18% chance) - Great win!\n"
-                    "> 🔵 **GOLD** - 4x (7% chance) - Amazing win!\n"
-                    "> 🟢 **DIAMOND** - 8x (2% chance) - JACKPOT!\n\n"
+                    "> ⚫ **BUST** - 0x (50% chance) - Game over!\n"
+                    "> 🟡 **BRONZE** - 2x (25% chance) - Nice win!\n"
+                    "> 🔴 **SILVER** - 4x (12% chance) - Great win!\n"
+                    "> 🔵 **GOLD** - 8x (6% chance) - Amazing win!\n"
+                    "> 🟢 **DIAMOND** - 15x (4% chance) - Epic win!\n"
+                    "> 🟣 **RUBY** - 25x (2% chance) - Legendary!\n"
+                    "> 🟠 **LEGENDARY** - 50x (1% chance) - ULTIMATE!\n\n"
                     
                     "**⚡ Features:**\n"
                     "> • Instant results - no waiting!\n"
@@ -361,7 +365,11 @@ class WheelCog(commands.Cog):
             for color, data in color_counts.items():
                 if data['count'] > 0:
                     excitement = ""
-                    if data['name'] == "DIAMOND":
+                    if data['name'] == "LEGENDARY":
+                        excitement = " 🔥💫"
+                    elif data['name'] == "RUBY":
+                        excitement = " 🟣✨"
+                    elif data['name'] == "DIAMOND":
                         excitement = " 💎✨"
                     elif data['name'] == "GOLD":
                         excitement = " 🏆⚡"
@@ -371,6 +379,13 @@ class WheelCog(commands.Cog):
                     results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']}x - {data['total_winnings']:.2f} pts{excitement}\n"
 
             special_hits = ""
+            legendary_hits = sum(1 for r in spin_results if r['name'] == "LEGENDARY")
+            ruby_hits = sum(1 for r in spin_results if r['name'] == "RUBY")
+            
+            if legendary_hits > 0:
+                special_hits += f" 🔥 {legendary_hits} LEGENDARY HIT{'S' if legendary_hits > 1 else ''}!"
+            if ruby_hits > 0:
+                special_hits += f" 💎 {ruby_hits} RUBY HIT{'S' if ruby_hits > 1 else ''}!"
             if diamond_hits > 0:
                 special_hits += f" 💎 {diamond_hits} DIAMOND HIT{'S' if diamond_hits > 1 else ''}!"
             if gold_hits > 0:
@@ -385,12 +400,16 @@ class WheelCog(commands.Cog):
             # Single spin - show main result with excitement
             main_result = spin_results[0]
             excitement_level = ""
-            if main_result['name'] == "DIAMOND":
-                excitement_level = " 💎✨ JACKPOT! ✨💎"
+            if main_result['name'] == "LEGENDARY":
+                excitement_level = " 🔥💫 LEGENDARY! 💫🔥"
+            elif main_result['name'] == "RUBY":
+                excitement_level = " 🟣✨ RUBY! ✨🟣"
+            elif main_result['name'] == "DIAMOND":
+                excitement_level = " 💎✨ DIAMOND! ✨💎"
             elif main_result['name'] == "GOLD":
-                excitement_level = " 🏆⚡ AMAZING! ⚡🏆"
+                excitement_level = " 🏆⚡ GOLD! ⚡🏆"
             elif main_result['name'] == "SILVER":
-                excitement_level = " 🥈🔥 GREAT! 🔥🥈"
+                excitement_level = " 🥈🔥 SILVER! 🔥🥈"
             
             embed.add_field(
                 name="🎯 Result",
