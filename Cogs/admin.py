@@ -1314,6 +1314,7 @@ class AdminCommands(commands.Cog):
                 ("sp", "Display server profit data with rankings", "!sp [YYYY-MM-DD]"),
                 ("tp", "Display total profit graph", "!tp [daily/monthly/all_time]"),
                 ("game_np", "Check game performance statistics", "!game_np [game_name]"),
+                ("inviteprofit", "View casino profit from user's invited members", "!inviteprofit @user"),
                 ("cleardb", "Clear database collections selectively", "!cleardb [all]"),
                 ("adminpanel", "Show this admin panel", "!adminpanel [page]")
             ]
@@ -2017,6 +2018,215 @@ class FinalConfirmationView(discord.ui.View):
         embed.set_footer(text=f"Curse removed by: {ctx.author.name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
         
         await ctx.reply(embed=embed)
+
+    @commands.command(name="inviteprofit", aliases=["ip"])
+    async def invite_profit(self, ctx, user: discord.User = None):
+        """View casino profit from a user's invited members (Admin only)
+        
+        Usage: !inviteprofit @user
+               !inviteprofit user_id
+        """
+        # Check if command user is an admin
+        if not self.is_admin(ctx.author.id):
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Access Denied",
+                description="This command is restricted to administrators only.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
+        
+        # Check if user is provided
+        if user is None:
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Invalid Usage",
+                description="Please mention a user or provide a user ID to view their invite profit.",
+                color=0xFF0000
+            )
+            embed.add_field(
+                name="Correct Usage",
+                value="`!inviteprofit @user`\n`!inviteprofit user_id`",
+                inline=False
+            )
+            return await ctx.reply(embed=embed)
+        
+        # Send loading message
+        loading_embed = discord.Embed(
+            title="<a:loading:1344611780638412811> | Calculating Invite Profit",
+            description="Please wait while we calculate the casino profit from invited users...",
+            color=0x00FFAE
+        )
+        loading_message = await ctx.reply(embed=loading_embed)
+        
+        try:
+            # Get referral data from the referrals cog
+            referrals_cog = self.bot.get_cog('ReferralsCog')
+            if not referrals_cog:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | System Error",
+                    description="Referrals system is not loaded. Cannot calculate invite profit.",
+                    color=0xFF0000
+                )
+                return await loading_message.edit(embed=embed)
+            
+            # Get referral data from database
+            referral_data = referrals_cog.referral_collection.find_one({"user_id": user.id})
+            
+            if not referral_data:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | No Referral Data",
+                    description=f"{user.mention} has no referral data in our system.",
+                    color=0xFF0000
+                )
+                return await loading_message.edit(embed=embed)
+            
+            # Get invited users
+            invited_users = referral_data.get("invited_users", [])
+            invited_user_ids = [user_data['user_id'] for user_data in invited_users]
+            
+            if not invited_user_ids:
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | No Invites",
+                    description=f"{user.mention} has not invited any users yet.",
+                    color=0xFF0000
+                )
+                return await loading_message.edit(embed=embed)
+            
+            # Calculate total casino profit from these users
+            users_db = Users()
+            total_wagered = 0
+            total_won = 0
+            user_details = []
+            
+            for user_id in invited_user_ids:
+                user_data = users_db.fetch_user(user_id)
+                if user_data:
+                    user_wagered = user_data.get("total_spent", 0)
+                    user_won = user_data.get("total_earned", 0)
+                    user_profit = user_wagered - user_won
+                    
+                    total_wagered += user_wagered
+                    total_won += user_won
+                    
+                    # Only include users with gambling activity
+                    if user_wagered > 0 or user_won > 0:
+                        user_details.append({
+                            'id': user_id,
+                            'wagered': user_wagered,
+                            'won': user_won,
+                            'profit': user_profit
+                        })
+            
+            casino_profit = total_wagered - total_won
+            casino_profit_usd = casino_profit * 0.0212  # Convert to USD
+            
+            # Create detailed embed
+            embed = discord.Embed(
+                title="💰 Casino Profit from Invites",
+                description=f"Profit analysis for {user.mention}'s invited users",
+                color=0x00FFAE
+            )
+            
+            # Set user avatar as thumbnail
+            if user.avatar:
+                embed.set_thumbnail(url=user.avatar.url)
+            
+            # Main profit stats
+            embed.add_field(
+                name="📊 Total Profit",
+                value=f"**{casino_profit:,.2f}** points\n**${casino_profit_usd:,.2f}** USD",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="🎲 Total Wagered",
+                value=f"**{total_wagered:,.2f}** points\n**${total_wagered * 0.0212:,.2f}** USD",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="🏆 Total Won",
+                value=f"**{total_won:,.2f}** points\n**${total_won * 0.0212:,.2f}** USD",
+                inline=True
+            )
+            
+            # User statistics
+            active_users = len(user_details)
+            total_invited = len(invited_user_ids)
+            
+            embed.add_field(
+                name="👥 User Statistics",
+                value=f"**Total Invited:** {total_invited} users\n**Active Gamblers:** {active_users} users\n**Activity Rate:** {(active_users/total_invited*100):.1f}%" if total_invited > 0 else "0%",
+                inline=False
+            )
+            
+            # Top contributing users (if any)
+            if user_details:
+                # Sort by profit (highest first)
+                user_details.sort(key=lambda x: x['profit'], reverse=True)
+                top_users = user_details[:5]  # Show top 5
+                
+                top_users_text = ""
+                for i, user_detail in enumerate(top_users, 1):
+                    try:
+                        invited_user = await self.bot.fetch_user(user_detail['id'])
+                        user_name = invited_user.name if invited_user else f"User {user_detail['id']}"
+                    except:
+                        user_name = f"User {user_detail['id']}"
+                    
+                    profit_usd = user_detail['profit'] * 0.0212
+                    top_users_text += f"**{i}.** {user_name}\n"
+                    top_users_text += f"Profit: **{user_detail['profit']:,.2f}** points (${profit_usd:,.2f})\n\n"
+                
+                embed.add_field(
+                    name="🔥 Top Profit Contributors",
+                    value=top_users_text,
+                    inline=False
+                )
+            
+            # Profitability analysis
+            if casino_profit > 0:
+                profit_status = "✅ Profitable"
+                profit_color = 0x00FF00
+            elif casino_profit < 0:
+                profit_status = "❌ Unprofitable"
+                profit_color = 0xFF0000
+            else:
+                profit_status = "⚖️ Break Even"
+                profit_color = 0xFFFF00
+            
+            embed.add_field(
+                name="📈 Profitability Status",
+                value=profit_status,
+                inline=True
+            )
+            
+            # Average profit per active user
+            if active_users > 0:
+                avg_profit_per_user = casino_profit / active_users
+                avg_profit_usd = avg_profit_per_user * 0.0212
+                embed.add_field(
+                    name="📊 Average Profit/User",
+                    value=f"**{avg_profit_per_user:,.2f}** points\n**${avg_profit_usd:,.2f}** USD",
+                    inline=True
+                )
+            
+            embed.set_footer(
+                text=f"Analysis by {ctx.author.name} • Conversion rate: 1 point = $0.0212",
+                icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url
+            )
+            
+            embed.timestamp = discord.utils.utcnow()
+            embed.color = profit_color
+            
+            await loading_message.edit(embed=embed)
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="<:no:1344252518305234987> | Error",
+                description=f"An error occurred while calculating invite profit: ```{str(e)}```",
+                color=0xFF0000
+            )
+            await loading_message.edit(embed=error_embed)
 
     @commands.command(name="game_np", aliases=["gnp"])
     async def game_np(self, ctx, game: str = None):
