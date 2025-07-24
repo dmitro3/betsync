@@ -1309,13 +1309,15 @@ class AdminCommands(commands.Cog):
                 ("badluck", "Curse a player to hit mines above 1.3x multiplier", "!badluck @user"),
                 ("removebadluck", "Remove bad luck curse from a player", "!removebadluck @user"),
                 ("manageinvites", "Manage user invite counts", "!manageinvites add @user 5"),
+                ("referralprofit", "View casino profit from user's invites", "!referralprofit @user"),
                 ("leave", "Make the bot leave a server and delete its data", "!leave server_id"),
                 ("uptime", "Show bot uptime and system information", "!uptime"),
                 ("sp", "Display server profit data with rankings", "!sp [YYYY-MM-DD]"),
                 ("tp", "Display total profit graph", "!tp [daily/monthly/all_time]"),
                 ("game_np", "Check game performance statistics", "!game_np [game_name]"),
                 ("cleardb", "Clear database collections selectively", "!cleardb [all]"),
-                ("adminpanel", "Show this admin panel", "!adminpanel [page]")
+                ("adminpanel", "Show this admin panel", "!adminpanel [page]"),
+                ("adminhelp", "Show complete admin commands help", "!adminhelp")
             ]
             
             # Add server admin commands from ServersCog
@@ -2018,6 +2020,128 @@ class FinalConfirmationView(discord.ui.View):
         
         await ctx.reply(embed=embed)
 
+    @commands.command(name="adminhelp", aliases=["ah"])
+    async def admin_help(self, ctx):
+        """Display all available admin commands with descriptions (Admin only)
+        
+        Usage: !adminhelp
+        """
+        # Check if command user is an admin
+        if not self.is_admin(ctx.author.id):
+            embed = discord.Embed(
+                title="<:no:1344252518305234987> | Access Denied",
+                description="This command is restricted to administrators only.",
+                color=0xFF0000
+            )
+            return await ctx.reply(embed=embed)
+        
+        # Create main embed
+        embed = discord.Embed(
+            title="👑 Admin Commands Help",
+            description="Complete list of all administrator commands with usage examples",
+            color=0x00FFAE
+        )
+        
+        # User Management Commands
+        user_mgmt_commands = [
+            ("addcash", "Add or remove points from a user", "!addcash @user 100"),
+            ("fetch", "Fetch detailed user information", "!fetch @user"),
+            ("blacklist", "Blacklist a user from using the bot", "!blacklist @user"),
+            ("unblacklist", "Remove user from blacklist", "!unblacklist @user"),
+            ("viewblacklist", "View all blacklisted users", "!viewblacklist"),
+            ("badluck", "Curse a player in mines game", "!badluck @user"),
+            ("removebadluck", "Remove bad luck curse", "!removebadluck @user")
+        ]
+        
+        user_mgmt_text = ""
+        for cmd, desc, usage in user_mgmt_commands:
+            user_mgmt_text += f"**!{cmd}** - {desc}\n`{usage}`\n\n"
+        
+        embed.add_field(
+            name="👤 User Management",
+            value=user_mgmt_text,
+            inline=False
+        )
+        
+        # Server Management Commands
+        server_mgmt_commands = [
+            ("addadmin", "Add a user as server admin", "!addadmin @user"),
+            ("removeadmin", "Remove user as server admin", "!removeadmin @user"),
+            ("listadmins", "List all server admins", "!listadmins"),
+            ("viewadmins", "View admins for specific server", "!viewadmins server_id"),
+            ("leave", "Make bot leave a server", "!leave server_id")
+        ]
+        
+        server_mgmt_text = ""
+        for cmd, desc, usage in server_mgmt_commands:
+            server_mgmt_text += f"**!{cmd}** - {desc}\n`{usage}`\n\n"
+        
+        embed.add_field(
+            name="🏢 Server Management",
+            value=server_mgmt_text,
+            inline=False
+        )
+        
+        # Analytics & Statistics Commands
+        analytics_commands = [
+            ("sp", "Display server profit data", "!sp [YYYY-MM-DD]"),
+            ("tp", "Display total profit graph", "!tp [daily/monthly/all_time]"),
+            ("game_np", "Check game performance stats", "!game_np [game_name]"),
+            ("referralprofit", "View casino profit from user's invites", "!refprofit @user"),
+            ("uptime", "Show bot uptime and system info", "!uptime")
+        ]
+        
+        analytics_text = ""
+        for cmd, desc, usage in analytics_commands:
+            analytics_text += f"**!{cmd}** - {desc}\n`{usage}`\n\n"
+        
+        embed.add_field(
+            name="📊 Analytics & Statistics",
+            value=analytics_text,
+            inline=False
+        )
+        
+        # Referral Management Commands
+        referral_commands = [
+            ("manageinvites", "Manage user invite counts", "!manageinvites add @user 5"),
+            ("referralprofit", "View casino profit from invites", "!referralprofit @user")
+        ]
+        
+        referral_text = ""
+        for cmd, desc, usage in referral_commands:
+            referral_text += f"**!{cmd}** - {desc}\n`{usage}`\n\n"
+        
+        embed.add_field(
+            name="🎯 Referral Management",
+            value=referral_text,
+            inline=False
+        )
+        
+        # System Commands
+        system_commands = [
+            ("cleardb", "Clear database collections", "!cleardb"),
+            ("adminpanel", "Show paginated admin panel", "!adminpanel [page]"),
+            ("adminhelp", "Show this help message", "!adminhelp")
+        ]
+        
+        system_text = ""
+        for cmd, desc, usage in system_commands:
+            system_text += f"**!{cmd}** - {desc}\n`{usage}`\n\n"
+        
+        embed.add_field(
+            name="🔧 System Commands",
+            value=system_text,
+            inline=False
+        )
+        
+        # Add footer with navigation info
+        embed.set_footer(
+            text=f"Requested by {ctx.author.name} • Use !adminpanel for paginated view",
+            icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url
+        )
+        
+        await ctx.reply(embed=embed)
+
     @commands.command(name="game_np", aliases=["gnp"])
     async def game_np(self, ctx, game: str = None):
         """Check how much all games or a specific game is performing
@@ -2303,14 +2427,18 @@ class AdminPanelPaginator(discord.ui.View):
             ("blacklist", "Blacklist a user from using the bot", "!blacklist @user"),
             ("unblacklist", "Remove a user from the blacklist", "!unblacklist @user"),
             ("viewblacklist", "View all blacklisted users", "!viewblacklist"),
+            ("badluck", "Curse a player to hit mines above 1.3x multiplier", "!badluck @user"),
+            ("removebadluck", "Remove bad luck curse from a player", "!removebadluck @user"),
             ("manageinvites", "Manage user invite counts", "!manageinvites add @user 5"),
+            ("referralprofit", "View casino profit from user's invites", "!referralprofit @user"),
             ("leave", "Make the bot leave a server and delete its data", "!leave server_id"),
             ("uptime", "Show bot uptime and system information", "!uptime"),
             ("sp", "Display server profit data with rankings", "!sp [YYYY-MM-DD]"),
             ("tp", "Display total profit graph", "!tp [daily/monthly/all_time]"),
             ("game_np", "Check game performance statistics", "!game_np [game_name]"),
             ("cleardb", "Clear database collections selectively", "!cleardb [all]"),
-            ("adminpanel", "Show this admin panel", "!adminpanel [page]")
+            ("adminpanel", "Show this admin panel", "!adminpanel [page]"),
+            ("adminhelp", "Show complete admin commands help", "!adminhelp")
         ]
         
         server_admin_commands = [
