@@ -612,16 +612,42 @@ class TowerCog(commands.Cog):
             timeout=120  # 2 minute timeout
         )
 
-        await loading_message.delete()
+        try:
+            # First create the game message
+            game_message = await ctx.reply(embed=game_view.create_embed(status="playing"), view=game_view)
+            game_view.message = game_message
 
-        game_message = await ctx.reply(embed=game_view.create_embed(status="playing"), view=game_view)
-        game_view.message = game_message
+            # Only delete loading message after successful game creation
+            try:
+                await loading_message.delete()
+            except:
+                pass  # Ignore deletion errors
 
-        self.ongoing_games[ctx.author.id] = {
-            "game_type": "tower",
-            "game_view": game_view,
-            "start_time": time.time()
-        }
+            self.ongoing_games[ctx.author.id] = {
+                "game_type": "tower",
+                "game_view": game_view,
+                "start_time": time.time()
+            }
+
+        except Exception as e:
+            print(f"Error creating tower game message: {e}")
+            
+            # Refund the bet if game creation fails
+            db = Users()
+            db.update_balance(ctx.author.id, tokens_used, "points", "$inc")
+            
+            # Delete loading message and show error
+            try:
+                await loading_message.delete()
+            except:
+                pass
+            
+            error_embed = discord.Embed(
+                title="<:no:1344252518305234987> | Game Creation Failed",
+                description="There was an error creating your tower game. Your bet has been refunded.",
+                color=0xFF0000
+            )
+            await ctx.reply(embed=error_embed)
 
     async def update_server_history(self, server_id, game, bet_amount, profit, user_id, user_name):
         try:
