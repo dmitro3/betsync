@@ -324,16 +324,25 @@ class WheelCog(commands.Cog):
 
             # Calculate winnings for this spin
             winnings = bet_total * result_multiplier
+            
+            # Hide partial wins (less than 1x) with encouraging display names
+            display_multiplier = result_multiplier
+            display_name = result_name
+            if 0 < result_multiplier < 1.0:
+                display_name = "NEAR MISS"
+                result_emoji = "🟨"  # Yellow for near miss
+                display_multiplier = 0.0  # Show as 0x but still pay the small amount
             total_winnings += winnings
 
             # Add this result to our results list
             spin_results.append({
                 "color": result_color,
                 "emoji": result_emoji,
-                "multiplier": result_multiplier,
+                "multiplier": display_multiplier,
+                "actual_multiplier": result_multiplier,  # Keep actual for calculations
                 "winnings": winnings,
                 "spin_number": spin_num + 1,
-                "name": result_name
+                "name": display_name
             })
 
         # Show instant results with excitement
@@ -420,8 +429,14 @@ class WheelCog(commands.Cog):
                         excitement = " 🏆⚡"
                     elif data['name'] == "SILVER":
                         excitement = " 🥈🔥"
+                    elif data['name'] == "NEAR MISS":
+                        excitement = " 🎯💨"
                     
-                    results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']}x - {data['total_winnings']:.2f} pts{excitement}\n"
+                    # For near miss, show encouraging message instead of multiplier
+                    if data['name'] == "NEAR MISS":
+                        results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - Almost there! - {data['total_winnings']:.2f} pts{excitement}\n"
+                    else:
+                        results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']}x - {data['total_winnings']:.2f} pts{excitement}\n"
 
             special_hits = ""
             legendary_hits = sum(1 for r in spin_results if r['name'] == "LEGENDARY")
@@ -456,11 +471,19 @@ class WheelCog(commands.Cog):
             elif main_result['name'] == "SILVER":
                 excitement_level = " 🥈🔥 SILVER! 🔥🥈"
             
-            embed.add_field(
-                name="🎯 Result",
-                value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']}x{excitement_level}",
-                inline=False
-            )
+            # For single spin display
+            if main_result['name'] == "NEAR MISS":
+                embed.add_field(
+                    name="🎯 Result",
+                    value=f"{main_result['emoji']} **{main_result['name']}** - Almost there!{excitement_level}",
+                    inline=False
+                )
+            else:
+                embed.add_field(
+                    name="🎯 Result",
+                    value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']}x{excitement_level}",
+                    inline=False
+                )
 
         # Add overall result field with profit analysis
         if total_winnings > 0:
@@ -503,7 +526,7 @@ class WheelCog(commands.Cog):
                         "game": "wheel",
                         "bet": bet_total,
                         "amount": result["winnings"],
-                        "multiplier": result["multiplier"],
+                        "multiplier": result.get("actual_multiplier", result["multiplier"]),
                         "timestamp": int(time.time()) + i
                     }
 
@@ -515,7 +538,7 @@ class WheelCog(commands.Cog):
                             "user_name": ctx.author.name,
                             "bet": bet_total,
                             "amount": result["winnings"],
-                            "multiplier": result["multiplier"],
+                            "multiplier": result.get("actual_multiplier", result["multiplier"]),
                             "timestamp": int(time.time()) + i
                         }
                         server_history_entries.append(server_bet_history_entry)
@@ -528,7 +551,7 @@ class WheelCog(commands.Cog):
                         "game": "wheel",
                         "bet": bet_total,
                         "amount": bet_total,
-                        "multiplier": result["multiplier"],
+                        "multiplier": result.get("actual_multiplier", result["multiplier"]),
                         "timestamp": int(time.time()) + i
                     }
 
@@ -540,7 +563,7 @@ class WheelCog(commands.Cog):
                             "user_name": ctx.author.name,
                             "bet": bet_total,
                             "amount": bet_total,
-                            "multiplier": result["multiplier"],
+                            "multiplier": result.get("actual_multiplier", result["multiplier"]),
                             "timestamp": int(time.time()) + i
                         }
                         server_history_entries.append(server_bet_history_entry)
