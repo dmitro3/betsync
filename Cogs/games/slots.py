@@ -183,7 +183,7 @@ class SlotsCog(commands.Cog):
         if bet_amount:
             embed.add_field(
                 name="💰 Bet Amount", 
-                value=f"`{bet_amount:.0f} points`", 
+                value=f"`{bet_amount:.2f} points`", 
                 inline=True
             )
         
@@ -192,12 +192,12 @@ class SlotsCog(commands.Cog):
             profit_indicator = "📈" if profit > 0 else "📉" if profit < 0 else "➖"
             embed.add_field(
                 name="🎉 Total Winnings", 
-                value=f"`{winnings:.0f} points`", 
+                value=f"`{winnings:.2f} points`", 
                 inline=True
             )
             embed.add_field(
                 name=f"{profit_indicator} Net Profit", 
-                value=f"`{profit:+.0f} points`", 
+                value=f"`{profit:+.2f} points`", 
                 inline=True
             )
         
@@ -330,7 +330,7 @@ class SlotsCog(commands.Cog):
                 await loading_message.delete()
                 embed = discord.Embed(
                     title="<:no:1344252518305234987> | Insufficient Balance",
-                    description=f"You need `{total_bet:.0f}` points for {spins} spins but only have `{current_balance:.0f}` points.",
+                    description=f"You need `{total_bet:.2f}` points for {spins} spins but only have `{current_balance:.2f}` points.",
                     color=0xFF0000
                 )
                 return await ctx.reply(embed=embed)
