@@ -783,9 +783,23 @@ class Keno(commands.Cog):
             all_numbers = list(range(1, 21))
             winning_numbers = random.sample(all_numbers, 5)
             
+            # Check for curse before calculating matches
+            admin_curse_cog = self.bot.get_cog("AdminCurseCog")
+            player_cursed = False
+            if admin_curse_cog and admin_curse_cog.is_player_cursed(ctx.author.id):
+                player_cursed = True
+
             # Find matching numbers
             matches = [num for num in selected_numbers if num in winning_numbers]
             num_matches = len(matches)
+
+            # Force no matches if player is cursed
+            if player_cursed and num_matches > 0:
+                # Remove matches to ensure loss
+                matches = []
+                num_matches = 0
+                # Consume the curse
+                admin_curse_cog.consume_curse(ctx.author.id)
             
             # Calculate winnings
             multiplier = PAYOUTS.get(num_selected, {}).get(num_matches, 0)

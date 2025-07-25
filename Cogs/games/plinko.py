@@ -139,7 +139,7 @@ class PlinkoGame:
             # Update database for the user's balance
             db = Users()
             user_data = db.fetch_user(self.user_id)
-            
+
             # Points will be deducted only when ball is dropped and multiplier > 0
             points_used = self.bet_amount
 
@@ -150,7 +150,7 @@ class PlinkoGame:
 
             # Add to history
             total_profit = self.win_amount - (self.drops * self.bet_amount)
-            
+
             # Determine entry type based on profit
             entry_type = "win" if total_profit > 0 else "loss" if total_profit < 0 else "push"
 
@@ -551,13 +551,13 @@ class PlinkoView(discord.ui.View):
             # Check if user has enough balance for another bet
             db = Users()
             user_data = db.fetch_user(self.game.user_id)
-            
+
             # Check points balance - handle case where user_data might be False/None
             if not user_data or not isinstance(user_data, dict):
                 user_balance = 0
             else:
                 user_balance = user_data.get("points", 0)
-            
+
             if user_balance < self.game.bet_amount:
                 # Not enough balance for another drop
                 error_embed = discord.Embed(
@@ -571,7 +571,7 @@ class PlinkoView(discord.ui.View):
                 self.drop_button.disabled = True  # Disable drop button
                 self.stop_button.disabled = False if self.game.drops >= 1 else True
                 await self.game.message.edit(view=self)
-                
+
                 # End the game if insufficient balance, but player has dropped at least one ball
                 if self.game.drops >= 1:
                     await self.game.end_game(interaction)
@@ -580,7 +580,7 @@ class PlinkoView(discord.ui.View):
                     if self.game.ctx.author.id in self.game.cog.ongoing_games:
                         del self.game.cog.ongoing_games[self.game.ctx.author.id]
                     self.game.running = False
-                
+
                 return
 
             # Drop the ball

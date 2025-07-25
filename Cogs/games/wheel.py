@@ -1,4 +1,3 @@
-
 import discord
 import asyncio
 import random
@@ -21,12 +20,12 @@ class WheelSelectionView(discord.ui.View):
     async def spin_wheel(self, button, interaction: discord.Interaction):
         if interaction.user.id != self.ctx.author.id:
             return await interaction.response.send_message("This is not your game!", ephemeral=True)
-        
+
         # Disable button to prevent multiple clicks
         button.disabled = True
         await interaction.response.defer()
         await interaction.message.edit(view=self)
-        
+
         # Start the wheel spin instantly
         await self.cog.start_wheel_spin(self.ctx, interaction, self.bet_amount, self.spins, self.game_id)
 
@@ -38,7 +37,7 @@ class WheelSelectionView(discord.ui.View):
         if self.message:
             try:
                 await self.message.edit(view=self)
-                
+
                 # Remove from ongoing games
                 if self.game_id in self.cog.ongoing_games:
                     del self.cog.ongoing_games[self.game_id]
@@ -121,7 +120,7 @@ class WheelCog(commands.Cog):
         }
         # Calculate total chance (now uses weighted system for better precision)
         self.total_chance = 1000  # Using 1000 for precise decimal chances
-        
+
         # Convert percentages to weighted ranges for precise probability
         self.weighted_colors = []
         for color, data in self.colors.items():
@@ -147,7 +146,7 @@ class WheelCog(commands.Cog):
                     "**🚀 Quick Start:**\n"
                     "> `!wheel <amount> [spins]`\n"
                     "> `!wheel 100 5` - Bet 100 on each of 5 spins (500 total)!\n\n"
-                    
+
                     "**🎨 Wheel Zones & Multipliers:**\n"
                     "> ⚫ **BUST** - 0x (65% chance) - Game over!\n"
                     "> 🟡 **BRONZE** - 1.5x (20% chance) - Small win!\n"
@@ -156,13 +155,13 @@ class WheelCog(commands.Cog):
                     "> 🟢 **DIAMOND** - 8x (2% chance) - Amazing win!\n"
                     "> 🟣 **RUBY** - 15x (0.8% chance) - Epic win!\n"
                     "> 🟠 **LEGENDARY** - 25x (0.2% chance) - ULTIMATE!\n\n"
-                    
+
                     "**⚡ Features:**\n"
                     "> • Instant results - no waiting!\n"
                     "> • Multi-spin capability (max 15)\n"
                     "> • Quick action buttons\n"
                     "> • Progressive excitement\n\n"
-                    
+
                     "```diff\n"
                     "+ Ready for instant fortune? Let's spin! 🎰\n"
                     "```"
@@ -202,10 +201,10 @@ class WheelCog(commands.Cog):
 
         # Process bet amount using currency_helper
         from Cogs.utils.currency_helper import process_bet_amount
-        
+
         # Initialize database connection
         db = Users()
-        
+
         # For multiple spins, we need to calculate the total bet first
         if spins > 1:
             # First validate the base bet amount
@@ -221,11 +220,11 @@ class WheelCog(commands.Cog):
                             color=0xFF0000
                         )
                         return await ctx.reply(embed=embed)
-                    
+
                     available_balance = user_data.get("points", 0)
                     bet_amount_value = available_balance // spins  # Per spin amount
                     total_bet_needed = bet_amount_value * spins
-                    
+
                     if bet_amount_value <= 0:
                         await loading_message.delete()
                         embed = discord.Embed(
@@ -237,7 +236,7 @@ class WheelCog(commands.Cog):
                 else:
                     bet_amount_value = float(bet_amount)
                     total_bet_needed = bet_amount_value * spins
-                    
+
                 # Check if user has enough for total bet
                 user_data = db.fetch_user(ctx.author.id)
                 current_balance = user_data.get("points", 0)
@@ -249,11 +248,11 @@ class WheelCog(commands.Cog):
                         color=0xFF0000
                     )
                     return await ctx.reply(embed=embed)
-                
+
                 # Deduct the total amount
                 db.update_balance(ctx.author.id, -total_bet_needed, "points", "$inc")
                 tokens_used = 0
-                
+
             except ValueError:
                 await loading_message.delete()
                 embed = discord.Embed(
@@ -265,12 +264,12 @@ class WheelCog(commands.Cog):
         else:
             # Single spin - use normal process_bet_amount
             success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
-            
+
             # If processing failed, return the error
             if not success:
                 await loading_message.delete() 
                 return await ctx.reply(embed=error_embed)
-                
+
             # Extract needed values from bet_info
             tokens_used = bet_info["tokens_used"]
             total_bet = bet_info["total_bet_amount"]
@@ -279,7 +278,7 @@ class WheelCog(commands.Cog):
         # Generate unique game ID
         import uuid
         game_id = str(uuid.uuid4())
-            
+
         # Mark game as ongoing
         self.ongoing_games[game_id] = {
             "user_id": ctx.author.id,
@@ -324,7 +323,7 @@ class WheelCog(commands.Cog):
 
             # Calculate winnings for this spin
             winnings = bet_total * result_multiplier
-            
+
             # Keep original display values for consistency
             display_multiplier = result_multiplier
             display_name = result_name
@@ -373,7 +372,7 @@ class WheelCog(commands.Cog):
             wins_count = 0
             diamond_hits = 0
             gold_hits = 0
-            
+
             # Group results by color for cleaner display
             color_counts = {}
             for result in spin_results:
@@ -408,10 +407,10 @@ class WheelCog(commands.Cog):
         else:
             # Single spin - show main result
             main_result = spin_results[0]
-            
+
             embed.add_field(
                 name="🎯 Result",
-                value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']:.2f}x",
+                value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']:.2f}",
                 inline=False
             )
 

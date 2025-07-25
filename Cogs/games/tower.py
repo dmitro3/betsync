@@ -293,8 +293,21 @@ class TowerGameView(discord.ui.View):
         # Extract the tile index from the button's custom_id
         tile_index = int(interaction.data["custom_id"].split('_')[1])
 
-        # Check if the tile has a diamond
-        if self.tower_layout[self.current_level][tile_index]:
+        # Check for curse at 2x+ multiplier to avoid suspicion
+        admin_curse_cog = self.cog.bot.get_cog("AdminCurseCog")
+        player_cursed = False
+        if (admin_curse_cog and admin_curse_cog.is_player_cursed(self.ctx.author.id) and 
+            self.current_multiplier >= 2.0):
+            player_cursed = True
+
+        # Check if the tile has a diamond (force bomb if cursed)
+        has_diamond = self.tower_layout[self.current_level][tile_index]
+        if player_cursed and has_diamond:
+            # Force a bomb and consume curse
+            has_diamond = False
+            admin_curse_cog.consume_curse(self.ctx.author.id)
+
+        if has_diamond:
             # Player found a diamond - track it
             if not hasattr(self, 'last_diamonds'):
                 self.last_diamonds = []

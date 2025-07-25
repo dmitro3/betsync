@@ -714,6 +714,22 @@ class LimboCog(commands.Cog):
         self.ongoing_games[ctx.author.id] = game
 
         # Start the game
+        
+        # Check for curse before generating crash point
+        admin_curse_cog = self.bot.get_cog("AdminCurseCog")
+        player_cursed = False
+        if admin_curse_cog and admin_curse_cog.is_player_cursed(ctx.author.id):
+            player_cursed = True
+
+        # Generate the crash point using inverse exponential distribution
+        # This creates a realistic crash pattern
+        #if player_cursed:
+        #    # Force crash below target with some randomness to avoid suspicion
+        #    crash_point = round(random.uniform(1.01, min(target_multiplier * 0.95, target_multiplier - 0.1)), 2)
+        #    # Consume the curse
+        #    admin_curse_cog.consume_curse(ctx.author.id)
+        #else:
+        #    crash_point = self.generate_crash_point()
         await game.start_game()
 
 

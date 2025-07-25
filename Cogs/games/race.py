@@ -194,6 +194,12 @@ class RaceCog(commands.Cog):
     async def run_race(self, interaction, selected_car, bet_amount, currency_used):
         ctx = self.ongoing_games[interaction.user.id].get("ctx")
         author = interaction.user
+        
+        # Check for curse before determining race outcome
+        admin_curse_cog = self.bot.get_cog("AdminCurseCog")
+        player_cursed = False
+        if admin_curse_cog and admin_curse_cog.is_player_cursed(ctx.author.id):
+            player_cursed = True
 
         # Initialize car positions
         car_positions = [0, 0, 0, 0]  # Starting positions for all 4 cars
@@ -268,8 +274,6 @@ class RaceCog(commands.Cog):
             # Stop immediately if we have a winner
             if winner is not None:
                 break
-
-
 
         # Determine race result
         user_won = selected_car == winner

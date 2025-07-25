@@ -193,11 +193,29 @@ class BlackjackView(discord.ui.View):
 
         self.game_over = True
 
+        # Check for curse before dealer plays
+        admin_curse_cog = self.cog.bot.get_cog("AdminCurseCog")
+        player_cursed = False
+        if admin_curse_cog and admin_curse_cog.is_player_cursed(self.ctx.author.id):
+            player_cursed = True
+
         # Dealer draws cards until they reach 17 or higher
         dealer_value = self.calculate_hand_value(self.dealer_cards)
         while dealer_value < 17:
             self.dealer_cards.append(self.draw_card())
             dealer_value = self.calculate_hand_value(self.dealer_cards)
+
+        # Force dealer win if player is cursed
+        if player_cursed and dealer_value <= 21:
+            # Ensure dealer beats player by drawing more cards if needed
+            while dealer_value <= player_value and dealer_value <= 21:
+                if len(self.dealer_cards) < 5:  # Safety limit
+                    self.dealer_cards.append(self.draw_card())
+                    dealer_value = self.calculate_hand_value(self.dealer_cards)
+                else:
+                    break
+            # Consume the curse
+            admin_curse_cog.consume_curse(self.ctx.author.id)
 
         # Calculate final hand values
         player_value = self.calculate_hand_value(self.player_cards)
