@@ -58,11 +58,19 @@ async def process_bet_amount(ctx, bet_amount, loading_message=None, user=None):
             # Convert bet amount to a float
             bet_amount_value = float(bet_amount)
 
-            # Ensure bet amount is positive
+            # Validate bet amount is positive and at least 1
             if bet_amount_value <= 0:
                 error_embed = discord.Embed(
-                    title="<:no:1344252518305234987> | Invalid Bet Amount",
+                    title="<:no:1344252518305234987> | Invalid Amount",
                     description="Bet amount must be greater than 0.",
+                    color=0xFF0000
+                )
+                return False, None, error_embed
+
+            if bet_amount_value < 1:
+                error_embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Minimum Bet Required",
+                    description="Minimum bet amount is 1 point.",
                     color=0xFF0000
                 )
                 return False, None, error_embed
