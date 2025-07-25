@@ -12,7 +12,7 @@ class CopyStatusView(discord.ui.View):
         self.required_status = required_status
 
     @discord.ui.button(label="Copy Status Text", style=discord.ButtonStyle.primary, emoji="📋")
-    async def copy_status(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def copy_status(self, button: discord.ui.Button, interaction: discord.Interaction):
         embed = discord.Embed(
             title="📋 | Copy This Status",
             description=f"Copy and paste this exact text into your Discord status:\n\n```{self.required_status}```",
