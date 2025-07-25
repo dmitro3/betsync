@@ -124,9 +124,22 @@ class DiceCog(commands.Cog):
             # Wait for dramatic effect
             await asyncio.sleep(2)
 
-            # Roll the dice
+            # Check if player is cursed to lose
+            curse_cog = self.bot.get_cog('AdminCurseCog')
+            player_cursed = False
+            if curse_cog and curse_cog.is_player_cursed(ctx.author.id):
+                player_cursed = True
+
+            # Random dice rolls for player and dealer (1-6)
             user_roll = random.randint(1, 6)
             dealer_roll = random.randint(1, 6)
+
+            # Force loss if player is cursed
+            if player_cursed:
+                # Make sure player loses
+                if user_roll >= dealer_roll:
+                    dealer_roll = user_roll + random.randint(1, 6 - user_roll) if user_roll < 6 else 6
+                    user_roll = random.randint(1, dealer_roll - 1) if dealer_roll > 1 else 1
 
             # Use custom dice emojis
             dice_emojis = {
@@ -154,7 +167,7 @@ class DiceCog(commands.Cog):
                 # Calculate tie winnings (0.8x multiplier)
                 tie_winnings = round(total_bet * tie_multiplier, 2)
                 tie_loss = round(total_bet - tie_winnings, 2)
-                
+
                 result_embed = discord.Embed(
                     title="🎲 | Dice Game - It's a Draw!",
                     description=(
@@ -202,9 +215,12 @@ class DiceCog(commands.Cog):
                 servers_db.update_server_profit(ctx, ctx.guild.id, server_profit, game="dice")
 
                 # Add to history
-                
+
 
             else:
+                # Consume curse if player was cursed
+                if player_cursed and curse_cog:
+                    was_cursed, curse_complete = curse_cog.force_loss(ctx.author.id)
                 result_embed = discord.Embed(
                     title="🎲 | Dice Game - You Lost 😢",
                     description=(
@@ -220,7 +236,7 @@ class DiceCog(commands.Cog):
                 db = Users()
                 servers_db = Servers()
 
-                
+
 
                 # Update server profit
                 servers_db.update_server_profit(ctx, ctx.guild.id, total_bet, game="dice")
@@ -286,11 +302,21 @@ class DiceCog(commands.Cog):
         except Exception as e:
             print(f"Error in dice game: {e}")
             # Try to send error message to user
-            
+
         finally:
             # Remove the game from ongoing games
             if ctx.author.id in self.ongoing_games:
                 del self.ongoing_games[ctx.author.id]
+
+    async def process_loss(self, ctx, bet_amount, message, player_roll, dealer_roll, was_cursed=False):
+        # Create loss embed
+        curse_text = "\n\n💀 **You were cursed to lose this game!**" if was_cursed else ""
+        embed = discord.Embed(
+            title="🎲 | Dice Game Result",
+            description=f"**You rolled:** {player_roll}\n**Dealer rolled:** {dealer_roll}\n\n{'**TIE!** ' if player_roll == dealer_roll else ''}You lost {bet_amount:.2f} points!{curse_text}",
+            color=0xFF0000
+        )
+        await message.edit(embed=embed)
 
 def setup(bot):
     bot.add_cog(DiceCog(bot))
