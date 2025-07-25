@@ -146,7 +146,7 @@ class WheelCog(commands.Cog):
                     "```\n"
                     "**🚀 Quick Start:**\n"
                     "> `!wheel <amount> [spins]`\n"
-                    "> `!wheel 100 5` - Spin 5 times instantly!\n\n"
+                    "> `!wheel 100 5` - Bet 100 on each of 5 spins (500 total)!\n\n"
                     
                     "**🎨 Wheel Zones & Multipliers:**\n"
                     "> ⚫ **BUST** - 0x (65% chance) - Game over!\n"
@@ -203,31 +203,78 @@ class WheelCog(commands.Cog):
         # Process bet amount using currency_helper
         from Cogs.utils.currency_helper import process_bet_amount
         
-        # Process the bet amount for all spins
-        success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
-        
-        # If processing failed, return the error
-        if not success:
-            await loading_message.delete() 
-            return await ctx.reply(embed=error_embed)
+        # For multiple spins, we need to calculate the total bet first
+        if spins > 1:
+            # First validate the base bet amount
+            try:
+                if bet_amount.lower() in ["all", "max"]:
+                    # For "all", divide by spins to get per-spin amount, then multiply back
+                    user_data = db.fetch_user(ctx.author.id)
+                    if user_data == False:
+                        await loading_message.delete()
+                        embed = discord.Embed(
+                            title="<:no:1344252518305234987> | User Not Found",
+                            description="You don't have an account. Please wait for auto-registration or use `!signup`.",
+                            color=0xFF0000
+                        )
+                        return await ctx.reply(embed=embed)
+                    
+                    available_balance = user_data.get("points", 0)
+                    bet_amount_value = available_balance // spins  # Per spin amount
+                    total_bet_needed = bet_amount_value * spins
+                    
+                    if bet_amount_value <= 0:
+                        await loading_message.delete()
+                        embed = discord.Embed(
+                            title="<:no:1344252518305234987> | Insufficient Balance",
+                            description=f"You don't have enough points for {spins} spins.",
+                            color=0xFF0000
+                        )
+                        return await ctx.reply(embed=embed)
+                else:
+                    bet_amount_value = float(bet_amount)
+                    total_bet_needed = bet_amount_value * spins
+                    
+                # Check if user has enough for total bet
+                user_data = db.fetch_user(ctx.author.id)
+                current_balance = user_data.get("points", 0)
+                if current_balance < total_bet_needed:
+                    await loading_message.delete()
+                    embed = discord.Embed(
+                        title="<:no:1344252518305234987> | Insufficient Balance",
+                        description=f"You need `{total_bet_needed:.0f}` points for {spins} spins of `{bet_amount_value:.0f}` each, but only have `{current_balance:.0f}` points.",
+                        color=0xFF0000
+                    )
+                    return await ctx.reply(embed=embed)
+                
+                # Deduct the total amount
+                db.update_balance(ctx.author.id, -total_bet_needed, "points", "$inc")
+                tokens_used = 0
+                
+            except ValueError:
+                await loading_message.delete()
+                embed = discord.Embed(
+                    title="<:no:1344252518305234987> | Invalid Amount",
+                    description="Please enter a valid number or 'all'.",
+                    color=0xFF0000
+                )
+                return await ctx.reply(embed=embed)
+        else:
+            # Single spin - use normal process_bet_amount
+            success, bet_info, error_embed = await process_bet_amount(ctx, bet_amount, loading_message)
             
-        # Extract needed values from bet_info
-        tokens_used = bet_info["tokens_used"]
-        total_bet = bet_info["total_bet_amount"]
-        bet_amount_value = total_bet
+            # If processing failed, return the error
+            if not success:
+                await loading_message.delete() 
+                return await ctx.reply(embed=error_embed)
+                
+            # Extract needed values from bet_info
+            tokens_used = bet_info["tokens_used"]
+            total_bet = bet_info["total_bet_amount"]
+            bet_amount_value = total_bet
         
-        # Verify user has enough for all spins
+        # Initialize database connection
         db = Users()
-        user_data = db.fetch_user(ctx.author.id)
-        
-        if user_data == False:
-            await loading_message.delete()
-            embed = discord.Embed(
-                title="<:no:1344252518305234987> | User Not Found",
-                description="You don't have an account. Please wait for auto-registration or use `!signup`.",
-                color=0xFF0000
-            )
-            return await ctx.reply(embed=embed)
 
         # Generate unique game ID
         import uuid
@@ -256,8 +303,8 @@ class WheelCog(commands.Cog):
         # Store results for all spins
         spin_results = []
         total_winnings = 0
-        bet_total = bet_amount / spins if spins > 1 else bet_amount
-        total_bet_amount = bet_total * spins
+        bet_total = bet_amount  # Each spin uses the full bet amount
+        total_bet_amount = bet_total * spins  # Total deducted is bet × spins
 
         # Calculate results for each spin instantly
         for spin_num in range(spins):
