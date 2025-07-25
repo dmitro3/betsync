@@ -297,8 +297,8 @@ class WheelCog(commands.Cog):
         if game_id in self.ongoing_games:
             del self.ongoing_games[game_id]
 
-        # Calculate results for all spins with proper house edge (25%)
-        house_edge = 0.25  # 25% house edge for casino protection
+        # Calculate results for all spins with improved house edge (15%)
+        house_edge = 0.15  # 15% house edge for better player experience
 
         # Store results for all spins
         spin_results = []
@@ -316,7 +316,7 @@ class WheelCog(commands.Cog):
             result_emoji = self.colors[result_color]["emoji"]
             result_name = self.colors[result_color]["name"]
 
-            # Apply house edge to multiplier (25% reduction on all wins)
+            # Apply house edge to multiplier (15% reduction on all wins)
             if base_multiplier > 0:
                 result_multiplier = base_multiplier * (1 - house_edge)
             else:
@@ -325,13 +325,9 @@ class WheelCog(commands.Cog):
             # Calculate winnings for this spin
             winnings = bet_total * result_multiplier
             
-            # Hide partial wins (less than 1x) with encouraging display names
+            # Keep original display values for consistency
             display_multiplier = result_multiplier
             display_name = result_name
-            if 0 < result_multiplier < 1.0:
-                display_name = "NEAR MISS"
-                result_emoji = "🟨"  # Yellow for near miss
-                display_multiplier = 0.0  # Show as 0x but still pay the small amount
             total_winnings += winnings
 
             # Add this result to our results list
@@ -353,7 +349,7 @@ class WheelCog(commands.Cog):
         # Determine overall result
         net_profit = total_winnings - total_bet_amount
         
-        # Create result embed with excitement levels
+        # Create result embed with excitement levels - use consistent titles for any win
         if total_winnings > 0:
             if net_profit >= total_bet_amount * 5:  # 5x+ profit
                 title = "🔥💎 **LEGENDARY WIN! DIAMOND FORTUNE!** 💎🔥"
@@ -368,9 +364,10 @@ class WheelCog(commands.Cog):
                 color = 0x00FF00
                 result_icon = "<:yes:1355501647538815106>"
             else:
-                title = "🎰💫 **PARTIAL WIN!** 💫🎰"
-                color = 0xFFA500
-                result_icon = "🟡"
+                # Even partial wins get positive messaging to keep consistency
+                title = "✨💰 **GREAT WIN! PROFIT SECURED!** 💰✨"
+                color = 0x00FF00
+                result_icon = "<:yes:1355501647538815106>"
         else:
             title = "💸⚫ **BUST! TRY AGAIN!** ⚫💸"
             color = 0xFF4444
@@ -429,14 +426,11 @@ class WheelCog(commands.Cog):
                         excitement = " 🏆⚡"
                     elif data['name'] == "SILVER":
                         excitement = " 🥈🔥"
-                    elif data['name'] == "NEAR MISS":
-                        excitement = " 🎯💨"
+                    elif data['name'] == "BRONZE":
+                        excitement = " 🥉⚡"
                     
-                    # For near miss, show encouraging message instead of multiplier
-                    if data['name'] == "NEAR MISS":
-                        results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - Almost there! - {data['total_winnings']:.2f} pts{excitement}\n"
-                    else:
-                        results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']}x - {data['total_winnings']:.2f} pts{excitement}\n"
+                    # Show consistent format for all wins
+                    results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']:.2f}x - {data['total_winnings']:.2f} pts{excitement}\n"
 
             special_hits = ""
             legendary_hits = sum(1 for r in spin_results if r['name'] == "LEGENDARY")
@@ -470,20 +464,15 @@ class WheelCog(commands.Cog):
                 excitement_level = " 🏆⚡ GOLD! ⚡🏆"
             elif main_result['name'] == "SILVER":
                 excitement_level = " 🥈🔥 SILVER! 🔥🥈"
+            elif main_result['name'] == "BRONZE":
+                excitement_level = " 🥉⚡ BRONZE! ⚡🥉"
             
-            # For single spin display
-            if main_result['name'] == "NEAR MISS":
-                embed.add_field(
-                    name="🎯 Result",
-                    value=f"{main_result['emoji']} **{main_result['name']}** - Almost there!{excitement_level}",
-                    inline=False
-                )
-            else:
-                embed.add_field(
-                    name="🎯 Result",
-                    value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']}x{excitement_level}",
-                    inline=False
-                )
+            # Consistent display for all results
+            embed.add_field(
+                name="🎯 Result",
+                value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']:.2f}x{excitement_level}",
+                inline=False
+            )
 
         # Add overall result field with profit analysis
         if total_winnings > 0:
