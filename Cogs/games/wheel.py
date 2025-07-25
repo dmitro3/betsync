@@ -346,30 +346,13 @@ class WheelCog(commands.Cog):
 
     async def show_wheel_results(self, ctx, message, spin_results, bet_total, total_bet_amount, total_winnings, spins):
         """Show the final wheel results with exciting presentation"""
-        # Determine overall result
-        net_profit = total_winnings - total_bet_amount
-        
-        # Create result embed with excitement levels - use consistent titles for any win
+        # Create result embed - use consistent titles for any win
         if total_winnings > 0:
-            if net_profit >= total_bet_amount * 5:  # 5x+ profit
-                title = "🔥💎 **LEGENDARY WIN! DIAMOND FORTUNE!** 💎🔥"
-                color = 0x00FF88
-                result_icon = "💎"
-            elif net_profit >= total_bet_amount * 2:  # 2x+ profit
-                title = "🎉🏆 **AMAZING WIN! GOLD RUSH!** 🏆🎉"
-                color = 0xFFD700
-                result_icon = "🏆"
-            elif net_profit > 0:
-                title = "✨💰 **GREAT WIN! PROFIT SECURED!** 💰✨"
-                color = 0x00FF00
-                result_icon = "<:yes:1355501647538815106>"
-            else:
-                # Even partial wins get positive messaging to keep consistency
-                title = "✨💰 **GREAT WIN! PROFIT SECURED!** 💰✨"
-                color = 0x00FF00
-                result_icon = "<:yes:1355501647538815106>"
+            title = "🎰 **WHEEL RESULT** 🎰"
+            color = 0x00FF00
+            result_icon = "<:yes:1355501647538815106>"
         else:
-            title = "💸⚫ **BUST! TRY AGAIN!** ⚫💸"
+            title = "🎰 **WHEEL RESULT** 🎰"
             color = 0xFF4444
             result_icon = "<:no:1344252518305234987>"
 
@@ -412,77 +395,32 @@ class WheelCog(commands.Cog):
                 elif result['name'] == "GOLD":
                     gold_hits += 1
 
-            # Display grouped results with excitement
+            # Display grouped results
             for color, data in color_counts.items():
                 if data['count'] > 0:
-                    excitement = ""
-                    if data['name'] == "LEGENDARY":
-                        excitement = " 🔥💫"
-                    elif data['name'] == "RUBY":
-                        excitement = " 🟣✨"
-                    elif data['name'] == "DIAMOND":
-                        excitement = " 💎✨"
-                    elif data['name'] == "GOLD":
-                        excitement = " 🏆⚡"
-                    elif data['name'] == "SILVER":
-                        excitement = " 🥈🔥"
-                    elif data['name'] == "BRONZE":
-                        excitement = " 🥉⚡"
-                    
-                    # Show consistent format for all wins
-                    results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']:.2f}x - {data['total_winnings']:.2f} pts{excitement}\n"
-
-            special_hits = ""
-            legendary_hits = sum(1 for r in spin_results if r['name'] == "LEGENDARY")
-            ruby_hits = sum(1 for r in spin_results if r['name'] == "RUBY")
-            
-            if legendary_hits > 0:
-                special_hits += f" 🔥 {legendary_hits} LEGENDARY HIT{'S' if legendary_hits > 1 else ''}!"
-            if ruby_hits > 0:
-                special_hits += f" 💎 {ruby_hits} RUBY HIT{'S' if ruby_hits > 1 else ''}!"
-            if diamond_hits > 0:
-                special_hits += f" 💎 {diamond_hits} DIAMOND HIT{'S' if diamond_hits > 1 else ''}!"
-            if gold_hits > 0:
-                special_hits += f" 🏆 {gold_hits} GOLD HIT{'S' if gold_hits > 1 else ''}!"
+                    results_summary += f"{data['emoji']} **{data['name']}** x{data['count']} - {data['multiplier']:.2f}x - {data['total_winnings']:.2f} pts\n"
 
             embed.add_field(
-                name=f"🎰 Spin Results ({wins_count}/{spins} wins){special_hits}",
+                name=f"🎰 Spin Results ({wins_count}/{spins} wins)",
                 value=results_summary,
                 inline=False
             )
         else:
-            # Single spin - show main result with excitement
+            # Single spin - show main result
             main_result = spin_results[0]
-            excitement_level = ""
-            if main_result['name'] == "LEGENDARY":
-                excitement_level = " 🔥💫 LEGENDARY! 💫🔥"
-            elif main_result['name'] == "RUBY":
-                excitement_level = " 🟣✨ RUBY! ✨🟣"
-            elif main_result['name'] == "DIAMOND":
-                excitement_level = " 💎✨ DIAMOND! ✨💎"
-            elif main_result['name'] == "GOLD":
-                excitement_level = " 🏆⚡ GOLD! ⚡🏆"
-            elif main_result['name'] == "SILVER":
-                excitement_level = " 🥈🔥 SILVER! 🔥🥈"
-            elif main_result['name'] == "BRONZE":
-                excitement_level = " 🥉⚡ BRONZE! ⚡🥉"
             
-            # Consistent display for all results
             embed.add_field(
                 name="🎯 Result",
-                value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']:.2f}x{excitement_level}",
+                value=f"{main_result['emoji']} **{main_result['name']}** - {main_result['multiplier']:.2f}x",
                 inline=False
             )
 
-        # Add overall result field with profit analysis
+        # Add overall result field with winnings
         if total_winnings > 0:
-            profit_percentage = (net_profit / total_bet_amount) * 100
             embed.add_field(
                 name=f"🏆 Final Results",
                 value=(
                     f"**💰 Total Winnings:** {total_winnings:.2f} points\n"
-                    f"**📈 Net Profit:** {net_profit:+.2f} points\n"
-                    f"**🔥 Profit Rate:** {profit_percentage:+.1f}%\n"
                     f"**⚡ Multiplier:** {total_winnings/total_bet_amount:.2f}x"
                 ),
                 inline=False
@@ -582,11 +520,10 @@ class WheelCog(commands.Cog):
         else:
             # Complete loss (all bust)
             embed.add_field(
-                name="💸 Game Over",
+                name="💸 Results",
                 value=(
                     f"**💸 Total Loss:** {total_bet_amount:.2f} points\n"
-                    f"**🎰 All spins hit BUST zone!**\n"
-                    f"**⚡ Ready for instant revenge?**"
+                    f"**🎰 All spins hit BUST zone**"
                 ),
                 inline=False
             )
