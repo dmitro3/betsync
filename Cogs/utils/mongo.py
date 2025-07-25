@@ -36,33 +36,29 @@ class Users:
         else:
             return False
 
-    def update_balance(self, user_id, amount, currency_type="points", operation="$inc"):
-        """Updates the balance field for the specified user.
-
-        Args:
-            user_id (int): The Discord ID of the user.
-            amount (float): The amount to update.
-            currency_type (str, optional): Kept for backwards compatibility. Default is "tokens".
-            operation (str, optional): The MongoDB operation to perform, "$set" or "$inc". Defaults to "$set".
-
-        Returns:
-            dict: The response from MongoDB.
-        """
+    def update_balance(self, user_id, amount, currency="points", operation="$inc"):
         try:
-            if operation == "$set":
-                response = self.collection.update_one(
-                    {"discord_id": user_id},
-                    {"$set": {"points": amount}}
-                )
-            else:  # $inc
-                response = self.collection.update_one(
-                    {"discord_id": user_id},
-                    {"$inc": {"points": amount}}
-                )
-            self.save(user_id)
-            return response
+            result = self.collection.update_one(
+                {"discord_id": user_id},
+                {operation: {currency: amount}},
+                upsert=True
+            )
+            return result
         except Exception as e:
             print(f"Error updating balance: {e}")
+            return None
+
+    def track_lifetime_deposit(self, user_id, points_amount):
+        """Track lifetime deposit points for daily reward persistence"""
+        try:
+            result = self.collection.update_one(
+                {"discord_id": user_id},
+                {"$inc": {"lifetime_deposit_points": points_amount}},
+                upsert=True
+            )
+            return result
+        except Exception as e:
+            print(f"Error tracking lifetime deposit: {e}")
             return None
 
     def update_history(self, user_id, history_entry):
@@ -76,37 +72,37 @@ class Users:
         except Exception as e:
             print(f"Error updating user history: {e}")
             return False
-            
+
     def save(self, user_id):
         """
         Syncs a user's wallet based on their points and primary coin.
         Updates the wallet value based on how many points the user has.
-        
+
         Args:
             user_id (int): The Discord ID of the user.
-            
+
         Returns:
             bool: True if successful, False otherwise.
         """
         from colorama import Fore, Style
         import datetime
         import time
-        
+
         # Rate limiting: only save once per second per user
         current_time = time.time()
         last_save_time = self._last_save_times.get(user_id, 0)
         if current_time - last_save_time < 1.0:  # Less than 1 second since last save
             return True  # Skip this save operation
-        
+
         self._last_save_times[user_id] = current_time
-        
+
         try:
             # Get user data
             user_data = self.fetch_user(user_id)
             if not user_data:
                 print(f"{Fore.RED}[!] {Fore.WHITE}Cannot save user {Fore.RED}{user_id}{Fore.WHITE}: User not found")
                 return False
-                
+
             # Currency conversion rates from main.py
             crypto_values = {
                 "BTC": 0.00000024,  # 1 point = 0.00000024 btc
@@ -115,7 +111,7 @@ class Users:
                 "USDT": 0.0212,     # 1 point = 0.0212 usdt
                 "SOL": 0.0001442    # 1 point = 0.0001442 sol
             }
-            
+
             # Get current primary coin and points
             current_primary_coin = user_data.get("primary_coin", "BTC")
             points = user_data.get("points", 0)
@@ -126,13 +122,13 @@ class Users:
                 "LTC": 0,
                 "USDT": 0
             })
-            
+
             # Calculate wallet amount based on the points the user has
             current_coin_amount = points * crypto_values[current_primary_coin]
-            
+
             # Update wallet with current coin value
             wallet[current_primary_coin] = current_coin_amount
-            
+
             # Update database with the wallet value
             update_result = self.collection.update_one(
                 {"discord_id": user_id},
@@ -142,13 +138,13 @@ class Users:
                     }
                 }
             )
-            
+
             # Log the action with timestamp
             rn = datetime.datetime.now().strftime("%X")
             print(f"{Fore.GREEN}[+] {Fore.WHITE}{rn} Synced user {Fore.CYAN}{user_id}{Fore.WHITE} wallet: {Fore.YELLOW}{current_primary_coin}={current_coin_amount:.8f}{Fore.WHITE} from {Fore.GREEN}{points}{Fore.WHITE} points")
-            
+
             return True
-            
+
         except Exception as e:
             rn = datetime.datetime.now().strftime("%X")
             print(f"{Fore.RED}[!] {Fore.WHITE}{rn} Error saving user {user_id}: {Fore.RED}{str(e)}{Fore.WHITE}")
