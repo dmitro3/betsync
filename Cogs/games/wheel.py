@@ -109,18 +109,24 @@ class WheelCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.ongoing_games = {}
-        # Define color multipliers with high-risk, high-reward tiers
+        # Define color multipliers with proper house edge (casino-favorable)
         self.colors = {
-            "gray": {"emoji": "⚫", "multiplier": 0, "chance": 50, "name": "BUST"},
-            "yellow": {"emoji": "🟡", "multiplier": 2.0, "chance": 25, "name": "BRONZE"},
-            "red": {"emoji": "🔴", "multiplier": 4.0, "chance": 12, "name": "SILVER"},
-            "blue": {"emoji": "🔵", "multiplier": 8.0, "chance": 6, "name": "GOLD"},
-            "green": {"emoji": "🟢", "multiplier": 15.0, "chance": 4, "name": "DIAMOND"},
-            "purple": {"emoji": "🟣", "multiplier": 25.0, "chance": 2, "name": "RUBY"},
-            "orange": {"emoji": "🟠", "multiplier": 50.0, "chance": 1, "name": "LEGENDARY"}
+            "gray": {"emoji": "⚫", "multiplier": 0, "chance": 65, "name": "BUST"},
+            "yellow": {"emoji": "🟡", "multiplier": 1.5, "chance": 20, "name": "BRONZE"},
+            "red": {"emoji": "🔴", "multiplier": 2.5, "chance": 8, "name": "SILVER"},
+            "blue": {"emoji": "🔵", "multiplier": 4.0, "chance": 4, "name": "GOLD"},
+            "green": {"emoji": "🟢", "multiplier": 8.0, "chance": 2, "name": "DIAMOND"},
+            "purple": {"emoji": "🟣", "multiplier": 15.0, "chance": 0.8, "name": "RUBY"},
+            "orange": {"emoji": "🟠", "multiplier": 25.0, "chance": 0.2, "name": "LEGENDARY"}
         }
-        # Calculate total chance to verify it sums to 100
-        self.total_chance = sum(color["chance"] for color in self.colors.values())
+        # Calculate total chance (now uses weighted system for better precision)
+        self.total_chance = 1000  # Using 1000 for precise decimal chances
+        
+        # Convert percentages to weighted ranges for precise probability
+        self.weighted_colors = []
+        for color, data in self.colors.items():
+            weight = int(data["chance"] * 10)  # Convert to integer weights
+            self.weighted_colors.extend([color] * weight)
 
     @commands.command(aliases=["wh"])
     async def wheel(self, ctx, bet_amount: str = None, spins: int = 1):
@@ -143,13 +149,13 @@ class WheelCog(commands.Cog):
                     "> `!wheel 100 5` - Spin 5 times instantly!\n\n"
                     
                     "**🎨 Wheel Zones & Multipliers:**\n"
-                    "> ⚫ **BUST** - 0x (50% chance) - Game over!\n"
-                    "> 🟡 **BRONZE** - 2x (25% chance) - Nice win!\n"
-                    "> 🔴 **SILVER** - 4x (12% chance) - Great win!\n"
-                    "> 🔵 **GOLD** - 8x (6% chance) - Amazing win!\n"
-                    "> 🟢 **DIAMOND** - 15x (4% chance) - Epic win!\n"
-                    "> 🟣 **RUBY** - 25x (2% chance) - Legendary!\n"
-                    "> 🟠 **LEGENDARY** - 50x (1% chance) - ULTIMATE!\n\n"
+                    "> ⚫ **BUST** - 0x (65% chance) - Game over!\n"
+                    "> 🟡 **BRONZE** - 1.5x (20% chance) - Small win!\n"
+                    "> 🔴 **SILVER** - 2.5x (8% chance) - Nice win!\n"
+                    "> 🔵 **GOLD** - 4x (4% chance) - Great win!\n"
+                    "> 🟢 **DIAMOND** - 8x (2% chance) - Amazing win!\n"
+                    "> 🟣 **RUBY** - 15x (0.8% chance) - Epic win!\n"
+                    "> 🟠 **LEGENDARY** - 25x (0.2% chance) - ULTIMATE!\n\n"
                     
                     "**⚡ Features:**\n"
                     "> • Instant results - no waiting!\n"
@@ -244,8 +250,8 @@ class WheelCog(commands.Cog):
         if game_id in self.ongoing_games:
             del self.ongoing_games[game_id]
 
-        # Calculate results for all spins with house edge (15%)
-        house_edge = 0.15  # 15% house edge
+        # Calculate results for all spins with proper house edge (25%)
+        house_edge = 0.25  # 25% house edge for casino protection
 
         # Store results for all spins
         spin_results = []
@@ -255,23 +261,15 @@ class WheelCog(commands.Cog):
 
         # Calculate results for each spin instantly
         for spin_num in range(spins):
-            # Normal weighted random selection
-            random_value = random.randint(1, self.total_chance)
-            cumulative = 0
-            result_color = None
-
-            for color, data in self.colors.items():
-                cumulative += data["chance"]
-                if random_value <= cumulative:
-                    result_color = color
-                    break
+            # Use new weighted random selection for precise probabilities
+            result_color = random.choice(self.weighted_colors)
 
             # Get base multiplier for the result
             base_multiplier = self.colors[result_color]["multiplier"]
             result_emoji = self.colors[result_color]["emoji"]
             result_name = self.colors[result_color]["name"]
 
-            # Apply house edge to multiplier (15% reduction on all wins)
+            # Apply house edge to multiplier (25% reduction on all wins)
             if base_multiplier > 0:
                 result_multiplier = base_multiplier * (1 - house_edge)
             else:
