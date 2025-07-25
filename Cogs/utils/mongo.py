@@ -16,6 +16,7 @@ class Users:
     def __init__(self):
         self.db = mongodb["BetSync"]
         self.collection = self.db["users"]
+        self._last_save_times = {}  # Track last save time per user
 
     def get_all_users(self):
         return self.collection.find()
@@ -89,6 +90,15 @@ class Users:
         """
         from colorama import Fore, Style
         import datetime
+        import time
+        
+        # Rate limiting: only save once per second per user
+        current_time = time.time()
+        last_save_time = self._last_save_times.get(user_id, 0)
+        if current_time - last_save_time < 1.0:  # Less than 1 second since last save
+            return True  # Skip this save operation
+        
+        self._last_save_times[user_id] = current_time
         
         try:
             # Get user data
