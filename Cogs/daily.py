@@ -98,7 +98,7 @@ class Daily(commands.Cog):
         required_status_start = "Best Crypto Casino .gg/betsync"
         custom_status_met = False
         
-        if member and member.activity:
+        if member and member.activities:
             for activity in member.activities:
                 if isinstance(activity, discord.CustomActivity) and activity.name:
                     if activity.name.startswith(required_status_start):
