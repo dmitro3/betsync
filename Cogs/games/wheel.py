@@ -109,15 +109,15 @@ class WheelCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.ongoing_games = {}
-        # Define color multipliers with high-risk, high-reward tiers
+        # Define color multipliers with balanced risk-reward tiers
         self.colors = {
-            "gray": {"emoji": "⚫", "multiplier": 0, "chance": 50, "name": "BUST"},
-            "yellow": {"emoji": "🟡", "multiplier": 2.0, "chance": 25, "name": "BRONZE"},
-            "red": {"emoji": "🔴", "multiplier": 4.0, "chance": 12, "name": "SILVER"},
-            "blue": {"emoji": "🔵", "multiplier": 8.0, "chance": 6, "name": "GOLD"},
-            "green": {"emoji": "🟢", "multiplier": 15.0, "chance": 4, "name": "DIAMOND"},
-            "purple": {"emoji": "🟣", "multiplier": 25.0, "chance": 2, "name": "RUBY"},
-            "orange": {"emoji": "🟠", "multiplier": 50.0, "chance": 1, "name": "LEGENDARY"}
+            "gray": {"emoji": "⚫", "multiplier": 0, "chance": 60, "name": "BUST"},
+            "yellow": {"emoji": "🟡", "multiplier": 1.5, "chance": 20, "name": "BRONZE"},
+            "red": {"emoji": "🔴", "multiplier": 2.5, "chance": 10, "name": "SILVER"},
+            "blue": {"emoji": "🔵", "multiplier": 4.0, "chance": 5, "name": "GOLD"},
+            "green": {"emoji": "🟢", "multiplier": 8.0, "chance": 3, "name": "DIAMOND"},
+            "purple": {"emoji": "🟣", "multiplier": 15.0, "chance": 1.5, "name": "RUBY"},
+            "orange": {"emoji": "🟠", "multiplier": 25.0, "chance": 0.5, "name": "LEGENDARY"}
         }
         # Calculate total chance to verify it sums to 100
         self.total_chance = sum(color["chance"] for color in self.colors.values())
@@ -143,13 +143,13 @@ class WheelCog(commands.Cog):
                     "> `!wheel 100 5` - Spin 5 times instantly!\n\n"
                     
                     "**🎨 Wheel Zones & Multipliers:**\n"
-                    "> ⚫ **BUST** - 0x (50% chance) - Game over!\n"
-                    "> 🟡 **BRONZE** - 2x (25% chance) - Nice win!\n"
-                    "> 🔴 **SILVER** - 4x (12% chance) - Great win!\n"
-                    "> 🔵 **GOLD** - 8x (6% chance) - Amazing win!\n"
-                    "> 🟢 **DIAMOND** - 15x (4% chance) - Epic win!\n"
-                    "> 🟣 **RUBY** - 25x (2% chance) - Legendary!\n"
-                    "> 🟠 **LEGENDARY** - 50x (1% chance) - ULTIMATE!\n\n"
+                    "> ⚫ **BUST** - 0x (60% chance) - Game over!\n"
+                    "> 🟡 **BRONZE** - 1.5x (20% chance) - Small win!\n"
+                    "> 🔴 **SILVER** - 2.5x (10% chance) - Good win!\n"
+                    "> 🔵 **GOLD** - 4x (5% chance) - Great win!\n"
+                    "> 🟢 **DIAMOND** - 8x (3% chance) - Amazing win!\n"
+                    "> 🟣 **RUBY** - 15x (1.5% chance) - Epic win!\n"
+                    "> 🟠 **LEGENDARY** - 25x (0.5% chance) - ULTIMATE!\n\n"
                     
                     "**⚡ Features:**\n"
                     "> • Instant results - no waiting!\n"
@@ -244,8 +244,8 @@ class WheelCog(commands.Cog):
         if game_id in self.ongoing_games:
             del self.ongoing_games[game_id]
 
-        # Calculate results for all spins with house edge (15%)
-        house_edge = 0.15  # 15% house edge
+        # Calculate results for all spins with house edge (25%)
+        house_edge = 0.25  # 25% house edge
 
         # Store results for all spins
         spin_results = []
