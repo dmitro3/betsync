@@ -244,34 +244,16 @@ class BaccaratGame(commands.Cog):
             player_score = self.calculate_baccarat_value(player_cards)
             banker_score = self.calculate_baccarat_value(banker_cards)
             
-            # Check for curse before determining winner
-            admin_curse_cog = self.bot.get_cog("AdminCurseCog")
-            player_cursed = False
-            if admin_curse_cog and admin_curse_cog.is_player_cursed(ctx.author.id):
-                player_cursed = True
-
             # Determine winner
-            if player_cursed:
-                # Force player to lose by making their bet wrong
-                if bet_on == "player":
-                    winner = "banker"
-                elif bet_on == "banker":
-                    winner = "player"
-                else:  # bet_on == "tie"
-                    winner = "player" if player_score > banker_score else "banker"
-                win_multiplier = 0
-                # Consume the curse
-                admin_curse_cog.consume_curse(ctx.author.id)
+            if player_score > banker_score:
+                winner = "player"
+                win_multiplier = 1.85 if bet_on == "player" else 0
+            elif banker_score > player_score:
+                winner = "banker"
+                win_multiplier = 1.85 if bet_on == "banker" else 0
             else:
-                if player_score > banker_score:
-                    winner = "player"
-                    win_multiplier = 1.85 if bet_on == "player" else 0
-                elif banker_score > player_score:
-                    winner = "banker"
-                    win_multiplier = 1.85 if bet_on == "banker" else 0
-                else:
-                    winner = "tie"
-                    win_multiplier = 4 if bet_on == "tie" else 0
+                winner = "tie"
+                win_multiplier = 4 if bet_on == "tie" else 0
             
             # Calculate winnings
             win_amount = total_bet * win_multiplier

@@ -37,7 +37,7 @@ class PlayAgainView(discord.ui.View):
             description="Please wait while we process your request...",
             color=0x00FFAE
         )
-
+        
         #loading_message = await interaction.followup.send(embed=loading_embed)
 
         # Get the context for the new game
@@ -146,7 +146,7 @@ class CoinflipCog(commands.Cog):
         # Determine which currency was primarily used for display purposes
         currency_used = "points"
 
-
+       
         currency_display = f"`{bet_amount_value} {currency_used}`"
 
         loading_embed.description = f"Setting up your {currency_display} coinflip game..."
@@ -192,22 +192,9 @@ class CoinflipCog(commands.Cog):
             # Wait for dramatic effect
             await asyncio.sleep(2)
 
-            # Check for curse before determining result
-            admin_curse_cog = self.bot.get_cog("AdminCurseCog")
-            player_cursed = False
-            if admin_curse_cog and admin_curse_cog.is_player_cursed(ctx.author.id):
-                player_cursed = True
-
             # Reset random seed and determine the result
             random.seed()
-
-            # Force loss if player is cursed
-            if player_cursed:
-                result = 'heads' if side == 'tails' else 'tails'
-                # Consume the curse
-                admin_curse_cog.consume_curse(ctx.author.id)
-            else:
-                result = random.choice(['heads', 'tails'])
+            result = random.choice(['heads', 'tails'])
 
             # Use custom coin emojis
             heads_emoji = "<:heads:1344974756448833576>"
@@ -233,17 +220,17 @@ class CoinflipCog(commands.Cog):
             else:
                 server_db = Servers()
                 server_db.update_server_profit(ctx, ctx.guild.id, bet_amount_value, game="coinflip")
+    
 
+            
 
+         
 
+                
 
+                
 
-
-
-
-
-
-
+            
             # Add to user history
             timestamp = int(time.time())
             if user_won:
@@ -272,7 +259,7 @@ class CoinflipCog(commands.Cog):
             db = Users()  # Reinstantiate db
             user_data = db.fetch_user(ctx.author.id)
 
-
+            
             currency_display = f"`{bet_amount_value} {currency_used}`"
 
             # Prepare result embed

@@ -328,32 +328,20 @@ class HiLoView(discord.ui.View):
 
             return
 
-        # Check for curse - trigger at 1.5x+ multiplier to avoid suspicion
-        admin_curse_cog = self.cog.bot.get_cog("AdminCurseCog")
-        player_cursed = False
-        if (admin_curse_cog and admin_curse_cog.is_player_cursed(self.ctx.author.id) and 
-            self.current_multiplier >= 1.5):
-            player_cursed = True
-
         # Check if the guess is correct
         current_value = self.get_card_value(self.current_card)
         new_value = self.get_card_value(new_card)
 
         # Determine if player won
         won = False
-        if player_cursed:
-            # Force loss and consume curse
-            won = False
-            admin_curse_cog.consume_curse(self.ctx.author.id)
-        else:
-            if choice == "high":
-                # Win if new card is higher or same card from different suit
-                if new_value > current_value or (new_value == current_value and new_card[1] != self.current_card[1]):
-                    won = True
-            elif choice == "low":
-                # Win if new card is lower
-                if new_value < current_value:
-                    won = True
+        if choice == "high":
+            # Win if new card is higher or same card from different suit
+            if new_value > current_value or (new_value == current_value and new_card[1] != self.current_card[1]):
+                won = True
+        elif choice == "low":
+            # Win if new card is lower
+            if new_value < current_value:
+                won = True
 
         # Update the UI based on result
         if won:
