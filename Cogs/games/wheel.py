@@ -203,6 +203,9 @@ class WheelCog(commands.Cog):
         # Process bet amount using currency_helper
         from Cogs.utils.currency_helper import process_bet_amount
         
+        # Initialize database connection
+        db = Users()
+        
         # For multiple spins, we need to calculate the total bet first
         if spins > 1:
             # First validate the base bet amount
@@ -272,9 +275,6 @@ class WheelCog(commands.Cog):
             tokens_used = bet_info["tokens_used"]
             total_bet = bet_info["total_bet_amount"]
             bet_amount_value = total_bet
-        
-        # Initialize database connection
-        db = Users()
 
         # Generate unique game ID
         import uuid
